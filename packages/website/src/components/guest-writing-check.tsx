@@ -6,7 +6,7 @@ import {
   writingSettingsSchema,
   type WritingResult,
 } from "@lib/shared/writing-settings";
-import { loadWritingChecker } from "@/lib/writing/dictionary";
+import { openWritingChecker } from "@/lib/writing/harper";
 import { NATIVE_WRITING_ATTRIBUTE } from "@/lib/writing/settings";
 
 export function GuestWritingCheck() {
@@ -18,11 +18,17 @@ export function GuestWritingCheck() {
   const [result, setResult] = useState<WritingResult>();
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
-  const checker = useRef<ReturnType<typeof loadWritingChecker> | null>(null);
+  const checker = useRef<ReturnType<typeof openWritingChecker> | null>(null);
+  const revision = useRef(0);
   useEffect(() => {
+    const invalidate = () => { revision.current++; };
     document.documentElement.setAttribute(NATIVE_WRITING_ATTRIBUTE, "true");
-    return () =>
+    return () => {
+      invalidate();
+      checker.current?.dispose();
+      checker.current = null;
       document.documentElement.removeAttribute(NATIVE_WRITING_ATTRIBUTE);
+    };
   }, []);
   return (
     <form
@@ -33,15 +39,18 @@ export function GuestWritingCheck() {
         if (busy || !text.trim()) return;
         setBusy(true);
         setError(false);
+        const request = ++revision.current;
         try {
-          checker.current ??= loadWritingChecker();
-          const engine = await checker.current;
-          setResult(engine.check(text, writingSettingsSchema.parse({})));
+          checker.current ??= openWritingChecker();
+          const checked = await checker.current.check(text, writingSettingsSchema.parse({}));
+          if (request === revision.current) setResult(checked);
         } catch {
+          if (request !== revision.current) return;
+          checker.current?.dispose();
           checker.current = null;
           setError(true);
         } finally {
-          setBusy(false);
+          if (request === revision.current) setBusy(false);
         }
       }}
     >
@@ -53,9 +62,10 @@ export function GuestWritingCheck() {
         maxLength={6000}
         spellCheck={false}
         autoComplete="off"
-        readOnly={busy}
         value={text}
         onChange={(event) => {
+          revision.current++;
+          setBusy(false);
           setText(event.target.value);
           setResult(undefined);
           setError(false);
@@ -100,6 +110,10 @@ function quoteExcerpt(text: string) {
 }
 
 function issueExcerpt(issue: WritingResult["issues"][number], text: string) {
+  if (issue.rule === "spacing" && /^[,.:;!?]$/.test(issue.original) && issue.replacements.some(value => value.endsWith(" "))) {
+    const next = text.slice(issue.to).match(/^[\p{L}\p{M}]+/u)?.[0];
+    if (next) return `Missing space before ${quoteExcerpt(next)}`;
+  }
   if (issue.original.trim()) return quoteExcerpt(issue.original.trim());
   // Spacing checks cover either a run of spaces or a zero-length insertion.
   const spaces = issue.original.length;

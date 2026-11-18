@@ -134,6 +134,7 @@ export async function probeDatabase(db: Knex) {
   await db.raw(
     "SELECT account_id, local_date, memory_id FROM daily_notes LIMIT 0",
   );
+  await db.raw("SELECT scope, version, generation, automatic, revoked_at FROM proofing_consents LIMIT 0");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */

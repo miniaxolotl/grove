@@ -5,13 +5,9 @@ import { fileURLToPath, URL } from "node:url";
 import { resolve, join, dirname } from "node:path";
 import { parseArgs, TextEncoder } from "node:util";
 import process from "node:process";
-import { createRequire } from "node:module";
 import { zipSync } from "fflate";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const extensionRequire = createRequire(
-  new URL("../packages/browser-extension/package.json", import.meta.url),
-);
 
 function origin(value) {
   const url = new URL(value);
@@ -95,15 +91,19 @@ export async function buildBrowserExtension({
     size,
   }));
   const packages = [];
-  // Read the pinned data files, never bundle dictionary-en's Node fs loader.
-  const dictionaryDirectory = resolve(
-    extensionRequire.resolve("dictionary-en"),
-    "..",
-  );
-  const dictionary = {
-    aff: await readFile(join(dictionaryDirectory, "index.aff"), "utf8"),
-    dic: await readFile(join(dictionaryDirectory, "index.dic"), "utf8"),
-  };
+  const wasmInput = "lib/shared/node_modules/harper.js/dist/harper_wasm_slim_bg.wasm";
+  const wasm = await readFile(join(root, wasmInput));
+  const worker = await build({
+    absWorkingDir: root,
+    entryPoints: ["lib/shared/src/writing-harper-worker.ts"],
+    outfile: "harper-worker.js",
+    // Markdown entity decoding must be DOM-free in a dedicated worker.
+    conditions: ["worker"],
+    bundle: true, platform: "browser", format: "esm", target: "es2022",
+    // Exclude Harper's Node-only file:// branch from store packages.
+    define: { process: "undefined" },
+    minify: true, legalComments: "eof", metafile: true, write: false,
+  });
   for (const target of report.targets) {
     const config = { apiOrigin, siteOrigin, issuer, target };
     const runtime = await build({
@@ -115,6 +115,7 @@ export async function buildBrowserExtension({
         "packages/browser-extension/src/background.ts",
         "packages/browser-extension/src/panel.ts",
         "packages/browser-extension/src/content.ts",
+        ...(target === "firefox" ? [] : ["packages/browser-extension/src/writing/offscreen.ts"]),
       ],
       bundle: true,
       platform: "browser",
@@ -124,31 +125,17 @@ export async function buildBrowserExtension({
       legalComments: "none",
       sourcemap: false,
       metafile: true,
-      plugins: [
-        {
-          name: "bundled-english-dictionary",
-          setup(builder) {
-            builder.onResolve({ filter: /^grove:english$/ }, () => ({
-              path: "english",
-              namespace: "grove-dictionary",
-            }));
-            builder.onLoad(
-              { filter: /.*/, namespace: "grove-dictionary" },
-              () => ({ contents: JSON.stringify(dictionary), loader: "json" }),
-            );
-          },
-        },
-      ],
       define: { __GROVE_EXTENSION_CONFIG__: JSON.stringify(config) },
       write: false,
       outdir: "runtime",
     });
-    const imports = Object.values(runtime.metafile.outputs).flatMap(
+    const inputs = [...new Set([...Object.keys(runtime.metafile.inputs), ...Object.keys(worker.metafile.inputs)])].sort();
+    const imports = Object.values({...runtime.metafile.outputs, ...worker.metafile.outputs}).flatMap(
       (output) => output.imports,
     );
     if (
       imports.length ||
-      Object.keys(runtime.metafile.inputs).some((input) =>
+      inputs.some((input) =>
         /^(lib\/(database|memory|environment|providers)\/|packages\/mcp\/)/.test(
           input,
         ),
@@ -184,7 +171,7 @@ export async function buildBrowserExtension({
         "contextMenus",
         "clipboardWrite",
         "scripting",
-        ...(target === "firefox" ? [] : ["sidePanel"]),
+        ...(target === "firefox" ? [] : ["sidePanel", "offscreen"]),
       ],
       // Firefox match patterns cannot contain a port. CSP and runtime validation
       // still restrict every request to the exact configured HTTPS origins.
@@ -208,7 +195,7 @@ export async function buildBrowserExtension({
         },
       ],
       content_security_policy: {
-        extension_pages: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src ${apiOrigin} ${issuer}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
+        extension_pages: `default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self' ${apiOrigin} ${issuer}; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
       },
       ...(target === "firefox"
         ? {
@@ -240,13 +227,16 @@ export async function buildBrowserExtension({
           }),
     };
     const files = {
+      "harper.wasm": wasm,
+      "harper-worker.js": worker.outputFiles[0].contents,
+      ...(target === "firefox" ? {} : {"offscreen.html": await readFile(join(root, "packages/browser-extension/src/writing/offscreen.html"))}),
       "manifest.json": new TextEncoder().encode(
         `${JSON.stringify(manifest, null, 2)}\n`,
       ),
     };
     const dependencies = [
       ...new Set(
-        Object.keys(runtime.metafile.inputs)
+        inputs
           .filter((input) => input.startsWith("node_modules/"))
           .map(
             (input) =>
@@ -254,9 +244,7 @@ export async function buildBrowserExtension({
           ),
       ),
     ].sort();
-    const notices = [
-      `dictionary-en 4.0.0 — SCOWL-derived en_US dictionary (MIT AND BSD)\n\n${await readFile(join(dictionaryDirectory, "license"), "utf8")}`,
-    ];
+    const notices = [];
     for (const directory of dependencies) {
       if (!directory) throw new Error("Unrecognized extension dependency path");
       const dependency = JSON.parse(
@@ -295,7 +283,7 @@ export async function buildBrowserExtension({
       sourceVersion: pkg.version,
       config,
       sha256: createHash("sha256").update(zip).digest("hex"),
-      inputs: Object.keys(runtime.metafile.inputs).sort(),
+      inputs: [...inputs, wasmInput].sort(),
       files: Object.fromEntries(
         Object.keys(files)
           .sort()

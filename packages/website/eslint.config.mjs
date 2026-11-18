@@ -7,6 +7,7 @@ const config = [
   {
     ignores: [
       ".next/**",
+      "public/proofing/**",
       "next-env.d.ts",
       "test-results/**",
       "playwright-report/**",

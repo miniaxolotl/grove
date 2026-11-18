@@ -1,6 +1,9 @@
 import { ensureSyntaxTree } from "@codemirror/language";
 import { type EditorState, findClusterBreak } from "@codemirror/state";
-import { prose, type WritingIssue } from "@lib/shared/writing-settings";
+import {
+  projectWritingText,
+  type WritingIssue,
+} from "@lib/shared/writing-settings";
 
 const blocks = /^(Paragraph|Task|TableCell|(?:ATX|Setext)Heading[1-6])$/;
 const hidden =
@@ -64,10 +67,11 @@ export function projectMarkdownParagraph(
   const { from, to } = node;
   if (to - from > maxUnits || from < frontMatterEnd(state)) return null;
   const original = state.sliceDoc(from, to);
-  const chars = prose(original).split("");
+  const masked = projectWritingText(original);
+  const chars = masked.text.split("");
   const protectedUnits = new Uint8Array(chars.length);
-  for (let i = 0; i < chars.length; i++)
-    if (chars[i] !== original[i]) protectedUnits[i] = 1;
+  for (const span of masked.protectedSpans)
+    protectedUnits.fill(1, span.from, span.to);
   tree.iterate({
     from,
     to,

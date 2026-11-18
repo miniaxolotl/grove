@@ -523,8 +523,11 @@ pnpm test:artifacts
 
 `build:extension` uses esbuild's browser target, not a native CLI bundle. In addition
 to the packages, it keeps the isolated ESM `core.js` and `core.build.json`. Runtime
-scripts, fonts, logo, icons and their licenses are local; CSP forbids remote scripts, inline scripts,
-dynamic code generation, frames and objects. Network access is limited to the exact
+scripts, WASM, fonts, logo, icons and their licenses are local. CSP permits the bundled
+worker and WebAssembly compilation, but forbids remote/inline scripts, JavaScript
+`eval`, frames and objects. No proofing resources are web-accessible. Chrome and Edge
+use a private offscreen document to host the dedicated worker; Firefox uses its
+background page. Network access outside the package is limited to the exact
 API and issuer hosts. Self-hosted builds may set `--apiOrigin`, `--siteOrigin` and
 `--issuer` to exact HTTPS origins; rebuild manifests/CSP and qualify OAuth separately.
 No runtime arbitrary-host setting or wildcard redirect is offered.
@@ -613,6 +616,7 @@ store-owned support fields need operator review before submission.
 | `scripting`            | Attach bundled local checks to already-open normal tabs; inspect no excluded fields     |
 | HTTP(S) hosts          | Default-on local writing, subject to native grants and browser/domain opt-outs          |
 | `sidePanel` (Chromium) | Native persistent panel                                                                 |
+| `offscreen` (Chromium) | Host Harper's local worker without opening a tab or exposing it to websites             |
 | Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange                               |
 
 Firefox declares authentication information, website content, browsing activity
@@ -625,7 +629,16 @@ the reported location before submission. The shared Markdown reader bundles
 `mdast-util-from-markdown`, which calls `micromark`’s document tokenizer and
 writes preprocessed Markdown to that tokenizer, not to a browser DOM document.
 If the report points to that call, explain it in the reviewer notes and provide
-buildable source from the exact submitted tag.
+buildable source from the exact submitted tag. To prepare the separate source archive,
+clone `https://github.com/Automattic/harper.git` at `v3.2.0`, then run:
+
+```sh
+bash scripts/package-browser-reviewer-source.sh <grove-commit-sha> <harper-checkout> reviewer-source.tar.gz
+```
+
+The archive includes the extension build inputs and licenses, pinned Harper sources,
+Rust and JS lockfiles, and the upstream WASM build recipe. Follow `BUILD.txt` inside
+the archive and compare rebuilt ZIPs before store submission.
 
 ## Shared implementation notes
 

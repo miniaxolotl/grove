@@ -60,6 +60,7 @@ const clerk = {
     return identity.sessionId
       ? {
           id: identity.sessionId,
+          status: 'active', expireAt: new Date(Date.now() + 60_000),
           getToken: (options?: { skipCache: boolean }) =>
             (
               window as unknown as {

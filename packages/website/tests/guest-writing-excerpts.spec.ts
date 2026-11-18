@@ -39,7 +39,7 @@ for (const width of [320, 390, 1440]) {
       .getByRole("list", { name: "Writing suggestions" })
       .getByRole("listitem");
     await expect(issues).toHaveText([
-      /“the”\s+This word appears twice\./,
+      /“the the”\s+This word appears twice\./,
       /“notebok”\s+Possible spelling mistake\./,
     ]);
     await expect(submit).toBeFocused();

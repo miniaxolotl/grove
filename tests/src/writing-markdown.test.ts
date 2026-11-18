@@ -1,8 +1,8 @@
+import { checker } from "./fixtures/harper-checker.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   applyWritingEdit,
-  createEnglishChecker,
   prose,
   writingSettingsSchema,
 } from "../../lib/shared/src/writing-core.ts";
@@ -43,14 +43,9 @@ for (const [name, before, code, after] of [
   });
 }
 
-test("only the prose after multiline code receives an exact grammar edit", () => {
+test("only the prose after multiline code receives an exact grammar edit", async () => {
   const source = "📌 ``a apple `\r\na apple`` then a apple.";
-  const checker = createEnglishChecker({
-    aff: "SET UTF-8\n",
-    dic: "1\napple\n",
-  });
-  const issues = checker
-    .check(source, writingSettingsSchema.parse({ spelling: false }))
+  const issues = (await checker.check(source, writingSettingsSchema.parse({ spelling: false })))
     .issues.filter((i) => i.rule === "articles");
   assert.equal(issues.length, 1);
   const [issue] = issues;

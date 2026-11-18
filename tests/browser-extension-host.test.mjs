@@ -102,6 +102,17 @@ for (const target of ["chrome", "edge"])
         }),
       );
       await localPage.goto("https://notes.writing-fixture.test/form");
+      await context.setOffline(true);
+      const offlineRequests = [];
+      const recordRequest = (request) => {
+        if (/^https?:/.test(request.url())) offlineRequests.push(request.url());
+      };
+      context.on("request", recordRequest);
+      // Fresh install with no panel, account, per-site grant prompt or network.
+      await localPage.locator("#draft").fill("This is a sentnce. This is a apple.");
+      await localPage.locator("mark.spelling").filter({hasText: "sentnce"}).waitFor();
+      await localPage.locator("mark.grammar").filter({hasText: /^a$/}).waitFor();
+      assert.equal(await localPage.locator("mark").count(), 2);
       await localPage.locator("#draft").fill("Watchlist: the serializer writes to a read-onyl datastore.");
       await localPage
         .locator("div[data-grove-writing-ui]")
@@ -138,6 +149,9 @@ for (const target of ["chrome", "edge"])
         "Watchlist: the serializer writes to a read-only datastore.",
         "fresh install checks an unlisted website without signing in or site setup",
       );
+      assert.deepEqual(offlineRequests, [], "offline checking does not even attempt HTTP(S)");
+      context.off("request", recordRequest);
+      await context.setOffline(false);
       await worker.evaluate(async () => {
         const stored = (await chrome.storage.local.get("writing-browser:en"))[
           "writing-browser:en"
@@ -821,7 +835,6 @@ for (const target of ["chrome", "edge"])
             func: () => {
               const send = chrome.runtime.sendMessage.bind(chrome.runtime);
               globalThis.writingChecks = 0;
-              globalThis.writingSuggestions = 0;
               globalThis.holdWritingResults = true;
               globalThis.writingResultGate = new Promise((resolve) => {
                 globalThis.releaseWritingResult = resolve;
@@ -829,8 +842,6 @@ for (const target of ["chrome", "edge"])
               chrome.runtime.sendMessage = async (message, ...rest) => {
                 if (message.kind === "writingSiteCheck")
                   globalThis.writingChecks++;
-                if (message.kind === "writingSiteSuggest")
-                  globalThis.writingSuggestions++;
                 const response = await send(message, ...rest);
                 if (
                   message.kind === "writingSiteCheck" &&
@@ -838,18 +849,6 @@ for (const target of ["chrome", "edge"])
                 ) {
                   document.documentElement.dataset.writingHeld = "true";
                   await globalThis.writingResultGate;
-                }
-                if (
-                  message.kind === "writingSiteSuggest" &&
-                  message.payload.word === "sentnce" &&
-                  globalThis.holdSuggestions
-                ) {
-                  document.documentElement.dataset.suggestionsHeld = "true";
-                  await globalThis.suggestionGate;
-                  globalThis.requestAnimationFrame(() => {
-                    document.documentElement.dataset.suggestionReleased =
-                      "true";
-                  });
                 }
                 return response;
               };
@@ -898,35 +897,7 @@ for (const target of ["chrome", "edge"])
         stableEditor,
         "checking and review must not shift/remount the editor",
       );
-      const [{ result: alternativesWhileTyping }] = await worker.evaluate(
-        async (tabId) =>
-          chrome.scripting.executeScript({
-            target: { tabId },
-            world: "ISOLATED",
-            func: () => globalThis.writingSuggestions,
-          }),
-        writingSourceTab.id,
-      );
-      assert.equal(
-        alternativesWhileTyping,
-        0,
-        "typing and issue-list review must not generate spelling candidates",
-      );
       await sourcePage.keyboard.press("Escape");
-      await worker.evaluate(
-        async (tabId) =>
-          chrome.scripting.executeScript({
-            target: { tabId },
-            world: "ISOLATED",
-            func: () => {
-              globalThis.holdSuggestions = true;
-              globalThis.suggestionGate = new Promise((resolve) => {
-                globalThis.releaseSuggestions = resolve;
-              });
-            },
-          }),
-        writingSourceTab.id,
-      );
       await sourcePage
         .locator("#wrapped")
         .fill("This is a sentnce with a zorbler.");
@@ -934,33 +905,16 @@ for (const target of ["chrome", "edge"])
       await sourcePage
         .getByRole("button", { name: "sentnce — Spelling", exact: true })
         .click();
-      await sourcePage.waitForFunction(
-        () => document.documentElement.dataset.suggestionsHeld === "true",
-      );
+      await sourcePage.getByRole("button", {name: "sentence", exact: true}).waitFor();
       await sourcePage
         .getByRole("button", { name: "Ignore", exact: true })
         .focus();
-      await worker.evaluate(
-        async (tabId) =>
-          chrome.scripting.executeScript({
-            target: { tabId },
-            world: "ISOLATED",
-            func: () => {
-              globalThis.holdSuggestions = false;
-              globalThis.releaseSuggestions();
-            },
-          }),
-        writingSourceTab.id,
-      );
-      await sourcePage.waitForFunction(
-        () => document.documentElement.dataset.suggestionReleased === "true",
-      );
       assert.equal(
         await sourcePage
           .locator("div[data-grove-writing-ui]")
           .evaluate((element) => element.shadowRoot.activeElement?.textContent),
         "Ignore",
-        "alternatives arriving must not replace the focused action or steal keyboard focus",
+        "the keyboard action stays focusable alongside Harper alternatives",
       );
       await sourcePage
         .getByRole("button", { name: "Ignore", exact: true })
@@ -969,21 +923,6 @@ for (const target of ["chrome", "edge"])
       await sourcePage
         .getByRole("button", { name: "zorbler — Spelling", exact: true })
         .click();
-      await worker.evaluate(
-        async (tabId) =>
-          chrome.scripting.executeScript({
-            target: { tabId },
-            world: "ISOLATED",
-            func: () => {
-              globalThis.holdSuggestions = false;
-              globalThis.releaseSuggestions();
-            },
-          }),
-        writingSourceTab.id,
-      );
-      await sourcePage.waitForFunction(
-        () => document.documentElement.dataset.suggestionReleased === "true",
-      );
       await sourcePage
         .getByRole("dialog", { name: "Writing suggestions" })
         .getByText("zorbler", { exact: true })
@@ -994,7 +933,7 @@ for (const target of ["chrome", "edge"])
           .getByText("sentnce", { exact: true })
           .count(),
         0,
-        "late alternatives must not revive an ignored or previously opened issue",
+        "the next issue must not reuse the ignored issue's suggestions",
       );
       await sourcePage
         .getByRole("button", { name: "All issues", exact: true })

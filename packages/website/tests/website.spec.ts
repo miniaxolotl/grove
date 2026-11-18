@@ -29,7 +29,7 @@ test("a guest can check writing without sending text or opening an account", asy
       .getByRole("list", { name: "Writing suggestions" })
       .getByRole("listitem"),
   ).toHaveText([
-    /“the”\s+This word appears twice\./,
+    /“the the”\s+This word appears twice\./,
     /“smple”\s+Possible spelling mistake\./,
   ]);
   await page.screenshot({

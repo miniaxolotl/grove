@@ -50,7 +50,7 @@ export const writingField = StateField.define<ReturnType<typeof buildDecorations
   update(value, transaction) {
     for (const effect of transaction.effects)
       if (effect.is(setWritingIssues)) return buildDecorations(effect.value);
-    return transaction.docChanged ? value.map(transaction.changes) : value;
+    return transaction.docChanged ? Decoration.none : value;
   },
   provide: (field) => EditorView.decorations.from(field),
 });
