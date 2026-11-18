@@ -166,19 +166,22 @@ test("empty and invalid file filters offer a safe path back to all uploads", asy
 });
 test("Ask Grove, imports and settings expose the shared files destination", async ({
   page,
-}) => {
+}, info) => {
   await page.route("**/api/grove/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     await route.fulfill({
       json: {
         success: true,
-        data: path.endsWith("/me")
-          ? { accountId: "entry-files" }
-          : path.endsWith("/memories/search")
-            ? { items: [], nextCursor: null }
-            : path.endsWith("/ask-tools")
-              ? { defaults: { organize: true, exa: false, tavily: false } }
-              : [],
+        data: catalogResponse(
+          route.request().url(),
+          path.endsWith("/me")
+            ? { accountId: "entry-files" }
+            : path.endsWith("/memories/search")
+              ? { items: [], nextCursor: null }
+              : path.endsWith("/ask-tools")
+                ? { defaults: { organize: true, exa: false, tavily: false } }
+                : [],
+        ),
       },
     });
   });
@@ -190,6 +193,38 @@ test("Ask Grove, imports and settings expose the shared files destination", asyn
   await expect(
     page.getByRole("link", { name: "Files & storage", exact: true }),
   ).toBeVisible();
+  const cardTitle = page.getByRole("heading", {
+    name: "Import notes",
+    exact: true,
+  });
+  const card = cardTitle.locator("xpath=ancestor::section[1]");
+  const importButton = card.getByRole("button", {
+    name: "Import notes",
+    exact: true,
+  });
+  const filesLink = card.getByRole("link", {
+    name: "View files & storage",
+    exact: true,
+  });
+  await expect(page.getByText("Opening notebooks…")).toBeHidden();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await cardTitle.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: info.outputPath(`data-import-${width}.png`),
+    });
+    const [button, link] = await Promise.all([
+      importButton.boundingBox(),
+      filesLink.boundingBox(),
+    ]);
+    expect(button).not.toBeNull();
+    expect(link).not.toBeNull();
+    const gap =
+      Math.abs(button!.y - link!.y) < 4
+        ? link!.x - (button!.x + button!.width)
+        : link!.y - (button!.y + button!.height);
+    expect(gap).toBeGreaterThanOrEqual(8);
+  }
   await page.getByRole("button", { name: "Import notes", exact: true }).click();
   await expect(
     page

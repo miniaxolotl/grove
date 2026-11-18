@@ -5,7 +5,7 @@ storage in **[Files & storage](files-storage.md)**, linked from Settings, import
 and Ask Grove. Viewing files never saves or shares them.
 
 Choose **Import notes** from **Notes → More**, **Notebook options**, or
-**Settings → Data**.
+**Settings → Your data**. The adjacent **View files & storage** link opens the file ledger.
 Upload UTF-8 Markdown (`.md`, `.markdown`), plain text (`.txt`), DOCX or text-based PDF
 files. Choose an existing notebook, create a named notebook (optionally nested),
 or leave notes Unfiled. **Use for all notes** sets a batch destination; individual
@@ -31,10 +31,11 @@ placement control; apply it explicitly before confirmation.
 5. Review the sharing notice, check the confirmation and choose **Confirm import**.
    New notebooks are created only with their first imported note. Existing notes
    are never silently merged or overwritten. New names are explicitly new notebooks,
-   even when another notebook has the same display name.
+   even when another notebook has the same display name. If the review changes
+   in another tab, confirm the updated version again.
 
-Imported text immediately follows the destination notebook's existing public-share
-scope. Original files stay private and are **not** served by public note/notebook
+Imported text immediately follows existing public-share scope on the destination
+or a shared ancestor that includes it. Original files stay private and are **not** served by public note/notebook
 links. Uploading notes does not transfer internal Grove image references or local
 attachments; remove/replace unsupported references in the preview if necessary.
 
@@ -121,10 +122,13 @@ Preparation and import use leased, checkpointed background work. You may close t
 dialog and resume from its recent-import list. File/confirmation request identities
 survive uncertain retries in the mounted dialog; a page reload finds accepted
 files/batches on the server. Source uploads not yet accepted must be selected again.
+The dialog distinguishes checking status, queued work, active work and stopped work.
+Progress uses the task's reported file/note counts, not the number of uploaded
+files when a note total is unavailable. Completion comes from the batch result.
 
-Cancel before confirmation saves nothing to the library and clears unconfirmed
-bytes/previews. During import, cancellation stops remaining work; already-created
-notes/notebooks remain. **Retry remaining work** resumes a failed task without
+**Cancel import** before confirmation saves nothing and clears unconfirmed
+bytes/previews. **Stop import** stops remaining work; already-created notes and
+notebooks remain. **Retry import** resumes a failed task without
 duplicating committed records. It does not overwrite later edits or revive deleted
 notes. Re-importing the same file in a new batch can intentionally create duplicates;
 review the warning and exclude unwanted notes. There is no destructive batch Undo.

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Upload } from "lucide-react";
 import { deferredFeature } from "./deferred-feature";
 import { Dialog } from "./dialog";
+import { Button } from "./ui/button";
 
 export const ImportNotesPanel = deferredFeature(
   async () => ({
@@ -11,18 +12,23 @@ export const ImportNotesPanel = deferredFeature(
   "Opening import…",
   { failureTitle: "Import couldn’t open" },
 );
-export function ImportNotesButton({ projectId }: { projectId?: string }) {
+export function ImportNotesButton({
+  projectId,
+  primary = false,
+}: {
+  projectId?: string;
+  primary?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        className="app-button secondary"
+      <Button
+        variant={primary ? "primary" : "secondary"}
         onClick={() => setOpen(true)}
       >
-        <Upload size={16} />
+        <Upload size={16} aria-hidden="true" />
         Import notes
-      </button>
+      </Button>
       {open && (
         <Dialog title="Import notes" close={() => setOpen(false)}>
           <ImportNotesPanel projectId={projectId} />

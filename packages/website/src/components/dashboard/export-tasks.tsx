@@ -6,19 +6,22 @@ import { Check, Download, LoaderCircle, RotateCcw, X } from "lucide-react";
 import type { Task } from "@lib/shared/jobs";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
-import { IconButton } from "./ui/button";
+import { Button, IconButton } from "./ui/button";
 
 const active = (task: Task) =>
   task.status === "pending" || task.status === "running";
 const status = (task: Task) => {
   if (task.downloadable) return "Ready";
+  if (task.status === "pending") return "Queued";
+  if (task.status === "running")
+    return task.processed
+      ? `Preparing export · ${task.processed.toLocaleString()} records`
+      : "Preparing export…";
   if (task.status === "cancelled") return "Cancelled";
-  if (task.error === "export_changed") return "Notes changed · retry";
-  if (task.error === "export_expired") return "Expired · retry";
-  if (task.status === "failed") return "Couldn’t export · retry";
-  return task.processed
-    ? `${task.processed.toLocaleString()} records`
-    : "Queued";
+  if (task.error === "export_changed") return "Notes changed";
+  if (task.error === "export_expired") return "Expired";
+  if (task.status === "failed") return "Export failed";
+  return "Download unavailable";
 };
 
 export function ExportTasks({ projectId }: { projectId?: string }) {
@@ -45,8 +48,19 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const exports = query.data?.filter((task) => task.kind === "export") ?? [];
   const running = exports.find(active);
-  async function mutate(id?: string, action?: "cancel" | "retry") {
-    if (inFlight.current) return;
+  function restoreFocus(trigger: HTMLButtonElement) {
+    if (
+      document.activeElement === trigger ||
+      document.activeElement === document.body
+    )
+      heading.current?.focus({ preventScroll: true });
+  }
+  async function mutate(
+    trigger: HTMLButtonElement,
+    id?: string,
+    action?: "cancel" | "retry",
+  ) {
+    if (inFlight.current || query.isError) return;
     inFlight.current = true;
     setBusy(id ?? "new");
     setError("");
@@ -65,7 +79,7 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
         setSubmitted(false);
       }
       await query.refetch();
-      heading.current?.focus({ preventScroll: true });
+      restoreFocus(trigger);
     } catch (error) {
       setError(errorMessage(error));
     } finally {
@@ -75,29 +89,16 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
   }
   return (
     <section className="export-tasks" aria-label="Exports">
-      <div className="flex items-center justify-between gap-3">
-        <h2
-          ref={heading}
-          tabIndex={-1}
-          className={
-            projectId ? "text-sm font-medium" : "font-editorial text-2xl"
-          }
-        >
-          {projectId ? "Notes and version history" : "Export your data"}
-        </h2>
-        <IconButton
-          label="Prepare export"
-          disabled={!!busy || exports.some(active) || query.isPending}
-          onClick={() => void mutate()}
-        >
-          {busy === "new" ? (
-            <LoaderCircle size={18} className="motion-safe:animate-spin" />
-          ) : (
-            <Download size={18} />
-          )}
-        </IconButton>
-      </div>
-      <p className="mt-2 text-sm text-muted">
+      <h2
+        ref={heading}
+        tabIndex={-1}
+        className={
+          projectId ? "text-sm font-medium" : "font-editorial font-semibold"
+        }
+      >
+        {projectId ? "Notes and version history" : "Export your data"}
+      </h2>
+      <p className="mt-1 text-sm text-muted">
         {projectId
           ? "NDJSON"
           : "Notebooks, notes, history and conversations · NDJSON"}
@@ -120,8 +121,23 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
           disabled={!!busy || submitted || !!running}
           onChange={(event) => setIncludeMedia(event.target.checked)}
         />
-        Include original media (larger NDJSON download)
+        Include original media (larger download)
       </label>
+      <Button
+        variant="secondary"
+        className="mt-3"
+        disabled={!!busy || !!running || query.isPending || query.isError}
+        onClick={(event) => void mutate(event.currentTarget)}
+      >
+        {busy === "new" && (
+          <LoaderCircle
+            aria-hidden="true"
+            size={16}
+            className="motion-safe:animate-spin"
+          />
+        )}
+        {busy === "new" ? "Requesting export…" : "Prepare export"}
+      </Button>
       {(error || query.isError) && (
         <div className="mt-3 flex items-center gap-2">
           <p className="app-error" role="alert">
@@ -130,7 +146,11 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
           {query.isError && (
             <IconButton
               label="Reload exports"
-              onClick={() => void query.refetch()}
+              disabled={query.isFetching || !!busy}
+              onClick={async (event) => {
+                const trigger = event.currentTarget;
+                if ((await query.refetch()).isSuccess) restoreFocus(trigger);
+              }}
             >
               <RotateCcw size={16} />
             </IconButton>
@@ -143,7 +163,7 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
         </p>
       )}
       <ul
-        className="mt-4 divide-y divide-line"
+        className="divide-y divide-line not-empty:mt-3"
         aria-live="polite"
         aria-relevant="text additions"
       >
@@ -161,7 +181,9 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
               <span aria-hidden className="w-4 shrink-0" />
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm">{status(task)}</p>
+              <p className="text-sm">
+                {query.isError ? "Status unavailable" : status(task)}
+              </p>
               <p className="text-xs text-muted">
                 {task.scope?.projectId &&
                   (task.scope.includeDescendants
@@ -177,7 +199,7 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
                 </time>
               </p>
             </div>
-            {task.downloadable ? (
+            {query.isError ? null : task.downloadable ? (
               <a
                 className="app-icon"
                 href={`/api/grove/tasks/${task.id}/download`}
@@ -191,7 +213,9 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
               <IconButton
                 label="Cancel export"
                 disabled={!!busy}
-                onClick={() => void mutate(task.id, "cancel")}
+                onClick={(event) =>
+                  void mutate(event.currentTarget, task.id, "cancel")
+                }
               >
                 <X size={16} />
               </IconButton>
@@ -199,7 +223,9 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
               <IconButton
                 label="Retry export"
                 disabled={!!busy || exports.some(active)}
-                onClick={() => void mutate(task.id, "retry")}
+                onClick={(event) =>
+                  void mutate(event.currentTarget, task.id, "retry")
+                }
               >
                 <RotateCcw size={16} />
               </IconButton>
