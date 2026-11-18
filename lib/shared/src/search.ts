@@ -1,4 +1,5 @@
 /** Search evidence is query-scoped, never part of a canonical saved note. */
+import { NOTE_EXCERPT_MAX, NOTE_TITLE_MAX } from "./limits.ts";
 export type SearchText = { text: string; ranges: [number, number][] };
 export type SearchMatch = {
   version: number;
@@ -14,11 +15,11 @@ export function noteTitle(content: string, organized?: string) {
   const first = content.trim().split("\n")[0];
   const heading = first.match(/^#{1,6}\s+(.+)/)?.[1].trim();
   if (!heading && organized) return organized;
-  const text = (heading || first).slice(0, 110);
+  const text = (heading || first).slice(0, NOTE_TITLE_MAX);
   return /[\uD800-\uDBFF]$/.test(text) ? text.slice(0, -1) : text;
 }
 
-export function plainExcerpt(content: string, length = 160) {
+export function plainExcerpt(content: string, length = NOTE_EXCERPT_MAX) {
   const text = content
     .trim()
     .replace(/^#{1,6}[ \t]+[^\n]+\n+/, "")

@@ -1,31 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import type { ModelSettings } from "@lib/shared/models";
 import { AiPreferences } from "./ai-preferences";
 import { LoadError } from "./load-error";
 import { usePreferenceEditor } from "./preference-editor";
 import { SettingsSaveRow } from "./settings-save-row";
+import { WritingPreferences } from "./writing-preferences";
+import { useWorkspaceCache } from "./workspace-cache";
 
 export function PreferencesPanel() {
+  return (
+    <div className="settings-content">
+      <WritingPreferences />
+    </div>
+  );
+}
+
+export function AiPreferencesPanel() {
   const editor = usePreferenceEditor();
+  const cache = useWorkspaceCache();
+  const models = useQuery(cache.resource<ModelSettings>("/models"));
   const unavailable =
     editor.availability &&
     Object.values(editor.availability).some((available) => !available);
   return (
     <div className="settings-content">
-      <section className="app-panel ai-preferences-panel">
-        <div className="settings-panel-heading">
-          <h2>AI preferences</h2>
-          <Link className="text-button" href="/app/settings/models">
-            AI availability
-          </Link>
-        </div>
-        <p className="settings-panel-description">
-          Choose how Grove helps with your notes.
+      <div>
+        <h2 className="settings-section-heading">AI &amp; search</h2>
+        <p className="settings-section-description">
+          Choose how Grove uses AI for your account.
         </p>
+      </div>
+      <section
+        className="app-panel ai-preferences-panel"
+        aria-label="Account AI preferences"
+      >
         {unavailable && (
-          <p className="settings-note">
-            Unavailable features keep your saved preferences.
+          <p className="settings-note mb-3">
+            You can still save choices for unavailable features.
           </p>
         )}
         {editor.value ? (
@@ -42,10 +56,6 @@ export function PreferencesPanel() {
               voices={editor.voices}
               onChange={editor.edit}
             />
-            <p className="text-xs leading-6 text-muted">
-              Save to apply changes. Connected apps still need your notebook
-              permissions.
-            </p>
             <SettingsSaveRow
               label="Save preferences"
               dirty={editor.dirty}
@@ -76,6 +86,35 @@ export function PreferencesPanel() {
               Retry
             </button>
           </p>
+        )}
+      </section>
+      <section
+        className="app-panel settings-search-status"
+        aria-labelledby="settings-search-heading"
+      >
+        <h3 id="settings-search-heading">Note search</h3>
+        <p className="text-sm text-muted">
+          {models.error
+            ? "Search availability couldn’t load."
+            : models.data?.config
+              ? models.data.config.embedding.provider === "disabled"
+                ? "Keyword search is available."
+                : "Search by keyword or meaning is available."
+              : "Checking search availability…"}
+        </p>
+        {models.error && (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => void models.refetch()}
+          >
+            Retry search availability
+          </button>
+        )}
+        {models.data?.editable && (
+          <Link className="text-button" href="/app/settings/models/providers">
+            Manage model providers
+          </Link>
         )}
       </section>
     </div>

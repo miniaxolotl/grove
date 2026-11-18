@@ -44,8 +44,7 @@ test("approved kit assets are served intact with theme-aware favicon fallbacks",
       (asset: { role: string }) => asset.role === "social link preview",
     ).sha256,
   );
-  const image = page.locator(".feature-photo img");
-  await image.scrollIntoViewIfNeeded();
+  const image = page.locator(".site-header img").first();
   await expect(image).toBeVisible();
   await expect
     .poll(() =>

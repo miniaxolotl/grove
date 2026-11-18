@@ -26,23 +26,46 @@
     </header>
     <main>
       <section id="paused" hidden aria-labelledby="paused-title">
-        <h1 id="paused-title">Grove is off.</h1>
+        <h1 id="paused-title">Grove is off</h1>
         <p class="muted">
-          Your notes are right where you left them. Turn Grove on to continue.
+          Turn Grove on to resume writing checks and access your notes.
         </p>
       </section>
       <section id="welcome" hidden aria-labelledby="welcome-title">
-        <h1 id="welcome-title">A little room for your thoughts.</h1>
-        <p class="muted">Keep a thought. Find it when you need it.</p>
-        <button id="login" class="primary">Sign in to Grove</button>
-        <p class="muted">Choose notebook access after signing in.</p>
+        <h1 id="welcome-title">Spelling and grammar</h1>
+        <p class="muted">
+          Grove checks English as you write in supported text fields. Local
+          checks work without an account.
+        </p>
+        <button id="open-writing-settings" type="button">
+          Writing settings
+        </button>
+        <section class="connection-card" aria-labelledby="welcome-notes-title">
+          <h2 id="welcome-notes-title">Use Grove with an account</h2>
+          <p class="muted">
+            Save and find notes, and use optional AI writing tools.
+          </p>
+          <div class="actions">
+            <button id="login" class="primary">Sign in to Grove</button>
+            <a class="button signup-link" target="_blank" rel="noreferrer"
+              >Create an account</a
+            >
+          </div>
+          <p id="grace-note" class="muted small" role="status" hidden></p>
+        </section>
       </section>
       <section id="approval" hidden>
-        <h1>Make yourself at home.</h1>
-        <p>Choose which notes this browser can read and save.</p>
-        <a class="button primary approval-link" target="_blank" rel="noreferrer"
-          >Open Connections</a
-        ><button id="approved">Check access</button>
+        <h1>Connect your notes</h1>
+        <p class="muted">Choose which notebooks this browser can access.</p>
+        <div class="actions">
+          <a
+            id="continue-connection"
+            class="button primary"
+            target="_blank"
+            rel="noreferrer"
+            >Choose note access</a
+          ><button id="approved">Check access</button>
+        </div>
       </section>
       <div id="workspace" hidden>
         <section
@@ -59,28 +82,30 @@
             <div id="inbox-list"></div>
           </div>
           <form id="capture-form">
-            <label for="note" class="sr-only">Write a note</label
-            ><textarea
-              id="note"
-              rows="7"
-              maxlength="6000"
-              placeholder="A thought worth keeping…"
-              aria-describedby="note-help"
-            ></textarea>
-            <div id="note-help" class="between muted small">
-              <button
-                id="writing-review"
-                type="button"
-                class="quiet writing-review"
-                aria-label="Check writing"
-              >
-                Check writing</button
-              ><span id="writing-hint" role="status" hidden></span
-              ><span id="length">0 / 6,000</span>
+            <div class="note-sheet">
+              <label for="note" class="sr-only">Write a note</label
+              ><textarea
+                id="note"
+                rows="7"
+                maxlength="6000"
+                placeholder="Write or paste a note…"
+                aria-describedby="note-help"
+              ></textarea>
+              <div id="note-help" class="between muted small">
+                <button
+                  id="writing-review"
+                  type="button"
+                  class="quiet writing-review"
+                  aria-label="Check writing"
+                >
+                  Check writing</button
+                ><span id="writing-hint" role="status"></span
+                ><span id="length">0 / 6,000</span>
+              </div>
             </div>
             <details id="note-details">
               <summary>
-                <span>Details</span
+                <span>Notebook and source</span
                 ><span class="details-preview"
                   ><span id="destination-name">Personal</span
                   ><span id="source-label"></span
@@ -92,25 +117,29 @@
               </div>
             </details>
             <div class="actions">
-              <button id="save" type="submit" class="primary">Save note</button
-              ><button id="share-draft" type="button" class="quiet">
-                Save &amp; share</button
-              ><a id="saved-link" hidden target="_blank" rel="noreferrer"
+              <button id="save" type="submit" class="primary">Save now</button>
+              <a id="saved-link" hidden target="_blank" rel="noreferrer"
                 >Open saved note</a
               >
             </div>
             <p id="save-state" class="feedback" role="status"></p>
+            <details id="capture-actions">
+              <summary>More note actions</summary>
+              <button id="share-draft" type="button" class="quiet">
+                Save &amp; share
+              </button>
+            </details>
           </form>
         </section>
         <section data-view="search" hidden aria-labelledby="search-title">
-          <h1 id="search-title">Search</h1>
+          <h1 id="search-title">Search notes</h1>
           <form id="search-form" role="search">
             <label for="query" class="sr-only">Search all your notes</label>
             <input
               id="query"
               type="search"
               maxlength="1000"
-              placeholder="Find a thought, a link, a detail…"
+              placeholder="Search your notes…"
               autocomplete="off"
               aria-controls="results"
             />
@@ -133,20 +162,11 @@
         aria-labelledby="settings-title"
       >
         <h1 id="settings-title">Settings</h1>
-        <section
-          class="settings-section"
-          aria-labelledby="browser-settings-title"
-        >
-          <h2 id="browser-settings-title">Appearance</h2>
-          <select id="theme" aria-labelledby="browser-settings-title">
-            <option value="system">Match browser</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </section>
         <section class="settings-section" aria-label="Writing settings">
-          <details id="writing-settings">
-            <summary>Writing <span class="muted small">English</span></summary>
+          <details id="writing-settings" open>
+            <summary>
+              Writing checks <span class="muted small">English</span>
+            </summary>
             <div id="writing-controls" class="field-stack">
               <label class="writing-option"
                 ><span>Check writing everywhere</span
@@ -160,11 +180,6 @@
                 ><span>Basic grammar</span
                 ><input id="writing-grammar" type="checkbox" role="switch"
               /></label>
-              <label class="writing-option"
-                ><span>AI writing tools</span
-                ><input id="writing-ai-rewrites" type="checkbox" role="switch"
-              /></label>
-              <p class="muted small">AI runs only when you choose it.</p>
               <details>
                 <summary>More writing options</summary>
                 <label class="writing-option"
@@ -214,13 +229,42 @@
                 <p class="muted small">Also skips subdomains.</p>
                 <div id="writing-sites"></div>
               </details>
-              <p
-                id="writing-settings-status"
-                class="small muted"
-                role="status"
-              ></p>
             </div>
           </details>
+          <p id="writing-settings-status" class="small muted" role="status"></p>
+        </section>
+        <section
+          id="ai-settings"
+          class="settings-section"
+          hidden
+          aria-labelledby="ai-settings-title"
+        >
+          <h2 id="ai-settings-title">AI writing</h2>
+          <label class="writing-option">
+            <span>Show AI tools in this browser</span>
+            <input
+              id="writing-ai-rewrites"
+              type="checkbox"
+              role="switch"
+              aria-describedby="ai-settings-status"
+            />
+          </label>
+          <p id="ai-settings-status" class="muted small"></p>
+          <a class="approval-link quiet" target="_blank" rel="noreferrer"
+            >Manage AI permission</a
+          >
+          <p id="ai-save-status" class="small muted" role="status"></p>
+        </section>
+        <section
+          class="settings-section settings-appearance"
+          aria-labelledby="browser-settings-title"
+        >
+          <h2 id="browser-settings-title">Appearance</h2>
+          <select id="theme" aria-labelledby="browser-settings-title">
+            <option value="system">Match browser</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
         </section>
         <section
           class="settings-section"
@@ -228,7 +272,8 @@
         >
           <h2 id="connection-settings-title">Account</h2>
           <p id="connection-help" class="muted small">
-            Sign in to save and find your notes.
+            Local checks work without an account. Open the main panel to sign in
+            or create one.
           </p>
           <div id="connection-settings" hidden>
             <p id="connection-state" class="muted"></p>

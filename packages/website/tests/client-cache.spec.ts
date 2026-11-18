@@ -49,19 +49,21 @@ async function fixture(page: Page) {
     const data =
       path === "/projects"
         ? [project]
-        : path === "/memories/search"
-          ? { items: [state.note], nextCursor: null }
-          : path === "/memories" || path === `/memories/${note.id}`
-            ? state.note
-            : path === "/me"
-              ? {
-                  captureEnabled: true,
-                  recallEnabled: true,
-                  organizeEnabled: true,
-                  summariesEnabled: true,
-                  accountId: "fixture",
-                }
-              : [];
+        : path === "/models"
+          ? { config: { embedding: { provider: "disabled" } }, editable: false }
+          : path === "/memories/search"
+            ? { items: [state.note], nextCursor: null }
+            : path === "/memories" || path === `/memories/${note.id}`
+              ? state.note
+              : path === "/me"
+                ? {
+                    captureEnabled: true,
+                    recallEnabled: true,
+                    organizeEnabled: true,
+                    summariesEnabled: true,
+                    accountId: "fixture",
+                  }
+                : [];
     await route.fulfill({
       json: {
         success: true,
@@ -85,6 +87,58 @@ async function invalidateNotes(page: Page) {
   });
 }
 
+test("archive intent warms one request and navigation joins it", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  let archiveReads = 0;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    if (route.request().postDataJSON().status !== "archived")
+      return route.fallback();
+    archiveReads++;
+    started.resolve();
+    await release.promise;
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          items: [
+            { ...note, status: "archived", content: "# Archived thought" },
+          ],
+          nextCursor: null,
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app`);
+  await expect(page.locator(".memory-open")).toHaveText("Cached thought");
+  expect(archiveReads).toBe(0);
+  await page.getByRole("button", { name: "More note actions" }).click();
+  const link = page
+    .getByRole("group", { name: "More note actions" })
+    .getByRole("link", { name: "Archive", exact: true });
+  expect(archiveReads).toBe(0);
+  await link.focus();
+  await expect.poll(() => archiveReads, { timeout: 3000 }).toBe(1);
+  await started.promise;
+  await link.click();
+  await expect(page).toHaveURL(/\/app\/archive$/);
+  await expect(
+    page.locator(".library-skeleton").getByRole("status"),
+  ).toHaveText("Opening your archive…");
+  expect(archiveReads).toBe(1);
+  release.resolve();
+  await expect(page.locator(".memory-open")).toHaveText("Archived thought");
+  await page.goBack();
+  await expect(page.locator(".memory-open")).toHaveText("Cached thought");
+  expect(
+    state.reads.filter((path) => path === "/memories/search"),
+  ).toHaveLength(1);
+  expect(archiveReads).toBe(1);
+});
+
 test("fresh Notes, Settings and note-detail revisits reuse snapshots without new reads", async ({
   page,
 }) => {
@@ -96,17 +150,18 @@ test("fresh Notes, Settings and note-detail revisits reuse snapshots without new
   expect(
     state.reads.filter((path) => path === `/memories/${note.id}`),
   ).toHaveLength(0);
-  await navigate(page, "/app/settings");
+  await navigate(page, "/app/settings/models");
   await expect(
-    page.getByRole("checkbox", { name: "Automatic capture", exact: true }),
+    page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("Keyword search is available.")).toBeVisible();
   const reads = state.reads.length;
   for (let visit = 0; visit < 3; visit++) {
     await navigate(page, "/app");
     await expect(page.locator(".memory-open")).toHaveText("Cached thought");
-    await navigate(page, "/app/settings");
+    await navigate(page, "/app/settings/models");
     await expect(
-      page.getByRole("checkbox", { name: "Automatic capture", exact: true }),
+      page.getByRole("checkbox", { name: "Answers and writing", exact: true }),
     ).toBeVisible();
   }
   expect(state.reads).toHaveLength(reads);
@@ -291,11 +346,127 @@ test("opening notes never presents a false empty count", async ({ page }) => {
   ).toBeVisible();
   await expect(page.locator(".library-summary")).toContainText("Your notes");
   await expect(page.getByText("0 notes", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Good things start small.")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "No notes yet" })).toHaveCount(
+    0,
+  );
   release.resolve();
   await expect(page.locator(".memory-open")).toHaveText("Cached thought");
   await expect(page.locator(".library-summary")).toHaveText("1 note");
 });
+
+test.describe("phone Notes header", () => {
+  test.use({ viewport: { width: 320, height: 844 }, hasTouch: true });
+
+  test("keeps secondary actions in More without pushing search down", async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.goto(`${base}/app`);
+    const title = page.getByRole("heading", { name: "Notes", exact: true });
+    const more = page.getByRole("button", { name: "More note actions" });
+    const today = page.getByRole("link", { name: "Today’s note" });
+    const importNotes = page.getByRole("button", { name: "Import notes" });
+    const search = page.getByRole("textbox", { name: "Search notes" });
+    await expect(more).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const [heading, trigger, field] = await Promise.all(
+      [title, more, search].map((item) => item.boundingBox()),
+    );
+    expect(trigger!.y).toBeLessThan(heading!.y + heading!.height);
+    expect(trigger!.x).toBeGreaterThan(heading!.x);
+    expect(field!.y).toBeGreaterThan(trigger!.y + trigger!.height);
+    await expect(today).toBeHidden();
+    await expect(importNotes).toBeHidden();
+    await more.click();
+    await expect(today).toBeVisible();
+    await expect(importNotes).toBeVisible();
+    expect((await search.boundingBox())!.y).toBe(field!.y);
+  });
+});
+
+for (const { width, hasTouch } of [
+  { width: 1440, hasTouch: false },
+  { width: 390, hasTouch: false },
+  { width: 390, hasTouch: true },
+  { width: 320, hasTouch: true },
+]) {
+  test.describe(`${width}px ${hasTouch ? "touch" : "pointer"}`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch });
+    test("slow notes keep the selection header and first rows aligned", async ({
+      page,
+    }) => {
+      await fixture(page);
+      const release = Promise.withResolvers<void>();
+      await page.route("**/api/grove/memories/search", async (route) => {
+        await release.promise;
+        await route.fulfill({
+          json: {
+            success: true,
+            data: {
+              items: [
+                note,
+                {
+                  ...note,
+                  id: "00000000-0000-4000-a000-000000000012",
+                  content: "# Second thought",
+                },
+              ],
+              nextCursor: null,
+            },
+          },
+        });
+      });
+      await page.goto(`${base}/app`);
+      const skeleton = page.locator(".library-skeleton");
+      const nav = page.getByRole("navigation", {
+        name: "Workspace",
+        exact: true,
+      });
+      await expect(skeleton).toBeVisible();
+      expect(
+        await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
+      ).toBe(hasTouch);
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      const status = skeleton.getByRole("status");
+      await expect(status).toHaveText("Opening your notes…");
+      expect(
+        await status.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          return element.contains(
+            document.elementFromPoint(box.x + 2, box.y + box.height / 2),
+          );
+        }),
+      ).toBe(true);
+      await expect(skeleton.getByRole("checkbox")).toHaveCount(0);
+      const rows = page.locator(".library-list .memory-row");
+      const geometry = async () =>
+        Promise.all([
+          page.locator(".library-list .library-selection-header").boundingBox(),
+          rows.nth(0).boundingBox(),
+          rows.nth(1).boundingBox(),
+          nav.boundingBox(),
+        ]);
+      const before = await geometry();
+      await expect(page.locator(".app-main > .app-footer")).toBeHidden();
+      release.resolve();
+      await expect(page.locator(".memory-open")).toHaveText([
+        "Cached thought",
+        "Second thought",
+      ]);
+      const after = await geometry();
+      for (const [index, box] of before.entries()) {
+        expect(Math.abs(after[index]!.y - box!.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(after[index]!.width - box!.width)).toBeLessThanOrEqual(
+          1,
+        );
+        expect(
+          Math.abs(after[index]!.height - box!.height),
+        ).toBeLessThanOrEqual(1);
+      }
+      await expect(page.locator(".app-main > .app-footer")).toBeVisible();
+    });
+  });
+}
 
 test("interrupted refresh keeps notes, selection and geometry with a keyboard retry", async ({
   page,
@@ -337,6 +508,63 @@ test("interrupted refresh keeps notes, selection and geometry with a keyboard re
   await expect(page.locator(".library-summary")).toBeFocused();
   await expect(selection).toBeChecked();
   expect((await row.boundingBox())?.y).toBe(before?.y);
+});
+
+test("an empty library has one next step and keeps recovery when refresh fails", async ({
+  page,
+}) => {
+  await fixture(page);
+  const release = Promise.withResolvers<void>();
+  let fail = false;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    if (fail) {
+      await release.promise;
+      await route.fulfill({
+        status: 503,
+        json: { success: false, error: { message: "Temporarily unavailable" } },
+      });
+    } else {
+      await route.fulfill({
+        json: { success: true, data: { items: [], nextCursor: null } },
+      });
+    }
+  });
+  await page.goto(`${base}/app`);
+  const empty = page.getByRole("heading", {
+    name: "No notes yet",
+    exact: true,
+  });
+  const write = page.getByRole("link", {
+    name: "Write your first note",
+    exact: true,
+  });
+  await expect(empty).toBeVisible();
+  await expect(write).toHaveAttribute("href", "/app/notes/new");
+  await expect(page.getByText("0 notes", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("Write a note to get started.", { exact: true }),
+  ).toHaveCount(0);
+  const more = page.getByRole("button", { name: "More note actions" });
+  await more.click();
+  await expect(
+    page.getByRole("button", { name: "Graph", exact: true }),
+  ).toBeHidden();
+  await page.keyboard.press("Escape");
+  await write.focus();
+  fail = true;
+  await invalidateNotes(page);
+  await expect(page.locator(".library-refreshing")).toBeVisible();
+  await expect(write).toBeFocused();
+  release.resolve();
+  const retry = page.getByRole("button", { name: "Retry refreshing notes" });
+  await expect(retry).toBeVisible();
+  await expect(empty).toBeHidden();
+  await expect(write).toBeHidden();
+  fail = false;
+  await retry.press("Enter");
+  await expect(page.locator(".library-summary")).toBeFocused();
+  await expect(empty).toBeVisible();
+  await expect(write).toBeVisible();
 });
 
 test("an interrupted next page retries its cursor without replacing loaded notes", async ({
@@ -563,4 +791,60 @@ test("cross-tab changes revalidate the same account without broadcasting note co
   );
   expect(messages).toContain(note.id);
   expect(messages).not.toContain("Changed in another tab");
+});
+
+test("bulk delete restores a conflicted note instead of hiding it", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const second: Memory = {
+    ...note,
+    id: "00000000-0000-4000-a000-000000000012",
+    content: "# Second thought\n\nStill here",
+  };
+  await page.route("**/api/grove/memories/search", async (route) => {
+    await route.fulfill({
+      json: {
+        success: true,
+        data: { items: [state.note, second], nextCursor: null },
+      },
+    });
+  });
+  await page.route("**/api/grove/memories/delete", async (route) => {
+    const items = route.request().postDataJSON().items as { id: string }[];
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          results: items.map((item) =>
+            item.id === second.id
+              ? { id: item.id, outcome: "conflict" }
+              : { id: item.id, outcome: "deleted" },
+          ),
+        },
+      },
+    });
+  });
+  await page.goto(`${base}/app`);
+  await expect(page.locator(".memory-open")).toHaveText([
+    "Cached thought",
+    "Second thought",
+  ]);
+  await page.getByLabel("Select these notes").check();
+  await page
+    .getByRole("group", { name: "Selected notes" })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "Delete 2 notes?" });
+  await dialog
+    .getByRole("button", { name: "Delete 2 notes", exact: true })
+    .click();
+  await expect(dialog).not.toBeVisible();
+  // Both rows leave instantly; only the conflicted note snaps back, which
+  // proves the rollback lifted its client tombstone before the refetch landed.
+  await expect(page.locator(".memory-open")).toHaveText(["Second thought"]);
+  const notifications = page.getByRole("region", { name: "Notifications" });
+  await expect(notifications.locator(".workspace-toast")).toContainText(
+    "changed or are no longer available",
+  );
 });

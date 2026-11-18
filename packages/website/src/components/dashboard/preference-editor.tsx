@@ -31,7 +31,7 @@ function useEditor() {
   const toast = useToast();
   const query = useQuery({
     ...cache.resource<Settings>("/me"),
-    enabled: path === "/app/settings" || !!draft || busy,
+    enabled: path === "/app/settings/models" || !!draft || busy,
   });
   const loaded = query.data ? settingsFor(query.data) : null;
   const value = draft?.value ?? loaded;

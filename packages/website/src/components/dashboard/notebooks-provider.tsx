@@ -98,6 +98,9 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
   async function send(move: PendingMove): Promise<NotebookOrganization | null> {
     if (working.current) return null;
     working.current = true;
+    // Instant patch first: the tree reorders immediately, then the request settles.
+    const staged = cache.stage({ resource: "/projects" });
+    cache.applyOrganizePreview(move.project.id, move.input);
     setBusy(true);
     setOrganizationError("");
     pendingRef.current = move;
@@ -107,6 +110,7 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
         `/projects/${move.project.id}/organize`,
         move.input,
       );
+      staged.commit();
       pendingRef.current = null;
       setPending(null);
       setUndo(move.undo ? null : result);
@@ -127,6 +131,8 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
       setLayoutReview((value) => value + 1);
       return result;
     } catch (error) {
+      // The tree snaps back to the saved order; the existing review/retry flow follows.
+      staged.rollback();
       setOrganizationError(errorMessage(error));
       if (error instanceof DashboardApiError && error.status < 500) {
         pendingRef.current = null;
@@ -175,8 +181,9 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
     setLayoutReview((value) => value + 1);
     return latest.items;
   }
+  // Guards concurrent writes (expectedState chaining) without blocking the
+  // whole UI for the request duration: the tree already reordered optimistically.
   const organizationLocked =
-    busy ||
     !!pending ||
     reviewRequired ||
     query.isError ||
@@ -212,10 +219,10 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      {(notice || organizationError || pending) && (
+      {(notice || organizationError || (pending && !busy)) && (
         <WorkspaceNotice>
           <div role={organizationError ? "alert" : "status"}>
-            {busy ? "Moving notebook…" : organizationError || notice}
+            {organizationError || notice}
           </div>
           {pending && !busy && (
             <button onClick={() => void send(pending)}>Retry same move</button>

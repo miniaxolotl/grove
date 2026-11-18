@@ -89,3 +89,81 @@ test("Vercel amount selects immutable USD monthly Stripe prices and rejects inva
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
+
+test("Vercel amount selects immutable USD yearly Stripe prices under a separate lookup key", async () => {
+  assert.equal(typeof application.YearlyPricing, "function");
+  let amount: unknown = 159;
+  let creates = 0;
+  const seenKeys: string[] = [];
+  const server = createServer(async (req, res) => {
+    const buffers: Buffer[] = [];
+    for await (const chunk of req) buffers.push(Buffer.from(chunk));
+    const fields = new URLSearchParams(Buffer.concat(buffers).toString());
+    const url = new URL(req.url!, "http://localhost");
+    res.setHeader("content-type", "application/json");
+    if (url.pathname === "/v1/products/prod_grove")
+      return res.end(JSON.stringify({ id: "prod_grove", active: true }));
+    if (req.method === "GET")
+      return res.end(JSON.stringify({ data: [], has_more: false }));
+    creates++;
+    assert(req.headers["idempotency-key"]);
+    seenKeys.push(String(fields.get("lookup_key")));
+    assert.equal(fields.get("recurring[interval]"), "year");
+    res.end(
+      JSON.stringify({
+        id: `price_year_${fields.get("unit_amount")}`,
+        product: "prod_grove",
+        active: true,
+        currency: "usd",
+        type: "recurring",
+        unit_amount: Number(fields.get("unit_amount")),
+        recurring: {
+          interval: "year",
+          interval_count: 1,
+          usage_type: "licensed",
+        },
+        lookup_key: fields.get("lookup_key"),
+      }),
+    );
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const stripe = new Stripe("sk_test_fixture", {
+      host: "127.0.0.1",
+      port: (server.address() as { port: number }).port,
+      protocol: "http",
+      maxNetworkRetries: 0,
+    });
+    const pricing = new application.YearlyPricing(
+      stripe,
+      "prod_grove",
+      async () => amount,
+    );
+    assert.deepEqual(await pricing.quote("user_fixture"), {
+      interval: "year",
+      amount: 15900,
+      currency: "usd",
+    });
+    assert.equal(creates, 0, "displaying pricing must not write to Stripe");
+    assert.equal(
+      (await pricing.resolve("user_fixture", 15900)).id,
+      "price_year_15900",
+    );
+    assert.equal(creates, 1);
+    assert.match(seenKeys[0], /^grove-pro-prod_grove-usd-year-15900$/);
+    amount = 199;
+    await assert.rejects(pricing.resolve("user_fixture", 15900), {
+      code: "billing_price_changed",
+    });
+    assert.equal(
+      (await pricing.resolve("user_fixture", 19900)).id,
+      "price_year_19900",
+    );
+    for (amount of [null, undefined, 0, -5, 5.001, "5", Infinity, 10001])
+      await assert.rejects(pricing.quote("user_fixture"), {
+        code: "billing_price_invalid",
+      });
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});

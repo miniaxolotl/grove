@@ -12,6 +12,11 @@ import {
   captureSchema,
   expectedVersionSchema,
 } from "./contracts";
+import {
+  describeNoteMediaSchema,
+  listNoteMediaSchema,
+  readMediaTranscriptSchema,
+} from "./agent-media.ts";
 import { noteContentDescription } from "@lib/shared/note-writing";
 import { sourceEditsSchema } from "./document-edits";
 
@@ -284,6 +289,27 @@ export const memoryTools = {
     destructive: true,
     description:
       "Owner website session only: preview a notebook subtree, then archive/restore/soft-delete using its fingerprint, expectedVersion and operationId. Agent OAuth/API keys cannot administer subtrees. Deletion hides retained history and has no ordinary Undo.",
+  },
+  list_note_media: {
+    title: "List note media",
+    schema: listNoteMediaSchema,
+    readOnly: true,
+    description:
+      "List image/recording attachments bound to one accessible note revision with safe metadata only (mime, bytes, dimensions, duration, transcript presence). No bytes, keys, or hashes. Use describe/read tools for details; fetch bytes only through the authorized media route.",
+  },
+  describe_note_media: {
+    title: "Describe note media",
+    schema: describeNoteMediaSchema,
+    readOnly: true,
+    description:
+      "Describe one bound image/recording with safe metadata and transcript version. No bytes, keys, or hashes. Use listed IDs; never invent attachment references.",
+  },
+  read_media_transcript: {
+    title: "Read media transcript",
+    schema: readMediaTranscriptSchema,
+    readOnly: true,
+    description:
+      "Read the current saved transcript text (up to 6000 characters) for one bound WAV recording. Empty when no transcript was saved. Suggested speech output is never auto-applied; save only through explicit note edits.",
   },
 } as const;
 export type MemoryToolName = keyof typeof memoryTools;

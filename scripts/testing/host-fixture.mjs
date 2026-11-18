@@ -30,6 +30,9 @@ export const tools = [
   "create_notebook",
   "update_notebook",
   "notebook_lifecycle",
+  "list_note_media",
+  "describe_note_media",
+  "read_media_transcript",
 ].sort();
 export const calls = () => [
   ["recall", {}],

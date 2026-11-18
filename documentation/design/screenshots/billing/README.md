@@ -7,8 +7,10 @@ accounting explanations; the operational contract remains in the billing guide.
 
 Synthetic Free/Pro accounts, Stripe-hosted destination fixtures and fixed UTC reset
 dates. These historical captures display the then-approved **$5 USD/month**;
-current new-subscription pricing is **$19.99 USD/month**, controlled by the numeric
-Vercel flag. Accounts and usage in the screenshots are synthetic; no payment is made.
+current new-subscription pricing is **$19.99 USD/month or $159 USD/year**,
+controlled by the numeric Vercel flags. Accounts and usage in the screenshots
+are synthetic; no payment is made. Current period options are shown in the
+[billing-periods gallery](../billing-periods/).
 
 The actual Billing component is bundled by the isolated dashboard fixture and
 uses production CSS from Next build `_d54R6Hq27doDKPcayxwK`, based on billing source

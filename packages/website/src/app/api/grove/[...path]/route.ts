@@ -27,7 +27,7 @@ async function forward(
   )
     return fail(403, "Request origin is not allowed");
   const path = (await context.params).path.join("/");
-  const billing = /^(billing|billing\/(?:checkout|portal))$/.test(path);
+  const billing = /^(billing|billing\/(?:checkout|portal|trial))$/.test(path);
   const admin =
     path === "admin" || path === "admin/audit"
       ? request.method === "GET"
@@ -39,7 +39,9 @@ async function forward(
           ].includes(path)
         ? request.method === "POST"
         : ["admin/accounts", "admin/accounts/support"].includes(path) &&
-          request.method === "PATCH";
+          request.method === "PATCH"
+        ? true
+        : path === "admin/accounts/trial-reset" && request.method === "POST";
   if (billing && process.env.BILLING_CONFIGURED !== "true")
     return fail(404, "Route not found");
   if (billing && !(await showBilling())) return fail(404, "Route not found");

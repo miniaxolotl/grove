@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { operationSchema, uuidSchema } from "@lib/shared/contracts";
+import { operationSchema, uuidSchema } from "./contracts.ts";
+import { noteTitle } from "./search.ts";
+import { SHARE_CURSOR_MAX } from "./limits.ts";
 
 export const shareTokenSchema = z.string().regex(/^gsh_[A-Za-z0-9_-]{43}$/);
 export const shareDurationSchema = z.enum([
@@ -11,7 +13,7 @@ export const shareDurationSchema = z.enum([
   "1mo",
 ]);
 export type ShareDuration = z.infer<typeof shareDurationSchema>;
-export { shareDurations } from "@lib/shared/share-durations";
+export { shareDurations } from "./share-durations.ts";
 export const shareMutationSchema = z
   .object({
     operationId: operationSchema,
@@ -36,7 +38,7 @@ export const shareScopeSchema = shareMutationSchema
   );
 export const publicShareQuerySchema = z
   .object({
-    cursor: z.string().max(2048).optional(),
+    cursor: z.string().max(SHARE_CURSOR_MAX).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(30),
   })
   .strict();
@@ -87,11 +89,30 @@ export type PublicShare = z.infer<typeof publicShareSchema>;
 
 /** Public titles are derived only from the text the owner chose to share. */
 export function sharedNoteTitle(content: string): string {
-  return (
-    content
-      .trim()
-      .split("\n")[0]!
-      .replace(/^#{1,6}\s+/, "")
-      .slice(0, 110) || "Untitled note"
-  );
+  return noteTitle(content) || "Untitled note";
+}
+
+/** Single URL validator for public share links (webapp + extension). */
+export function parsePublicShareUrl(
+  value: string,
+  siteOrigin: string,
+): string | null {
+  try {
+    const url = new URL(value);
+    if (
+      url.origin !== siteOrigin ||
+      !url.pathname.startsWith("/s/") ||
+      !shareTokenSchema.safeParse(url.pathname.slice(3)).success ||
+      url.search ||
+      url.hash
+    )
+      return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+export function isSafePublicShareUrl(value: string, siteOrigin: string) {
+  return parsePublicShareUrl(value, siteOrigin) !== null;
 }

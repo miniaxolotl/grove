@@ -28,12 +28,6 @@
 .segmented-control > button:hover {
   color: var(--color-forest);
 }
-.library-caption {
-  flex-wrap: wrap;
-}
-.library-caption .segmented-control {
-  margin-left: auto;
-}
 .memory-graph {
   --graph-surface: #ffffff;
   --graph-line: var(--color-line);
@@ -992,10 +986,6 @@
   .revision-compare {
     grid-template-columns: minmax(0, 1fr);
   }
-  .library-caption .segmented-control {
-    order: -1;
-    margin-left: 0;
-  }
   .graph-toolbar {
     padding: 10px 12px;
   }
@@ -1271,9 +1261,8 @@
 }
 .connection-evidence blockquote {
   margin: 0;
-  padding: 0.75rem;
-  border-radius: 6px;
-  background: #fff;
+  padding-inline-start: 0.75rem;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
   font-size: 0.8125rem;
   line-height: 1.75;

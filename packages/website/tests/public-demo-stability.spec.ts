@@ -14,11 +14,28 @@ for (const width of [1440, 768, 390, 320]) {
     });
     await page.goto("/");
     await page.evaluate(() => document.fonts.ready);
+    const preview = page.locator(".notebook-preview");
+    const previewHeight = (await preview.boundingBox())!.height;
+    for (const button of await page
+      .locator(".notebook-sample-choices button")
+      .all()) {
+      await button.click();
+      expect(
+        Math.abs((await preview.boundingBox())!.height - previewHeight),
+      ).toBeLessThan(1);
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.getByRole("link", { name: "More notebook examples" }).click();
+    await expect(page).toHaveURL(/\/examples$/);
+    await page.evaluate(() => document.fonts.ready);
     await expect(page.locator(".sample-graph .react-flow__node")).toHaveCount(
       8,
     );
     for (const [buttons, shell] of [
-      [".notebook-sample-choices button", ".notebook-preview"],
       ['[id^="library-preview-tab-"]', ".library-window"],
       ['[id^="memory-example-tab-"]', ".demo-shell"],
       [".demo-panel:not([inert]) .comparison-button", ".demo-shell"],

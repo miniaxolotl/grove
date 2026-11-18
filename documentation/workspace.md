@@ -1,9 +1,11 @@
 # Your Grove notebook
 
 Start in **Notes** to write and browse, or **Ask Grove** to work with your notes.
-Notebooks live in the sidebar; on phones, open **Notebooks** beneath navigation.
-The Grove logo returns to Notes. Connected agents share these notes and their
-approved permissions; technical references stay in **Note properties → Agent details**.
+The sidebar puts **Notes** and **Ask Grove** first, then **Notebooks** (Unfiled
+and your notebook tree), with **Settings** last. On phones, open **Notebooks**
+beneath Notes and Ask Grove. The Grove logo returns to Notes. Connected agents
+share these notes and their approved permissions; technical references stay in
+**Note properties → Agent details**.
 
 ## Your first saved note
 
@@ -11,7 +13,8 @@ You only need a Grove account and a browser. No CLI, agent plugin or personal
 model-provider key is needed for the Cloud notebook.
 
 1. [Create an account](https://usegrove.cloud/sign-up), then open **Notes**.
-2. Choose **New note**. You can file it in a notebook later.
+2. Choose **New note**, or **Write your first note** if the library is empty.
+   You can file it in a notebook later.
 3. Write a short title and something you will want to find,
    such as a packing list. Save the note and wait for the saved confirmation.
 4. Return to Notes and reopen your note. Seeing the saved text
@@ -29,12 +32,18 @@ owns connection commands and approval.
 ## Write, find, and organize
 
 - **New note**, **Today’s note** and existing notes use the same workspace.
+  Find **Today’s note** under **More** in Notes or **Notebook options** in a
+  specific notebook.
   **Edit note** / **Preview** switch in place, preserving cursor, Undo and reading
   position. **Write** styles Markdown; **Markdown** exposes source. Formatting,
   outline and focus mode remain available while writing.
 - Autosave starts after a 450ms typing pause; viewer checklist changes start saving
   immediately. **Save note** or Ctrl/Cmd+S saves now. First-save routing retains
   the editor, focus, scroll and Undo. Another New note starts a separate document.
+- [Spelling and basic grammar](webapp-writing.md) are checked on your device as
+  you write, with the same engine as the browser extension and no double
+  underlines when both are present. Open an underline or press **Alt+Enter**;
+  one click applies a replacement with normal Undo.
   Existing notes send precise source edits, preserving unedited passages. Revision
   history groups nearby small autosaves from one editing session instead of listing
   each keystroke save. Large/structural changes and explicit Save stay separate.
@@ -51,30 +60,41 @@ owns connection commands and approval.
   library, not just loaded rows. Queries remain in POST bodies. See
   [search](search.md) for relevance, typo/prefix matching and partial evidence.
 - **New note** follows your current notebook; notes without one are **Unfiled**.
-  Sidebar expansion, list scroll and outline pinning can be remembered per account
+  Sidebar expansion, notebook collapse, list scroll and outline pinning can be
+  remembered per account
   in this browser without storing note text, names, queries or drafts.
 - Create with the sidebar **+**; **Manage notebooks** browses the catalog. Use
   **Organize** for sibling order and **Move notebook** for a searchable destination
-  and explicit placement. Touch notebook folder controls open Organize rather than
-  requiring long-press drag. Mouse and keyboard paths remain available. The
+  and explicit placement. Notebook grips drag with mouse/pen or a deliberate touch
+  hold; tapping or clicking a grip opens Organize for exact placement. The
   [organization guide](notebook-organization.md) owns full move/retry/Undo behavior
   and device qualification limits. Parent access never grants child access.
-- Select up to 50 loaded notes for batch move/archive/restore. Note handles support
+- Select up to 50 loaded notes for batch move/archive/restore/**Delete**.
+  Confirmations apply instantly: rows move the moment you confirm while the
+  request settles in the background, and only that note's controls lock during
+  its own request. A row with a request in flight dims without moving the list.
+  If a request fails, that note alone snaps back and the failure is reported;
+  every other row keeps its new state. Note handles support
   mouse/pen, keyboard Space/arrows/Escape and deliberate touch drag; horizontal
-  swipe reveals ordinary note actions while vertical input scrolls. Notebook touch
-  controls follow the separate Organize path above. Partial failures identify notes;
+  swipe reveals ordinary note actions while vertical input scrolls. Notebook grips
+  share the same hold-to-lift gesture. Partial failures identify notes;
   Undo never overwrites a later edit.
 
 Full-page phone notes use **Back to notes** instead of the sidebar. **Note actions**
 keeps compact secondary tools together. Menus/dialogs dismiss on outside press,
-not a drag crossing their edge; confirmations wait for mutations, while autosave
-retains its draft/request when you navigate away.
+not a drag crossing their edge; library confirmations apply instantly while the
+request settles in the background (failures roll back and are reported), while
+autosave retains its draft/request when you navigate away.
 
 ## Archive and delete notebooks
 
 Notebook options and manager actions offer whole-subtree Archive/Delete. Review
 descendant/note counts and resolve local drafts before confirmation. **Manage
-notebooks → Archived** offers Restore/Delete; restore the parent first. Independently
+notebooks → Archived** offers Restore/Delete; restore the parent first. The
+archived list also supports multi-select bulk Restore/Delete (up to 50):
+previews load per notebook, descendants covered by another selected root are
+handled once, and each notebook commits on its own so one failure rolls back
+only that notebook. Independently
 archived descendants remain archived. Deletion hides retained source/history and
 has no in-app Undo. Direct revoked links never reactivate on restore. See
 [lifecycle](notebook-lifecycle.md) for scope, concurrency and recovery.
@@ -98,7 +118,8 @@ links. A missing section leaves the note usable without altering text.
 
 ### Public read-only links
 
-**Share note/notebook** creates a live read-only capability for anyone with its URL.
+Choose **Note actions → Share note** or **Notebook options → Share notebook** to
+create a live read-only link. Anyone with the URL can read the shared content.
 Choose direct versus descendant scope and optional expiry; review before saving.
 Unshared drafts/history/agent metadata are not published. Revoking one direct link
 does not remove independently covering links. [Public sharing](sharing.md) owns
@@ -128,6 +149,8 @@ mode hides secondary navigation without replacing the document or losing history
 
 ## Export and delete notes
 
+Open **Note actions** beside the save control for **Revision history**, **Share
+note**, **Export**, and **Delete note**. The same menu works on desktop and phone.
 **Export** offers Markdown, PDF and Copy Markdown using the current reading/editing
 text, including unsaved drafts. Row export uses a retained draft or latest saved
 content. Oversized drafts remain exportable even when they cannot be saved.
@@ -137,11 +160,16 @@ embedded; external images stay links. Audio is a textual reference, not embedded
 playback. [Media exports](media.md#exports-and-recovery) own image limits, portable
 original-byte TARs and media-complete account exports.
 
+To see archived notes and notebooks, choose **Notes → More → Archive**. Use
+**Back to notes** to return to the active library.
+
 **Settings → Your data** prepares a background account export; notebook export can
 include descendants. Progress/retry/cancel/download survive navigation; see
 [jobs](jobs.md#exports-and-storage) for format, expiry and source-change fencing.
 
 **Delete note…** confirms by name, hides the note/history and has no ordinary Undo.
+Select several notes to delete them with one confirmation (up to 50); the rows
+leave instantly and any note whose version changed snaps back with a report.
 It can discard a dirty draft, but waits for a running save and requires resolving
 an uncertain save first. A concurrent edit requires review, never unseen deletion.
 
@@ -163,7 +191,11 @@ edits. [API contracts](server.md#memory-and-notebook-tools) define exact semanti
 
 ## Linked notes and Ask Grove
 
-**Graph** explores loaded current notes/notebooks; load earlier pages for broader
+When notes are available, choose **More → Graph** in Notes or in an open
+notebook. **Back to list** keeps your current notebook and filters. The direct
+`/app/graph` link also works.
+
+The graph explores loaded current notes/notebooks; load earlier pages for broader
 coverage. Ordinary wheel input scrolls the page; Ctrl/Cmd+wheel zooms. Touch users
 expand for pan/pinch; keyboard users can focus/select/read nodes and return focus.
 Linked-note explanations cite current excerpts; see [relationships](relationships.md).
@@ -174,9 +206,11 @@ note changes. [Ask tools](ask-tools.md) owns tools/history/composer behavior;
 [document imports](imports.md) owns attachments/full-text review. Uploading or asking
 does not implicitly create a library note. Drafts remain private session memory.
 
-**Settings** keeps navigation while section content scrolls. Preference drafts survive
-tab switches; Save submits changed controls and retains newer typing, Discard restores
-saved values. Availability is separate from preferences and provider health. See
+**Settings** keeps section links visible while the selected page scrolls. On narrow
+screens the links wrap instead of scrolling sideways. Writing checks apply immediately
+on this device. Account preference drafts survive section changes; Save submits changed
+controls and retains newer typing, and Discard restores saved values. Availability is
+separate from preferences and provider health. See
 [models](models.md), [billing](billing.md) and [files/storage](files-storage.md).
 Original images/audio, [manual transcripts](recordings.md) and editing remain usable
 without inference; [speech](speech.md) requires separate explicit actions.

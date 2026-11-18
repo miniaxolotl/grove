@@ -1,8 +1,12 @@
 # Memory tools and API
 
-The Node 24 Hono service exposes `/v1` REST and stateless Streamable HTTP `/mcp`.
-Both call the same transactional memory service and Zod contracts. The published
-CLI is an API-only stdio bridge; it has no database credentials or local database.
+The Node 24 API runs Hono through `@hono/node-server`. Its `/v1` REST and stateless
+Streamable HTTP `/mcp` endpoints use the same transactional memory service and Zod
+contracts. API integration tests that open real HTTP listeners use the same Node
+adapter; the workspace lockfile records the resolved versions.
+
+The published CLI is an API-only stdio bridge; it has no database credentials or
+local database.
 
 The owner-only [Files & storage API](files-storage.md#api-and-privacy) projects
 upload metadata, authorized locations and conservative storage counters without
@@ -85,13 +89,16 @@ an action. Existing schemas, bounds, defaults and grants remain unchanged.
 | `create_notebook`                  | Retry-safe notebook creation                       | `operationId`, `name`, optional `parentId`                                                   |
 | `update_notebook`                  | Partial rename/move                                | `operationId`, `id`, `expectedVersion`, `name` and/or `parentId`                             |
 | `notebook_lifecycle`               | Owner-only subtree preview/archive/restore/delete  | `id`, `action`; changes also require `operationId`, `expectedVersion`, preview `fingerprint` |
+| `list_note_media`                  | Bound image/recording inventory (metadata only)    | `memoryId`, optional `version`                                                               |
+| `describe_note_media`              | One bound attachment (metadata only)               | `memoryId`, `mediaId`, optional `version`                                                    |
+| `read_media_transcript`            | Saved WAV transcript text (≤6000)                  | `memoryId`, `mediaId`                                                                        |
 
 The four structured editing tools are `get_memory_document`,
 `preview_memory_patch`, `apply_memory_patch` and `compare_memory_revisions`.
 See [structured notes](structured-documents.md) for exact source offsets, review
 binding, retry identity and capability negotiation.
 
-All 18 tools share schemas and execution between remote MCP and the packaged stdio
+All 21 tools share schemas and execution between remote MCP and the packaged stdio
 bridge. `POST /v1/tools/:tool` accepts the same arguments and normal REST envelopes.
 Existing REST routes and the original four tools remain compatible. Ship the matching
 API before the upgraded bundled clients; an older server cannot execute new tools.
@@ -174,6 +181,11 @@ Responses use `{success: true, data}` or
 | `/v1/assistance`, `/v1/notebook-visits`                                | Owning website session; [notebook assistance](notebook-assistance.md)                                                          |
 | `POST /v1/memories/:id/archive`; `…/restore`                           | `memory:write`, operation ID and current version                                                                               |
 | `POST /v1/memories/delete`                                             | `memory:delete`                                                                                                                |
+| `PUT /v1/memories/:noteId/media/:id`; `PATCH …/media/:id/transcript`   | `memory:write` on the note scope; quota/lease/version-checked                                                                  |
+| `GET /v1/memories/:noteId/media/:id`; `GET …/media/:id/transcript`     | `memory:read` on the note scope; exact revision binding                                                                        |
+| `POST /v1/memories/:noteId/speech`; `GET /v1/speech/:id`…              | Owning website session only; no agent generation/retrieval                                                                     |
+| `GET /v1/files/storage`; `POST /v1/files/search`                       | Owning website session only                                                                                                    |
+| `POST /v1/files/locations`                                             | Owning website session only                                                                                                    |
 | `POST /v1/recall`                                                      | `memory:read`                                                                                                                  |
 | `POST /v1/tools/:tool`                                                 | Same tool schemas and scoped capabilities as MCP; notebook lifecycle remains owner-only                                        |
 | `POST /v1/ask`                                                         | Scoped `memory:read`; cited answer or source search                                                                            |

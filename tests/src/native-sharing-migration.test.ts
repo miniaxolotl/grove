@@ -70,7 +70,15 @@ test("native sharing upgrade leaves existing grants off and preserves retained l
     });
     const before = await owner("public_shares").where({ id: shareId }).first();
     await assert.rejects(probeDatabase(runtime), /sharing_enabled/i);
-    const [, applied] = await owner.migrate.latest();
+    const [, applied] = await owner.migrate.latest({
+      migrationSource: {
+        ...migrationSource,
+        getMigrations: async () =>
+          (await migrationSource.getMigrations([])).filter(
+            (migration) => migration.name <= "20261106_039_native_note_sharing",
+          ),
+      },
+    });
     assert.deepEqual(applied, ["20261106_039_native_note_sharing"]);
     assert.equal(
       (await owner("connections").where({ id }).first()).sharingEnabled,

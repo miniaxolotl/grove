@@ -3,12 +3,18 @@
 Notebook lifecycle actions require the owning website session. They apply to the
 selected notebook, **all sub-notebooks**, and all their non-deleted notes, including
 notes already archived or expired. The confirmation names the notebook and shows
-the complete notebook/note counts; nothing changes until confirmation.
+the complete notebook/note counts; nothing changes until confirmation. After
+confirmation the change applies instantly while the request settles in the
+background; a failure snaps the notebooks back and is reported.
 
 ## Archive and restore
 
 Archive removes the subtree from active navigation and archives its active notes.
-Use **Manage notebooks → Archived** to restore it. Restore the parent first when
+Use **Manage notebooks → Archived** to restore it. The archived list supports
+multi-select bulk Restore/Delete (up to 50 notebooks): previews load in
+parallel, a notebook covered by another selected notebook's subtree is handled
+once, and each notebook commits on its own journal so one failure rolls back
+only that notebook. Restore the parent first when
 attempting to restore a child of an archived notebook. Notes and child notebooks
 archived separately before the operation remain archived. Expired notes retain
 their expiry and purge dates; notebook restoration never extends retention.
@@ -64,6 +70,10 @@ reactivate a deleted record. Interrupted transactions roll back as a unit.
 
 The browser freezes the reviewed preview, disables confirmation for local drafts,
 and preserves pending/uncertain save identities rather than discarding writing.
+After confirmation the notebooks leave immediately and the dialog closes; the
+request settles behind them. A failed request restores the snapshots, removes
+optimistic tombstones and quietly revalidates, since a lost response may still
+have committed server-side.
 Successful mutations cancel held reads, remove affected cached sources and refresh
 directories, lists and derived evidence. Cross-tab messages contain only action/
 scope metadata. Other-tab saves still meet server version and inactive-notebook

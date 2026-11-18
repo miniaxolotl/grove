@@ -3,11 +3,15 @@ import { cloneElement } from "react";
 import { useLocation } from "./navigation";
 import { DashboardShell } from "../../src/components/dashboard/shell";
 import { MemoryLibrary } from "../../src/components/dashboard/memory-library";
-import { Connections } from "../../src/components/dashboard/connections";
+import {
+  BrowserConnectionApproval,
+  Connections,
+} from "../../src/components/dashboard/connections";
 import { ConnectAgent } from "../../src/components/dashboard/connect-agent";
 import Projects from "../../src/app/app/projects/page";
 import Settings from "../../src/app/app/settings/page";
 import { ModelSettings } from "../../src/components/dashboard/model-settings";
+import { AiPreferencesPanel } from "../../src/components/dashboard/preferences-panel";
 import { MemoryContext } from "../../src/components/dashboard/context";
 import { AskGrove } from "../../src/components/dashboard/ask-grove";
 import { NoteDocument } from "../../src/components/dashboard/note-document";
@@ -37,8 +41,10 @@ function DashboardFixture() {
     <AdminPanel />
   ) : path.endsWith("/settings/billing") ? (
     <BillingPanel />
-  ) : path.endsWith("/settings/models") ? (
+  ) : path.endsWith("/settings/models/providers") ? (
     <ModelSettings />
+  ) : path.endsWith("/settings/models") ? (
+    <AiPreferencesPanel />
   ) : path.endsWith("/settings/account") ? (
     <SettingsPanel section="account" />
   ) : path.endsWith("/settings/files") ? (
@@ -49,6 +55,8 @@ function DashboardFixture() {
     <MemoryContext />
   ) : path.startsWith("/app/projects/") ? (
     <MemoryContext projectId={path.split("/").at(-1)!} />
+  ) : path.startsWith("/app/connect/browser/") ? (
+    <BrowserConnectionApproval key={path} id={path.split("/").at(-1)!} />
   ) : path.startsWith("/app/connect/") ? (
     <ConnectAgent id={path.split("/").at(-1)!} />
   ) : path.endsWith("/connections") ? (

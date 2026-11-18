@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MemoryInspector } from "./memory-inspector";
 import { useNotebooks } from "./notebooks-provider";
 import { LoadError } from "./load-error";
+import { DocumentSkeleton } from "./workspace-opening";
 
 /** The shared route layout keeps one document alive through its first save. */
 export function NoteDocument({ children }: { children: ReactNode }) {
@@ -45,9 +46,9 @@ export function NoteDocument({ children }: { children: ReactNode }) {
       );
     if (loading)
       return (
-        <p className="library-loading" role="status">
-          Opening your writing space…
-        </p>
+        <div className="note-document">
+          <DocumentSkeleton label="Opening your writing space…" />
+        </div>
       );
   }
   return (

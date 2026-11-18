@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { KeyRound, Plug } from "lucide-react";
@@ -17,6 +17,12 @@ import { Button } from "./ui/button";
 import { Disclosure } from "./ui/disclosure";
 import { useNotebooks } from "./notebooks-provider";
 import { notebookOptions } from "@/lib/notebooks";
+import { useWorkspaceNavigationState } from "./workspace-navigation-state";
+
+const subscribeHash = (listener: () => void) => {
+  window.addEventListener("hashchange", listener);
+  return () => window.removeEventListener("hashchange", listener);
+};
 
 type Connection = Grant & {
   id: string;
@@ -36,6 +42,13 @@ export function Connections({ origin }: { origin: string }) {
   const api = useWorkspaceApi();
   const cache = useWorkspaceCache();
   const query = useQuery(cache.resource<Connection[]>("/connections"));
+  const navigation = useWorkspaceNavigationState();
+  const hiddenIds = navigation?.state.hiddenConnections ?? [];
+  const hash = useSyncExternalStore(
+    subscribeHash,
+    () => window.location.hash,
+    () => "",
+  );
   const [openedAt] = useState(Date.now);
   const items = (query.data ?? []).map((item) =>
     item.setup?.status === "pending" &&
@@ -50,6 +63,38 @@ export function Connections({ origin }: { origin: string }) {
   const [selected, setSelected] = useState<Connection | "new" | null>(null);
   const [secret, setSecret] = useState("");
   const [notice, setNotice] = useState("");
+  const heading = useRef<HTMLHeadingElement>(null);
+  const hiddenSummary = useRef<HTMLElement>(null);
+  const displayHidden = (item: Connection) =>
+    hiddenIds.includes(item.id) && hash !== `#connection-${item.id}`;
+  const shownItems = items.filter((item) => !displayHidden(item));
+  const hiddenItems = items.filter(displayHidden);
+  const hasHashTarget = items.some((item) => hash === `#connection-${item.id}`);
+  useEffect(() => {
+    if (hasHashTarget)
+      document
+        .getElementById(hash.slice(1))
+        ?.scrollIntoView({ block: "nearest" });
+  }, [hasHashTarget, hash]);
+  function changeVisibility(item: Connection, hide: boolean) {
+    if (!navigation?.ready) return;
+    if (hide && hash === `#connection-${item.id}`) window.location.hash = "";
+    navigation.update({
+      hiddenConnections: hide
+        ? [...hiddenIds, item.id]
+        : hiddenIds.filter((id) => id !== item.id),
+    });
+    setNotice(
+      hide
+        ? "Connection hidden in this browser. Access has not changed."
+        : "Connection shown again.",
+    );
+    requestAnimationFrame(() =>
+      (hide ? hiddenSummary.current : heading.current)?.focus({
+        preventScroll: true,
+      }),
+    );
+  }
   const [revoking, setRevoking] = useState<string | null>(null);
   const revokeLock = useRef(false);
   const reload = () => {
@@ -76,7 +121,9 @@ export function Connections({ origin }: { origin: string }) {
   }
   return (
     <>
-      <h2 className="settings-section-heading">Connections</h2>
+      <h2 className="settings-section-heading" ref={heading} tabIndex={-1}>
+        Connections
+      </h2>
       <p className="settings-section-description">
         Choose which notes each connection can read, save or delete.
       </p>
@@ -146,85 +193,24 @@ export function Connections({ origin }: { origin: string }) {
           </p>
         </div>
       ) : (
-        <ul className="space-y-3">
-          {items.map((item) => (
-            <li
-              key={item.id}
-              id={`connection-${item.id}`}
-              className="app-panel connection-grant"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h2 className="font-medium">{item.name}</h2>
-                  <p className="mt-2 text-xs text-muted">
-                    {item.revokedAt
-                      ? "Revoked"
-                      : item.expiresAt && new Date(item.expiresAt) < new Date()
-                        ? "Expired"
-                        : item.capabilities.length
-                          ? "Approved"
-                          : "Awaiting approval"}{" "}
-                    · {item.clientId ? "Browser OAuth" : "API key"}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {item.setup?.status === "pending" && !item.revokedAt ? (
-                    <Link
-                      className="app-button secondary"
-                      href={`/app/connect/${item.setup.id}`}
-                    >
-                      Continue setup
-                    </Link>
-                  ) : (
-                    <button
-                      className="app-button secondary"
-                      onClick={() => {
-                        setNotice("");
-                        setSelected(item);
-                      }}
-                    >
-                      {item.capabilities.length ? "Edit scope" : "Approve"}
-                    </button>
-                  )}
-                  {!item.revokedAt && (
-                    <button
-                      className="app-button danger"
-                      onClick={() => revoke(item.id)}
-                      disabled={revoking !== null}
-                    >
-                      {revoking === item.id ? "Revoking…" : "Revoke"}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <p className="mt-4 text-xs leading-6 text-muted">
-                {item.capabilities
-                  .map((capability) => capabilityLabels[capability])
-                  .join(" · ") || "No note access until approved"}
-                <br />
-                {item.personal
-                  ? "Personal memories"
-                  : "No personal access"} ·{" "}
-                {item.allProjects
-                  ? "All notebooks"
-                  : `${item.projectIds.length} selected notebooks`}
+        <>
+          {!shownItems.length && !!hiddenItems.length && (
+            <p className="text-sm text-muted">No visible connections.</p>
+          )}
+          {renderRows(shownItems, false)}
+          {!!hiddenItems.length && (
+            <details className="settings-options mt-4">
+              <summary ref={hiddenSummary}>
+                Hidden connections ({hiddenItems.length})
+              </summary>
+              <p className="mb-3 text-sm text-muted">
+                Hidden only in this browser. To stop access, revoke the
+                connection.
               </p>
-              {item.clientId && (
-                <p className="mt-2 break-all font-mono text-[10px] text-muted">
-                  Client: {item.clientId}
-                </p>
-              )}
-              <p className="mt-2 text-[10px] text-muted">
-                Created: {new Date(item.createdAt).toLocaleString()}
-                <br />
-                Last contact:{" "}
-                {item.lastUsedAt
-                  ? new Date(item.lastUsedAt).toLocaleString()
-                  : "Not yet"}
-              </p>
-            </li>
-          ))}
-        </ul>
+              {renderRows(hiddenItems, true)}
+            </details>
+          )}
+        </>
       )}
       {selected && (
         <Dialog
@@ -238,7 +224,9 @@ export function Connections({ origin }: { origin: string }) {
             projects={projects}
             done={(value) => {
               setNotice(
-                selected !== "new" && selected.clientId
+                selected !== "new" &&
+                  selected.clientId &&
+                  !selected.capabilities.length
                   ? "Access approved. Return to your chat, refresh or retry Grove, then ask it to save and recall a note to verify the connection."
                   : selected === "new"
                     ? ""
@@ -271,25 +259,198 @@ export function Connections({ origin }: { origin: string }) {
       )}
     </>
   );
+
+  function renderRows(rows: Connection[], hidden: boolean) {
+    if (!rows.length) return null;
+    return (
+      <ul className="space-y-3">
+        {rows.map((item) => (
+          <li
+            key={item.id}
+            id={`connection-${item.id}`}
+            className="app-panel connection-grant"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="font-medium">{item.name}</h2>
+                <p className="mt-2 text-xs text-muted">
+                  {item.revokedAt
+                    ? "Revoked"
+                    : item.expiresAt && new Date(item.expiresAt) < new Date()
+                      ? "Expired"
+                      : item.capabilities.length
+                        ? "Approved"
+                        : "Awaiting approval"}{" "}
+                  · {item.clientId ? "Browser OAuth" : "API key"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {item.setup?.status === "pending" && !item.revokedAt ? (
+                  <Link
+                    className="app-button secondary"
+                    href={`/app/connect/${item.setup.id}`}
+                  >
+                    Continue setup
+                  </Link>
+                ) : (
+                  <button
+                    className="app-button secondary"
+                    onClick={() => {
+                      setNotice("");
+                      setSelected(item);
+                    }}
+                  >
+                    {item.capabilities.length ? "Edit scope" : "Approve"}
+                  </button>
+                )}
+                {!item.revokedAt && (
+                  <button
+                    className="app-button danger"
+                    onClick={() => revoke(item.id)}
+                    disabled={revoking !== null}
+                  >
+                    {revoking === item.id ? "Revoking…" : "Revoke"}
+                  </button>
+                )}
+                {navigation?.ready &&
+                  (hidden || item.setup?.status !== "pending") && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => changeVisibility(item, !hidden)}
+                    >
+                      {hidden ? "Show again" : "Hide"}
+                    </button>
+                  )}
+              </div>
+            </div>
+            <p className="mt-4 text-xs leading-6 text-muted">
+              {item.capabilities
+                .map((capability) => capabilityLabels[capability])
+                .join(" · ") || "No note access until approved"}
+              <br />
+              {item.personal
+                ? "Personal memories"
+                : "No personal access"} ·{" "}
+              {item.allProjects
+                ? "All notebooks"
+                : `${item.projectIds.length} selected notebooks`}
+            </p>
+            {item.clientId && (
+              <p className="mt-2 break-all font-mono text-[10px] text-muted">
+                Client: {item.clientId}
+              </p>
+            )}
+            <p className="mt-2 text-[10px] text-muted">
+              Created: {new Date(item.createdAt).toLocaleString()}
+              <br />
+              Last contact:{" "}
+              {item.lastUsedAt
+                ? new Date(item.lastUsedAt).toLocaleString()
+                : "Not yet"}
+            </p>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+}
+
+export function BrowserConnectionApproval({ id }: { id: string }) {
+  const cache = useWorkspaceCache();
+  const query = useQuery(cache.resource<Connection[]>("/connections"));
+  const { projects, loading, error, reload } = useNotebooks();
+  const [saved, setSaved] = useState(false);
+  const [openedAt] = useState(Date.now);
+  const connection = query.data?.find(
+    (item) => item.id === id && item.clientId,
+  );
+  const unavailable =
+    !connection ||
+    connection.revokedAt ||
+    (connection.expiresAt &&
+      Date.parse(connection.expiresAt) <=
+        Math.max(openedAt, query.dataUpdatedAt));
+  return (
+    <div className="mx-auto max-w-xl">
+      <h1 className="settings-section-heading mb-4">Connect your browser</h1>
+      {query.error ? (
+        <LoadError
+          message={errorMessage(query.error)}
+          retry={() => void query.refetch()}
+        />
+      ) : query.isPending ? (
+        <p role="status">Loading your connection…</p>
+      ) : unavailable ? (
+        <p>
+          This connection is unavailable. Check that you’re using the same Grove
+          account, or start again in the extension.
+        </p>
+      ) : saved ||
+        connection.capabilities.some(
+          (capability) =>
+            capability === "memory:read" || capability === "memory:write",
+        ) ? (
+        <p role="status">
+          Browser connected. Return to the Grove panel to use your notes.
+        </p>
+      ) : (
+        <section className="app-panel">
+          <p className="mb-4 text-sm text-muted">
+            Continue only if you just started setup from the Grove extension.
+            Choose which notes this browser can access.
+          </p>
+          <GrantForm
+            connection={connection}
+            projects={projects}
+            browserSetup
+            projectStatus={
+              loading
+                ? "Loading notebooks…"
+                : error
+                  ? "Notebooks couldn’t load."
+                  : undefined
+            }
+            retryProjects={error ? reload : undefined}
+            done={() => setSaved(true)}
+          />
+        </section>
+      )}
+    </div>
+  );
 }
 
 function GrantForm({
   connection,
   projects,
   done,
+  browserSetup = false,
+  projectStatus,
+  retryProjects,
 }: {
   connection?: Connection;
   projects: Project[];
   done: (secret?: string) => void;
+  browserSetup?: boolean;
+  projectStatus?: string;
+  retryProjects?: () => void;
 }) {
   const api = useWorkspaceApi();
   const creating =
     !connection || (!connection.capabilities.length && !connection.revokedAt);
   const [name, setName] = useState(
-    connection?.name === "Awaiting approval" ? "" : (connection?.name ?? ""),
+    browserSetup
+      ? "Grove browser extension"
+      : connection?.name === "Awaiting approval"
+        ? "Connected app"
+        : (connection?.name ?? "Grove API key"),
   );
   const [selected, setSelected] = useState<string[]>(
-    creating ? [...capabilities] : (connection?.capabilities ?? []),
+    browserSetup
+      ? ["memory:read", "memory:write"]
+      : creating
+        ? [...capabilities]
+        : (connection?.capabilities ?? []),
   );
   const [personal, setPersonal] = useState(
     creating || (connection?.personal ?? true),
@@ -301,7 +462,7 @@ function GrantForm({
     connection?.sharingEnabled ?? false,
   );
   const [allProjects, setAllProjects] = useState(
-    creating || (connection?.allProjects ?? false),
+    !browserSetup && (creating || (connection?.allProjects ?? false)),
   );
   const [projectIds, setProjectIds] = useState(connection?.projectIds ?? []);
   const [expiry, setExpiry] = useState(
@@ -347,7 +508,15 @@ function GrantForm({
         }
       }}
     >
-      {connection?.clientId && (
+      {browserSetup && connection?.clientId && (
+        <details className="settings-options">
+          <summary>Connection details</summary>
+          <p className="break-all text-sm text-muted">
+            OAuth client: <code>{connection.clientId}</code>
+          </p>
+        </details>
+      )}
+      {!browserSetup && connection?.clientId && (
         <div className="text-sm leading-7 text-muted">
           <p>
             Approve only the client you just signed in with, using the same
@@ -410,7 +579,7 @@ function GrantForm({
           </p>
         </fieldset>
       ) : null}
-      {connection?.clientId ? (
+      {connection?.clientId && !browserSetup ? (
         <fieldset className="space-y-3">
           <legend className="mb-3 text-xs font-medium">Sharing links</legend>
           <label className="check">
@@ -462,21 +631,48 @@ function GrantForm({
               {project.label}
             </label>
           ))}
+        {!allProjects && projectStatus && (
+          <p className="text-sm text-muted" role="status">
+            {projectStatus}{" "}
+            {retryProjects && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={retryProjects}
+              >
+                Retry notebooks
+              </button>
+            )}
+          </p>
+        )}
       </fieldset>
-      <label>
-        Expiry (optional)
-        <input
-          type="date"
-          value={expiry}
-          onChange={(e) => setExpiry(e.target.value)}
-        />
-      </label>
+      {!browserSetup && (
+        <label>
+          Expiry (optional)
+          <input
+            type="date"
+            value={expiry}
+            onChange={(e) => setExpiry(e.target.value)}
+          />
+        </label>
+      )}
       {error && (
         <p role="alert" className="app-error">
           {error}
         </p>
       )}
-      <button className="app-button" disabled={busy || !selected.length}>
+      <button
+        className="app-button"
+        disabled={
+          busy ||
+          !selected.length ||
+          (browserSetup &&
+            (!selected.some(
+              (cap) => cap === "memory:read" || cap === "memory:write",
+            ) ||
+              (!personal && !allProjects && !projectIds.length)))
+        }
+      >
         {busy ? "Saving…" : connection ? "Approve access" : "Create key"}
       </button>
     </form>

@@ -6,6 +6,14 @@ Server/development baseline is Node 24. See
 
 Grove Cloud is at [usegrove.cloud](https://usegrove.cloud), with API origin
 `https://api.usegrove.cloud`. Grove Open Source is the self-hosted edition.
+The [setup page](https://usegrove.cloud/install) has separate links to AI tool
+instructions and the browser extension guide. Neither is required to use the web
+notebook.
+
+Connection names are prefilled and can be edited during setup or later under
+**Settings → Connections → Edit scope**. Choose **Hide** to move an old entry
+into **Hidden connections** in this browser, and **Show again** to restore it.
+Hiding leaves the connection's permissions unchanged; **Revoke** stops access.
 
 ## ChatGPT and Claude web
 
@@ -201,7 +209,10 @@ are generated from the runtime guidance; hosts can cache metadata until refreshe
 This adds no automatic writes, format rejection or changes to privacy/permissions.
 
 Connected agents can search/read exact notes, partially edit them, inspect history,
-move notes, archive/restore, delete and list/create/rename/move notebooks. Ask for an
+move notes, archive/restore, delete and list/create/rename/move notebooks. They
+can also list/describe bound images/recordings and read saved transcript text
+with the media tools, and — with `memory:write` on the note scope — attach
+bytes and save transcripts where they can already edit text. Ask for an
 action in ordinary language; the agent discovers IDs and checks current versions.
 For example: “Move these notes into Gardening” or “Restore the archived checklist.”
 `update_memory` preserves omitted metadata; `remember` remains the full-save contract.

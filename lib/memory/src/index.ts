@@ -217,6 +217,9 @@ export {
   billingEntitlement,
   billingUsage,
   resourceUsage,
+  trialState,
+  consumeTrial,
+  resetTrial,
   UsageLimitError,
 } from "./billing-quotas.ts";
 export { SystemAdministration } from "./system-admin.ts";
@@ -624,24 +627,80 @@ export class MemoryService {
             ...input,
           },
           async () => {
-            const note = await this.inTransaction(trx).remember(
-              principal,
-              rememberSchema.parse({
-                operationId: randomUUID(),
-                content: input.content,
-                projectId: input.projectId,
-                capture: "explicit",
-                source: { agent: "api" },
-              }),
-            );
-            if (input.provenance)
-              await trx("web_captures").insert({
-                accountId: account.id,
-                memoryId: note.id,
-                version: note.version,
-                provenance: JSON.stringify(input.provenance),
-                active: true,
-              });
+            if (input.id) {
+              const target = await this.query(trx, grant)
+                .findById(input.id)
+                .forUpdate();
+              if (
+                !target ||
+                target.status !== "active" ||
+                (target.expiresAt && new Date(target.expiresAt) <= new Date())
+              )
+                throw missing();
+            }
+            const writer = this.inTransaction(trx);
+            const note = input.id
+              ? await writer.updateMemory(principal, {
+                  operationId: randomUUID(),
+                  id: input.id,
+                  expectedVersion: input.expectedVersion!,
+                  editSession: input.editSession,
+                  content: input.content,
+                  projectId: input.projectId,
+                  capture: "explicit",
+                })
+              : await writer.remember(
+                  principal,
+                  rememberSchema.parse({
+                    operationId: randomUUID(),
+                    content: input.content,
+                    projectId: input.projectId,
+                    capture: "explicit",
+                    source: { agent: "api" },
+                  }),
+                );
+            if (input.id)
+              await trx("web_captures")
+                .where({
+                  accountId: account.id,
+                  memoryId: note.id,
+                  active: true,
+                })
+                .update({ active: false });
+            if (input.provenance) {
+              const retained = await trx("web_captures")
+                .where({
+                  accountId: account.id,
+                  memoryId: note.id,
+                  version: note.version,
+                })
+                .first();
+              if (
+                retained &&
+                stable(retained.provenance) !== stable(input.provenance)
+              )
+                throw new GroveError(
+                  "version_conflict",
+                  "Source changed without a new note revision",
+                  409,
+                );
+              if (retained)
+                await trx("web_captures")
+                  .where({
+                    accountId: account.id,
+                    memoryId: note.id,
+                    version: note.version,
+                  })
+                  .update({ active: true });
+              else
+                await trx("web_captures").insert({
+                  accountId: account.id,
+                  memoryId: note.id,
+                  version: note.version,
+                  provenance: JSON.stringify(input.provenance),
+                  active: true,
+                });
+            }
             return {
               action: "browser_capture",
               connectionId: principal.connectionId,
@@ -656,6 +715,12 @@ export class MemoryService {
             "gone",
             "This capture is no longer available",
             410,
+          );
+        if (note.version !== receipt.version)
+          throw new GroveError(
+            "version_conflict",
+            "The saved version is no longer current. Check its receipt before continuing.",
+            409,
           );
         return this.present(trx, note);
       },
@@ -1122,6 +1187,33 @@ export class MemoryService {
       if (!row) throw missing();
       return this.present(trx, row);
     });
+  }
+  async listNoteMedia(principal: Principal, memoryId: string, version?: number) {
+    const { MediaAttachments } = await import("./media.ts");
+    return new MediaAttachments(this).listForNote(principal, memoryId, version);
+  }
+  async describeNoteMedia(
+    principal: Principal,
+    memoryId: string,
+    id: string,
+    version?: number,
+  ) {
+    const { MediaAttachments } = await import("./media.ts");
+    return new MediaAttachments(this).describeForNote(
+      principal,
+      memoryId,
+      id,
+      version,
+    );
+  }
+  async readMediaTranscript(principal: Principal, memoryId: string, id: string) {
+    const { MediaAttachments } = await import("./media.ts");
+    const attachments = new MediaAttachments(this);
+    const meta = await attachments.describeForNote(principal, memoryId, id);
+    if (!meta.mime.startsWith("audio/")) throw missing();
+    const saved = await attachments.transcript(principal, memoryId, id);
+    const text = typeof saved.text === "string" ? saved.text.slice(0, 6000) : "";
+    return { text, version: saved.version, mediaId: id, memoryId };
   }
 
   async moveMemories(principal: Principal, raw: MoveMemories) {

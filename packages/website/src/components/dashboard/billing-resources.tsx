@@ -7,6 +7,7 @@ export const resourceLabels = {
   ask: "Ask Grove replies",
   organization: "Note organization",
   assistance: "Summaries & assistance",
+  writing: "AI rewrites",
 } as const;
 
 const count = (value: number) => new Intl.NumberFormat().format(value);

@@ -49,10 +49,11 @@ async function lifecycle(t: TestContext) {
   const subscriptions: Stripe.Subscription[] = [];
   const sessions = new Map<string, Stripe.Checkout.Session>();
   const replays = new Map<string, Stripe.Checkout.Session>();
-  const state = { loseCheckout: false, failList: false, lists: 0, canceled: 0 };
+  const state = { loseCheckout: false, failList: false, lists: 0, canceled: 0, lastCheckoutBody: null as URLSearchParams | null };
   const remote = createServer(async (req, res) => {
-    for await (const _chunk of req) {
-      /* drain the SDK request */
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(chunk as Buffer);
     }
     res.setHeader("content-type", "application/json");
     const path = req.url!.split("?")[0];
@@ -90,6 +91,9 @@ async function lifecycle(t: TestContext) {
       result = subscription;
     } else if (path === "/v1/checkout/sessions") {
       const key = req.headers["idempotency-key"] as string;
+      state.lastCheckoutBody = new URLSearchParams(
+        Buffer.concat(chunks).toString("utf8"),
+      );
       if (!replays.has(key)) {
         const id = `cs_${sessions.size + 1}`;
         const session = {
@@ -229,6 +233,98 @@ test("completed checkout without a canonical terminal subscription stays fenced"
     code: "checkout_processing",
   });
   assert.equal(f.sessions.size, 1);
+});
+
+test("trial checkout is trial-scoped, single-use, fenced from open checkouts, and admin-resettable", async (t) => {
+  const f = await lifecycle(t);
+  memory.configureBillingQuotas(db, {
+    enabled: async () => true,
+    priceIds: ["price_pro"],
+  });
+  // An open ordinary checkout is fenced, never silently converted into a trial.
+  await f.billing.checkout(f.principal, "month");
+  await assert.rejects(f.billing.startTrial(f.principal, "month"), {
+    code: "checkout_pending",
+  });
+  assert.equal(
+    f.state.lastCheckoutBody?.get("subscription_data[trial_period_days]"),
+    null,
+  );
+  // Once it expires, the trial starts with trial scope and card collection.
+  f.sessions.get("cs_1")!.status = "expired";
+  const trial = await f.billing.startTrial(f.principal, "month");
+  assert.match(trial.url, /checkout\.stripe\.com/);
+  assert.equal(
+    f.state.lastCheckoutBody?.get("subscription_data[trial_period_days]"),
+    "7",
+  );
+  assert.equal(
+    f.state.lastCheckoutBody?.get("payment_method_collection"),
+    "always",
+  );
+  const status = (await f.billing.status(f.principal)) as {
+    trial: { eligible: boolean; consumedAt: string | null };
+  };
+  assert.equal(status.trial.eligible, false);
+  assert.equal(typeof status.trial.consumedAt, "string");
+  await assert.rejects(f.billing.startTrial(f.principal, "month"), {
+    code: "trial_already_used",
+  });
+  // Only an admin reset restores eligibility, with an audit trail.
+  const administration = new memory.SystemAdministration(
+    new memory.MemoryService(
+      db,
+      "billing-trial-fixture-cursor-secret-32-characters",
+    ),
+  );
+  await admin("account_administration")
+    .insert({ accountId: f.principal.accountId, role: "system_admin" })
+    .onConflict("accountId")
+    .merge({ role: "system_admin" });
+  const adminPrincipal = {
+    ...f.principal,
+    sessionId: `sess_${randomUUID()}`,
+  };
+  const target = await account();
+  await assert.rejects(
+    administration.trialReset(adminPrincipal, {
+      accountId: target.accountId,
+      operationId: randomUUID(),
+      reason: "Resetting an unused trial",
+    }),
+    { code: "trial_not_consumed" },
+  );
+  const resettable = await account();
+  await tenant(db, resettable.accountId, (trx) =>
+    trx("billing_trials").insert({ accountId: resettable.accountId }),
+  );
+  const reset = await administration.trialReset(adminPrincipal, {
+    accountId: resettable.accountId,
+    operationId: randomUUID(),
+    reason: "Customer asked for one more trial",
+  });
+  assert.deepEqual(reset, {
+    accountId: resettable.accountId,
+    eligible: true,
+  });
+  const audit = await tenant(db, f.principal.accountId, (trx) =>
+    trx.raw("SELECT grove_admin_audit() AS result").then((r) => r.rows[0].result),
+  );
+  assert.ok(
+    audit.some(
+      (entry: { kind: string; accountId: string }) =>
+        entry.kind === "change" &&
+        entry.accountId === resettable.accountId,
+    ),
+  );
+  await assert.rejects(
+    administration.trialReset(adminPrincipal, {
+      accountId: resettable.accountId,
+      operationId: randomUUID(),
+      reason: "Customer asked for one more trial",
+    }),
+    { code: "trial_not_consumed" },
+  );
 });
 
 test("webhook retries only commit successful canonical reconciliation and handle payment/cancellation states", async (t) => {

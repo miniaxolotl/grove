@@ -2,7 +2,11 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { ArrowRight } from "lucide-react";
 import { resourceLimits, billingLimits } from "@lib/shared/billing";
-import { billingMonthlyUsd, showBilling } from "@/lib/flags";
+import {
+  billingMonthlyUsd,
+  billingYearlyUsd,
+  showBilling,
+} from "@/lib/flags";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(
@@ -12,6 +16,22 @@ export const metadata = pageMetadata(
 );
 
 const number = new Intl.NumberFormat("en-US");
+function validPrice(value: unknown) {
+  return typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 1 &&
+    value <= 10000 &&
+    Math.abs(value * 100 - Math.round(value * 100)) < 0.000001
+    ? value
+    : null;
+}
+const usd = (digits: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
 const comparisons = [
   ["Stored notes", "notes", false],
   ["Notebooks", "notebooks", false],
@@ -19,29 +39,23 @@ const comparisons = [
   ["Ask Grove replies", "ask", true],
   ["Note organization", "organization", true],
   ["Summaries and assistance", "assistance", true],
+  ["AI rewrites", "writing", true],
 ] as const;
 
 export default async function PricingPage() {
   await connection();
   const enabled = await showBilling();
-  const configuredPrice = await billingMonthlyUsd();
-  const price =
-    typeof configuredPrice === "number" &&
-    Number.isFinite(configuredPrice) &&
-    configuredPrice >= 1 &&
-    configuredPrice <= 10000 &&
-    Math.abs(configuredPrice * 100 - Math.round(configuredPrice * 100)) <
-      0.000001
-      ? configuredPrice
-      : null;
-  const formattedPrice =
-    price === null
+  const monthly = validPrice(await billingMonthlyUsd());
+  const yearly = validPrice(await billingYearlyUsd());
+  const formattedMonthly =
+    monthly === null ? null : usd(2).format(monthly);
+  const formattedYearly = yearly === null ? null : usd(0).format(yearly);
+  const yearlyPerMonth =
+    yearly === null ? null : usd(2).format(yearly / 12);
+  const yearlySavings =
+    monthly === null || yearly === null || monthly * 12 - yearly <= 0.005
       ? null
-      : new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-          maximumFractionDigits: 2,
-        }).format(price);
+      : usd(0).format(Math.round(monthly * 12 - yearly));
   return (
     <main id="main" className="product-redesign pricing-page">
       <section
@@ -89,12 +103,24 @@ export default async function PricingPage() {
         >
           <h2 id="pro-heading">Pro</h2>
           <p className="plan-price">
-            {formattedPrice ?? "More capacity"}
-            {formattedPrice ? <span> USD / month</span> : null}
+            {formattedMonthly ?? "More capacity"}
+            {formattedMonthly ? <span> USD / month</span> : null}
           </p>
+          {formattedYearly ? (
+            <p className="plan-billing-alt">
+              or {formattedYearly} <span>USD / year</span>
+              {yearlyPerMonth ? (
+                <>
+                  {" "}
+                  ({yearlyPerMonth} / month
+                  {yearlySavings ? `, save ${yearlySavings}` : ""})
+                </>
+              ) : null}
+            </p>
+          ) : null}
           <p>
-            {formattedPrice
-              ? "Introductory monthly price. Confirm the current amount in your account before checkout."
+            {formattedMonthly
+              ? "Introductory prices. Confirm the current amount in your account before checkout."
               : "Check your account for current upgrade availability and pricing."}
           </p>
           <ul>
@@ -108,6 +134,7 @@ export default async function PricingPage() {
             </li>
             <li>Higher search and organization allowances</li>
             <li>More transcription and read-aloud time</li>
+            <li>One 7-day Pro trial per account, then Pro or Free</li>
           </ul>
           <Link
             href={enabled ? "/app/settings/billing" : "/sign-up"}
@@ -191,7 +218,8 @@ export default async function PricingPage() {
         </div>
         <p className="comparison-note">
           Standard limits are shown here. Your account shows its effective
-          limits and usage, including any custom access.
+          limits and usage, including any custom access. Spelling and grammar
+          checks run on your device and are unlimited on both plans.
         </p>
       </section>
       <section className="feature-index">
@@ -219,12 +247,41 @@ export default async function PricingPage() {
               </dd>
             </div>
             <div className="feature-row">
+              <dt>Is there a Pro trial?</dt>
+              <dd>
+                New accounts can start one 7-day Pro trial with full Pro
+                allowances. It needs a payment method and becomes a paid
+                subscription unless you cancel. Each account gets one trial;
+                an administrator can restore eligibility on request.
+              </dd>
+            </div>
+            <div className="feature-row">
+              <dt>Do you offer yearly billing?</dt>
+              <dd>
+                Yes. Pro is available month-to-month or once a year; both
+                include the same monthly allowances. Yearly renews each year
+                until you cancel.
+              </dd>
+            </div>
+            <div className="feature-row">
               <dt>What counts as an action?</dt>
               <dd>
-                A fresh Ask reply or assistance result uses one action. A
-                distinct fully cached request uses 0.2 actions. Reopening the
-                same completed result doesn’t use another action. Separate
-                provider safety budgets also apply.
+                A fresh Ask reply, assistance result or AI rewrite uses one
+                action. A distinct fully cached Ask or assistance request uses
+                0.2 actions. Reopening the same completed result doesn’t use
+                another action. Separate provider safety budgets also apply.
+              </dd>
+            </div>
+            <div className="feature-row">
+              <dt>What do writing limits cover?</dt>
+              <dd>
+                Spelling and grammar checks run on your device and never use
+                an allowance. Each explicit AI rewrite request — Shorten,
+                Expand, Rewrite, Humanize, Synonyms or Opposite words — uses
+                one rewrite from your monthly allowance (100 on Free, 1,000
+                on Pro, up to 30 a day on Free and 200 a day on Pro). Waiting
+                for the reset or upgrading restores rewrites; local checks
+                keep working either way.
               </dd>
             </div>
             <div className="feature-row">

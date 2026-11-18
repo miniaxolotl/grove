@@ -106,22 +106,21 @@ export function Installation() {
     <ol className="installation-steps">
       <li className="installation-step">
         <div className="installation-copy">
-          <h3>Choose your agent.</h3>
-          <p>Use Grove in a web chat or connect your coding agent.</p>
+          <h3>Choose your tool</h3>
+          <p>Pick the chat or coding tool you already use.</p>
         </div>
         <AgentSetup />
       </li>
       <li className="installation-step">
         <div className="installation-copy">
-          <h3>Sign in and approve access.</h3>
+          <h3>Sign in and review access</h3>
           <p>
             Create an account or sign in with your preferred provider. Approve
             access and return to {hosted ? "your chat" : "your terminal"}.
           </p>
         </div>
-        <div className="rounded-xl border border-line bg-sage/40 p-6 text-sm leading-7">
-          <h4 className="font-medium">Review connection access.</h4>
-          <p className="mt-3 text-muted">
+        <div className="max-w-[68ch] text-sm leading-6">
+          <p>
             New connections start with all permission and scope checkboxes
             selected, including deletion and all current and future notebooks.
             Uncheck any access you do not want before approving. Existing
@@ -136,9 +135,7 @@ export function Installation() {
       </li>
       <li className="installation-step">
         <div className="installation-copy">
-          <h3>
-            {hosted ? "Return to your chat." : "Load Grove in your tool."}
-          </h3>
+          <h3>{hosted ? "Return to your chat" : "Load Grove in your tool"}</h3>
           <p>
             Account access and a running host connection are separate checks.
           </p>
@@ -162,7 +159,7 @@ export function Installation() {
       </li>
       <li className="installation-step">
         <div className="installation-copy">
-          <h3>Save your first note.</h3>
+          <h3>Save and find a note</h3>
           <p>
             Ask your agent to save a note. Open a new session and ask it to
             recall that note.

@@ -1,5 +1,4 @@
-import { ArrowLeft, ArrowUpRight, BookOpen, Terminal } from "lucide-react";
-import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { connection } from "next/server";
 import { Installation } from "@/components/installation";
 import { pageMetadata } from "@/lib/metadata";
@@ -16,32 +15,46 @@ export default async function InstallPage() {
 
   return (
     <main id="main" className="page-container setup-page">
-      <Link
-        href="/"
-        className="inline-flex min-h-11 items-center gap-2 text-xs text-leaf hover:underline"
-      >
-        <ArrowLeft size={14} /> Back to Grove
-      </Link>
-      <div className="setup-intro">
-        <h1 className="setup-heading">
-          Connect your
-          <br />
-          AI tools.
-        </h1>
+      <header className="setup-intro">
+        <h1 className="setup-heading">Set up Grove</h1>
         <p>
-          Choose a client, approve its access and verify a first saved note. You
-          can keep using the browser notebook without connecting a tool.
+          Connect an AI tool or install the browser extension. Both are optional
+          if you use Grove on the web.
         </p>
-      </div>
-      <div className="setup-prerequisites">
-        <span className="flex items-center gap-2">
-          <Terminal size={14} /> Node.js 22+ for terminal clients only
-        </span>
-        <span className="flex items-center gap-2">
-          <BookOpen size={14} /> An MCP-compatible client
-        </span>
-      </div>
-      <Installation />
+        <nav className="setup-jump" aria-label="Setup options">
+          <a href="#ai-tools">AI tool setup</a>
+          <a href="#extension-heading">Browser extension setup</a>
+        </nav>
+      </header>
+      <section aria-labelledby="ai-tools" className="setup-tools">
+        <h2 id="ai-tools">Connect an AI tool</h2>
+        <Installation />
+      </section>
+      <section className="setup-reference" aria-labelledby="extension-heading">
+        <h2
+          id="extension-heading"
+          className="text-xl font-semibold tracking-tight"
+        >
+          Browser extension
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm leading-7">
+          Check spelling and grammar on your device in Chrome, Edge or Firefox.
+          Sign in to save and search notes. Optional sentence rewrites require
+          your consent.
+        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-7">
+          Install locally, not from a browser store. The guide covers building
+          the packages and loading them in each browser.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2">
+          <a
+            href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/browser-extension.md"
+            className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-leaf hover:underline"
+          >
+            Extension setup guide <ArrowUpRight size={14} />
+          </a>
+        </div>
+      </section>
       <section className="setup-reference" aria-labelledby="next-heading">
         <h2 id="next-heading" className="text-xl font-medium tracking-tight">
           Documentation and self-hosting
