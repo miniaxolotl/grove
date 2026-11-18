@@ -15,6 +15,7 @@ import { useNoteDraftRevision, useNoteDrafts } from "./note-drafts";
 import { useToast } from "./toasts";
 import { Button } from "./ui/button";
 import { LoadError } from "./load-error";
+import { NotebookLifecycleSummary } from "./notebook-lifecycle-summary";
 
 const verbs = { archive: "Archive", restore: "Restore", delete: "Delete" };
 export function NotebookLifecycleDialog({
@@ -134,37 +135,25 @@ function NotebookLifecycleForm({
         }
       }}
     >
-      <p>
+      <p className="wrap-anywhere">
         <strong>{reviewed?.project.name ?? project.name}</strong>
       </p>
       {reviewed ? (
         <>
-          <p>
-            {reviewed.notebooks}{" "}
-            {reviewed.notebooks === 1 ? "notebook" : "notebooks"} and{" "}
-            {reviewed.notes} {reviewed.notes === 1 ? "note" : "notes"},
-            including all sub-notebooks.
-          </p>
-          <p>
-            {action === "archive"
-              ? "Hide these notebooks and archive their notes. Restore them from Archived notebooks. Notes already archived stay archived when restored."
-              : action === "restore"
-                ? "Restore the notebooks and notes archived together. Previously archived or expired notes stay inactive; original retention dates do not change."
-                : "Hide these notebooks, their notes and history from Grove. This is a soft deletion: retained records are not permanently erased. There is no in-app Undo."}
-          </p>
-          <p>
-            Direct links to these notebooks and notes will be turned off.
-            Restoring does not turn them back on, but a shared parent notebook
-            can include the restored contents again.
-          </p>
+          <NotebookLifecycleSummary
+            action={action}
+            notebooks={reviewed.notebooks}
+            notes={reviewed.notes}
+          />
           {!!draftCount && (
-            <p role="alert" className="app-error">
-              Finish saving or resolving drafts in these notebooks first (
-              {draftCount}). Your local writing will not be discarded.
+            <p role="alert" className="app-error my-0">
+              Save or resolve {draftCount}{" "}
+              {draftCount === 1 ? "draft" : "drafts"} first. Your writing is
+              kept.
             </p>
           )}
           {action === "restore" && !reviewed.canRestore && (
-            <p role="alert" className="app-error">
+            <p role="alert" className="app-error my-0">
               Restore the parent notebook first.
             </p>
           )}
@@ -172,10 +161,11 @@ function NotebookLifecycleForm({
       ) : query.error ? (
         <LoadError
           message={errorMessage(query.error)}
+          title="Couldn’t check notebook contents"
           retry={() => void review()}
         />
       ) : (
-        <p role="status">Checking affected contents…</p>
+        <p role="status">Checking notebook contents…</p>
       )}
       {error && (
         <p role="alert" className="app-error">
@@ -191,7 +181,15 @@ function NotebookLifecycleForm({
           Review current contents
         </Button>
       )}
-      <div className="flex flex-wrap gap-3">
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        <Button
+          variant="secondary"
+          disabled={busy}
+          data-autofocus
+          onClick={close}
+        >
+          Cancel
+        </Button>
         <Button
           type="submit"
           variant={action === "delete" ? "danger" : "primary"}
@@ -204,11 +202,8 @@ function NotebookLifecycleForm({
           }
         >
           {busy
-            ? "Working…"
+            ? "Checking contents…"
             : `${verbs[action]} notebook${reviewed && reviewed.notebooks > 1 ? "s" : ""}`}
-        </Button>
-        <Button variant="secondary" disabled={busy} onClick={close}>
-          Cancel
         </Button>
       </div>
     </form>

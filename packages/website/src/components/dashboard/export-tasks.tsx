@@ -6,19 +6,22 @@ import { Check, Download, LoaderCircle, RotateCcw, X } from "lucide-react";
 import type { Task } from "@lib/shared/jobs";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
-import { IconButton } from "./ui/button";
+import { Button, IconButton } from "./ui/button";
 
 const active = (task: Task) =>
   task.status === "pending" || task.status === "running";
 const status = (task: Task) => {
   if (task.downloadable) return "Ready";
+  if (task.status === "pending") return "Queued";
+  if (task.status === "running")
+    return task.processed
+      ? `Preparing export · ${task.processed.toLocaleString()} records`
+      : "Preparing export…";
   if (task.status === "cancelled") return "Cancelled";
   if (task.error === "export_changed") return "Notes changed · retry";
   if (task.error === "export_expired") return "Expired · retry";
   if (task.status === "failed") return "Couldn’t export · retry";
-  return task.processed
-    ? `${task.processed.toLocaleString()} records`
-    : "Queued";
+  return "Download unavailable · retry";
 };
 
 export function ExportTasks({ projectId }: { projectId?: string }) {
@@ -75,29 +78,16 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
   }
   return (
     <section className="export-tasks" aria-label="Exports">
-      <div className="flex items-center justify-between gap-3">
-        <h2
-          ref={heading}
-          tabIndex={-1}
-          className={
-            projectId ? "text-sm font-medium" : "font-editorial text-2xl"
-          }
-        >
-          {projectId ? "Notes and version history" : "Export your data"}
-        </h2>
-        <IconButton
-          label="Prepare export"
-          disabled={!!busy || exports.some(active) || query.isPending}
-          onClick={() => void mutate()}
-        >
-          {busy === "new" ? (
-            <LoaderCircle size={18} className="motion-safe:animate-spin" />
-          ) : (
-            <Download size={18} />
-          )}
-        </IconButton>
-      </div>
-      <p className="mt-2 text-sm text-muted">
+      <h2
+        ref={heading}
+        tabIndex={-1}
+        className={
+          projectId ? "text-sm font-medium" : "font-editorial font-semibold"
+        }
+      >
+        {projectId ? "Notes and version history" : "Export your data"}
+      </h2>
+      <p className="mt-1 text-sm text-muted">
         {projectId
           ? "NDJSON"
           : "Notebooks, notes, history and conversations · NDJSON"}
@@ -120,8 +110,23 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
           disabled={!!busy || submitted || !!running}
           onChange={(event) => setIncludeMedia(event.target.checked)}
         />
-        Include original media (larger NDJSON download)
+        Include original media (larger download)
       </label>
+      <Button
+        variant="secondary"
+        className="mt-3"
+        disabled={!!busy || !!running || query.isPending}
+        onClick={() => void mutate()}
+      >
+        {busy === "new" && (
+          <LoaderCircle
+            aria-hidden="true"
+            size={16}
+            className="motion-safe:animate-spin"
+          />
+        )}
+        {busy === "new" ? "Requesting export…" : "Prepare export"}
+      </Button>
       {(error || query.isError) && (
         <div className="mt-3 flex items-center gap-2">
           <p className="app-error" role="alert">
@@ -143,7 +148,7 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
         </p>
       )}
       <ul
-        className="mt-4 divide-y divide-line"
+        className="divide-y divide-line not-empty:mt-3"
         aria-live="polite"
         aria-relevant="text additions"
       >

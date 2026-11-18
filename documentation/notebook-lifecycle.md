@@ -18,6 +18,7 @@ only that notebook. Restore the parent first when
 attempting to restore a child of an archived notebook. Notes and child notebooks
 archived separately before the operation remain archived. Expired notes retain
 their expiry and purge dates; notebook restoration never extends retention.
+If the preview cannot load, **Try again** reloads it before enabling confirmation.
 
 Archived notebooks cannot be renamed, moved, populated, or used to edit/restore
 individual notes until restored. Read-only note/history access and ordinary

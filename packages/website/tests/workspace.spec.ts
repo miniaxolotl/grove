@@ -458,12 +458,14 @@ for (const width of [1440, 390, 320]) {
         name: "Delete notebook",
         exact: true,
       });
-      await expect(dialog).toContainText("soft deletion");
-      await expect(dialog).toContainText("not permanently erased");
       await page.screenshot({
         path: info.outputPath(`delete-notebook-${width}.png`),
         fullPage: true,
       });
+      await expect(dialog).toContainText("You can’t undo this in Grove.");
+      await expect(dialog).toContainText("without erasing retained data");
+      await expect(dialog).toContainText("shared parent notebooks no longer show these contents");
+      await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
       const overflow = await page.evaluate(() =>
         [...document.querySelectorAll<HTMLElement>("body *")]
           .filter(
@@ -7987,12 +7989,29 @@ test("archived notebooks bulk delete removes each selected root", async ({
     page.getByRole("heading", { name: "Archived notebooks", exact: true }),
   ).toBeVisible();
   await page.getByLabel("Select archived notebooks").check();
+  let previewRequests = 0;
+  let previewUnavailable = true;
+  const child = state.projects.find((item) => item.parentId === project.id)!;
+  await page.route(`**/api/grove/projects/${child.id}/lifecycle`, (route) => {
+    previewRequests++;
+    if (!previewUnavailable) return route.fallback();
+    return route.fulfill({
+      status: 503,
+      json: { success: false, error: { code: "unavailable", message: "Please retry." } },
+    });
+  });
   await page
     .getByRole("group", { name: "Selected notebooks" })
     .getByRole("button", { name: "Delete", exact: true })
     .click();
   const bulk = page.getByRole("dialog", { name: "Delete notebooks" });
-  await expect(bulk).toContainText("soft deletion");
+  await expect(bulk.getByRole("button", { name: "Delete notebooks" })).toBeDisabled();
+  await expect(bulk.getByRole("button", { name: "Try again" })).toBeVisible({ timeout: 15_000 });
+  const failedRequests = previewRequests;
+  previewUnavailable = false;
+  await bulk.getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => previewRequests).toBe(failedRequests + 1);
+  await expect(bulk).toContainText("You can’t undo this in Grove.");
   await bulk
     .getByRole("button", { name: "Delete notebooks", exact: true })
     .click();

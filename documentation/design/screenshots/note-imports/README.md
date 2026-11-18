@@ -1,9 +1,18 @@
 # Note and PDF import review
 
-The `review-*`, `real-*` and `confirm-*` captures are refreshed by the Ask-document
-stack for automatic preparation, DOCX labels and the optional unconfirmed-import
-handoff to Ask. The real-service captures retain the verification method described
-below; current chat captures are in [ask-documents](../ask-documents/README.md).
+The **17 November 2026** Settings and import confirmation captures use synthetic
+data in the Chromium dashboard fixture with production CSS, based on `c8de2701`
+plus the workspace clarity changes. The import card separates its primary and
+secondary actions on desktop and wraps them at 320px. Confirmation keeps the
+public sharing warning next to consent. No real parser or device was used in this pass.
+
+| Your data, 1440px | Your data, 320px | Import confirmation, 390px |
+| --- | --- | --- |
+| ![Desktop Settings import card](settings-import-1440.png) | ![Narrow Settings import card](settings-import-320.png) | ![Import confirmation and sharing notice](review-confirm-390.png) |
+
+The synthetic `review-*` captures below reflect the same pass. The historical
+`real-*` and `confirm-*` captures retain the verification method described below;
+chat captures are in [ask-documents](../ask-documents/README.md).
 
 Synthetic Garden.md/Botany.pdf notes in the real workspace components using
 production CSS. Chromium captures were visually reviewed at1440,390 and320px.

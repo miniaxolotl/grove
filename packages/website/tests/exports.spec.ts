@@ -73,6 +73,10 @@ test("account export retries the same request and progresses to an authenticated
   expect(requests).toHaveLength(2);
   expect(requests[0].id).toBe(requests[1].id);
   await expect(prepare).toBeDisabled();
+  task = { ...task!, status: "running" };
+  await expect(
+    page.getByText("Preparing export…", { exact: true }),
+  ).toBeVisible();
   task = { ...task!, status: "succeeded", processed: 230, downloadable: true };
   const link = page.getByRole("link", { name: "Download export" });
   await expect(link).toBeVisible();
@@ -154,7 +158,9 @@ test("notebook exports keep scope explicit and support cancellation and retry af
   await page.keyboard.press("Escape");
   await open();
   await dialog.getByRole("button", { name: "Retry export" }).click();
-  await expect(dialog.getByText("100 records", { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByText("Preparing export · 100 records", { exact: true }),
+  ).toBeVisible();
   await expect(dialog.getByLabel("Include sub-notebooks")).toBeChecked();
   await expect(dialog.getByLabel("Include sub-notebooks")).toBeDisabled();
   await page.screenshot({

@@ -165,7 +165,10 @@ for (const width of [1440, 390, 320])
     });
     await page.goto(`${base}/app`);
     const more = page.getByRole("button", { name: "More note actions" });
-    const importNotes = page.getByRole("button", { name: "Import notes", exact: true });
+    const importNotes = page.getByRole("button", {
+      name: "Import notes",
+      exact: true,
+    });
     await expect(importNotes).toBeHidden();
     await more.press("ArrowUp");
     await expect(importNotes).toBeFocused();
@@ -190,6 +193,11 @@ for (const width of [1440, 390, 320])
     ]);
     await expect(
       dialog.getByRole("heading", { name: "2 proposed notes" }),
+    ).toBeVisible();
+    await expect(
+      dialog.getByText(
+        "A shared destination or parent notebook can show imported notes right away. Original files stay private.",
+      ),
     ).toBeVisible();
     const placement = dialog.locator(".import-placement");
     await placement.getByRole("combobox").first().click();
@@ -247,6 +255,14 @@ for (const width of [1440, 390, 320])
     await dialog
       .getByLabel("I’ve reviewed the notes, destinations and sharing.")
       .check();
+    if (width === 390) {
+      await dialog
+        .getByRole("button", { name: "Confirm import", exact: true })
+        .scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: testInfo.outputPath("import-confirm-390.png"),
+      });
+    }
     await dialog
       .getByRole("button", { name: "Confirm import", exact: true })
       .click();
@@ -264,3 +280,60 @@ for (const width of [1440, 390, 320])
     });
     expect(errors).toEqual([]);
   });
+
+test("import status follows a queued, running and failed job and retries the same task", async ({
+  page,
+}) => {
+  const id = "d2607aba-8ba3-4ca0-b098-7efe371957ff";
+  const taskId = "5ead695b-daa4-4cf1-881c-1ea3fff27460";
+  let task = {
+    status: "pending",
+    processed: 0,
+    total: null as number | null,
+    error: null as string | null,
+  };
+  let imported = 0;
+  let retries = 0;
+  await page.route("**/api/grove/**", async (route) => {
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
+    let data: unknown = [];
+    if (path === "/me") data = { accountId: "import-progress" };
+    if (path === "/import-batches")
+      data = [{ id, status: "applying", createdAt: "2026-10-25T12:00:00Z" }];
+    if (path === `/import-batches/${id}`)
+      data = { id, taskId, status: "applying", imported, files: [], notes: [] };
+    if (path === `/tasks/${taskId}`) data = { id: taskId, ...task };
+    if (path === `/tasks/${taskId}/retry`) {
+      retries++;
+      task = { ...task, status: "pending", error: null };
+    }
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/data`);
+  await page.getByRole("button", { name: "Import notes", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Import notes" });
+  await dialog.getByRole("button", { name: /Resume import/ }).click();
+  const queued = dialog
+    .getByRole("status")
+    .filter({ hasText: /^Import queued$/ });
+  await expect(queued).toBeVisible();
+  await expect(dialog.getByText(/0 \/ 0/)).toBeHidden();
+  imported = 1;
+  task = { status: "running", processed: 1, total: 2, error: null };
+  await expect(dialog.getByRole("status")).toContainText(
+    "1 of 2 notes imported",
+  );
+  task = { ...task, status: "failed", error: "internal_task_code" };
+  await expect(dialog.getByRole("status")).toContainText(
+    "Import stopped. Imported notes are kept.",
+  );
+  await expect(dialog.getByText("internal_task_code")).toBeHidden();
+  await dialog.getByRole("button", { name: "Retry remaining work" }).click();
+  await expect(queued).toBeVisible();
+  expect(retries).toBe(1);
+});

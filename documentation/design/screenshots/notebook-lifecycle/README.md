@@ -1,5 +1,19 @@
 # Notebook lifecycle visual review
 
+The **17 November 2026** confirmation pass uses synthetic Website redesign
+notebook data in the Chromium dashboard fixture with production CSS, based on
+`c8de2701` plus the workspace clarity changes. The revised dialogs show reviewed
+subtree counts, reversibility and separate direct/parent sharing consequences.
+At 320px, the delete dialog is about 100px shorter than the baseline and focuses
+Cancel. The focused tests cover 1440/390/320px, Cancel, stale scope and bulk preview
+retry. These captures do not requalify WebKit or physical devices.
+
+| Archive at 390px | Delete at 320px |
+| --- | --- |
+| ![Revised archive confirmation](clarity-archive-390.png) | ![Revised delete confirmation](clarity-delete-320.png) |
+
+## Earlier review
+
 Synthetic notebook data, 23 October 2026. Production CSS build
 `SNzSojrolAZ8iGl5APqCz`; Node 24.22.1, pnpm 10.33.0, Playwright 1.64.1.
 Captures use iPhone/WebKit in the Noble container at the stated CSS viewport widths.
