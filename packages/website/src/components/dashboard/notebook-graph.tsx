@@ -22,7 +22,7 @@ import "@xyflow/react/dist/style.css";
 
 export function NotebookGraph({ projects }: { projects: Project[] }) {
   const router = useRouter();
-  const [selected, setSelected] = useState<Project>();
+  const [selectedId, setSelectedId] = useState<string>();
   const [inspected, setInspected] = useState<NoteConnection>();
   const [offset, setOffset] = useState(0);
   const start = Math.min(
@@ -33,6 +33,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
     () => projects.slice(start, start + 100),
     [projects, start],
   );
+  const selected = loaded.find((project) => project.id === selectedId);
   const connections = useConnections({
     level: "notebook",
     endpointIds: loaded.map((p) => p.id).sort(),
@@ -103,7 +104,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
             if (edge) inspect(edge);
             else if (node && event.key === "Enter")
               router.push(`/app/projects/${node}`);
-            else setSelected(loaded.find((p) => p.id === node));
+            else if (node) setSelectedId(node);
           }}
         >
           <ReactFlow
@@ -112,9 +113,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
             nodesConnectable={false}
             nodesDraggable={false}
             deleteKeyCode={null}
-            onNodeClick={(_, node) =>
-              setSelected(loaded.find((p) => p.id === node.id))
-            }
+            onNodeClick={(_, node) => setSelectedId(node.id)}
             onNodeDoubleClick={(_, node) =>
               router.push(`/app/projects/${node.id}`)
             }
@@ -135,7 +134,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
               <button
                 className="app-icon"
                 aria-label="Clear graph selection"
-                onClick={() => setSelected(undefined)}
+                onClick={() => setSelectedId(undefined)}
               >
                 <X size={16} />
               </button>
@@ -169,7 +168,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
             className="text-button"
             disabled={!start}
             onClick={() => {
-              setSelected(undefined);
+              setSelectedId(undefined);
               setOffset(start - 100);
             }}
           >
@@ -179,7 +178,7 @@ export function NotebookGraph({ projects }: { projects: Project[] }) {
             className="text-button"
             disabled={start + 100 >= projects.length}
             onClick={() => {
-              setSelected(undefined);
+              setSelectedId(undefined);
               setOffset(start + 100);
             }}
           >
