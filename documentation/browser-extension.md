@@ -97,52 +97,7 @@ dictionary words remain scoped to the API/account and English language (with a s
 signed-out dictionary). Upgrade preserves existing opt-outs rather than resetting them.
 They do not contain draft text or check results. Turning Grove off overrides them.
 
-The bundled `dictionary-en` 4.0.0 data is SCOWL-derived **American English**, with
-`nspell` 2.1.5 for affix-aware lookup. Their MIT/BSD notices are included in the ZIP.
-The shared checker adds common note words such as **watchlist**, **roadmap** and
-**audiobook** with their plurals and possessives. Personal names are matched
-regardless of case, apostrophe style or equivalent accent encoding; adding a name
-also covers its possessive.
-Specialist vocabulary for software, science, medicine, law, finance, geography,
-education and music works across sites and in Notes. A compound such as
-**read-only** is checked by its parts when it has no dictionary entry; fixing
-**read-onyl** changes only the misspelled part and preserves the hyphen.
-There is no dictionary download, external spelling service or AI request. Basic rules
-cover brackets/quotes, **a/an** sound exceptions, repeated words, spacing, obvious
-capitalization (including the start of a new line or list item), unambiguous wordy
-phrases (**all of the** → **all the**, **in order to** → **to**, **due to the fact
-that** → **because**, **in the event that** → **if**, **in spite of the fact that** →
-**although**, **on a daily basis** → **daily**, **close proximity** → **proximity**,
-**revert back** → **revert**, doubled comparatives (**more better** → **better**,
-**most biggest** → **biggest**)), declarative pronoun verb agreement for common
-verbs (**he go** → **he goes**, **they goes** → **they go**, **she say** →
-**she says**) plus **should of** → **should have** and **he don't** →
-**he doesn't**, and plural acronyms before a plural verb (**PR's are** →
-**PRs are**) or in decades (**1990's** → **1990s**). Inverted questions keep
-their bare verbs (**does he have**, **will she come**) and mandative clauses
-keep the base form (**I suggest he go**): the agreement check abstains there
-rather than "fixing" correct English. Confused-word
-checks cover **its a** → **it's a**, **its been** → **it's been**,
-**their gone** → **they're gone** (**your gone** → **you're gone**),
-**their is** → **there is**, **suppose to** →
-**supposed to**, **bigger then** → **bigger than**, **I use to** →
-**I used to** (never after _didn't_), preposition +
-**and I** → **and me**, ordinal suffixes (**22th** → **22nd**), common eggcorns
-(**weather or not**, **free reign**, **baited breath**, **escape goat**) and
-single-token fixes the affix suggester cannot rank (**alot** → **a lot**,
-**maintainance** → **maintenance**, **questionairre** → **questionnaire**,
-**lisence** → **license**, **speach** → **speech**, **tendancy** → **tendency**,
-**wich** → **which**). Spelling alternatives put the obvious fix first:
-adjacent transpositions (**teh** → **the**), missing apostrophes (**dont** →
-**don't**) and dropped doubled letters (**refered** → **referred**) outrank
-unrelated near-edits, then follow the original word's capitalization, and
-plural acronyms such as **PRs** are not flagged as misspellings. An article before a
-plural-looking noun (**an apples**) abstains: the article is not the real error.
-These are not a complete grammar/style analysis. Unknown names can be
-added to the dictionary; ambiguous rules abstain rather than guess a replacement.
-Possessive acronyms (**the PR's title**), soft-wrapped lines,
-much/many and less/fewer are deliberately left alone.
-Future UI translations and proofing languages remain separate; only English ships.
+The extension bundles Harper's English spelling and grammar engine, including its WebAssembly file. It works locally while signed in, signed out or offline. It does not send paragraphs to LanguageTool. Adding a personal word suppresses spelling findings for that term without changing the page's text. Check a suggestion in context before applying it; grammar checks do not guarantee that every error will be found. Optional AI sentence tools are a separate workflow.
 
 There is no per-site setup. Writing → **Check writing everywhere** pauses local
 assistance browser-wide; **Domain exceptions** skips a chosen hostname and all its
@@ -167,9 +122,7 @@ override a globally disabled feature. Browser-withheld site access, restricted p
 and private browsing remain unavailable; extension controls cannot bypass native grants.
 
 Checks cover a bounded 6,000 UTF-16-unit window and expose partial coverage for longer
-text; results never replace newer typing. Keystrokes coalesce, dictionary work runs
-in the extension background rather than the editor thread, spelling alternatives
-are generated only on review, and highlight movement coalesces per animation frame.
+text; results never replace newer typing. Keystrokes coalesce and proofing runs off the editor thread. The editor applies results only to the draft version that produced them.
 Warm latency is a regression measurement, not a universal responsiveness guarantee.
 Run `pnpm test:writing` and the installed browser journeys to reproduce the focused
 rules, bounds, source/Undo, permission and excluded-field checks.

@@ -4,7 +4,7 @@ import { prose, type WritingIssue } from "@lib/shared/writing-settings";
 
 const blocks = /^(Paragraph|Task|TableCell|(?:ATX|Setext)Heading[1-6])$/;
 const hidden =
-  /(?:Mark|Marker)$|^(URL|LinkTitle|LinkLabel|InlineCode|Image|Autolink|HTMLTag|Comment|Entity|Escape|ProcessingInstruction|HardBreak|Emoji)$/;
+  /(?:Mark|Marker)$|^(URL|LinkTitle|LinkLabel|InlineCode|Autolink|HTMLTag|Comment|Entity|Escape|ProcessingInstruction|HardBreak|Emoji)$/;
 
 // Lezer treats YAML front matter as Markdown. Treat its contents as metadata,
 // including an unfinished preamble, rather than sending values to a checker.
@@ -54,6 +54,10 @@ export function projectMarkdownParagraph(
     at < state.doc.length && state.doc.lineAt(at).from === at ? 1 : -1,
   );
   while (!blocks.test(node.name)) {
+    // Editing code, an attachment address or another hidden token must not
+    // trigger a check of the prose surrounding it. A caret exactly at the
+    // end of a closing delimiter may legitimately be typing outside it.
+    if (hidden.test(node.name) && at >= node.from && at < node.to) return null;
     if (!node.parent) return null;
     node = node.parent;
   }
