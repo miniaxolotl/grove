@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  englishMessages,
   writingSettingsSchema,
   type WritingResult,
 } from "@lib/shared/writing-settings";
@@ -10,6 +11,10 @@ import { NATIVE_WRITING_ATTRIBUTE } from "@/lib/writing/settings";
 
 export function GuestWritingCheck() {
   const [text, setText] = useState("");
+  // Native edits made before hydration never reached the change handler.
+  const adoptDraft = useCallback((input: HTMLTextAreaElement | null) => {
+    if (input) setText(input.value);
+  }, []);
   const [result, setResult] = useState<WritingResult>();
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -49,6 +54,7 @@ export function GuestWritingCheck() {
     >
       <label htmlFor="guest-writing-text">English text</label>
       <textarea
+        ref={adoptDraft}
         id="guest-writing-text"
         rows={6}
         maxLength={6000}
@@ -83,7 +89,7 @@ export function GuestWritingCheck() {
       {!!result?.issues.length && (
         <ul aria-label="Writing suggestions">
           {result.issues.map((issue) => (
-            <li key={issue.id}>{issue.message}</li>
+            <li key={issue.id}>{englishMessages[issue.message]}</li>
           ))}
         </ul>
       )}

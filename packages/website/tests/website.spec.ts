@@ -6,9 +6,9 @@ const siteURL = canonical.origin;
 
 test("a guest can check writing without sending text or opening an account", async ({
   page,
-}) => {
+}, info) => {
   await page.setViewportSize({ width: 320, height: 750 });
-  const text = "This is is a smple sentence.";
+  const text = "This is the the smple sentence.";
   const transfers: string[] = [];
   page.on("request", (request) => {
     if (
@@ -28,7 +28,10 @@ test("a guest can check writing without sending text or opening an account", asy
     page
       .getByRole("list", { name: "Writing suggestions" })
       .getByRole("listitem"),
-  ).not.toHaveCount(0);
+  ).toHaveText(["This word appears twice.", "Possible spelling mistake."]);
+  await page.screenshot({
+    path: info.outputPath("guest-writing-messages.png"),
+  });
   await expect(
     page.getByRole("link", { name: "Create an account", exact: true }),
   ).toHaveAttribute("href", "/sign-up");

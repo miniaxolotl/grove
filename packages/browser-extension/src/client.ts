@@ -353,6 +353,7 @@ export class ExtensionClient {
         Date.now(),
       );
       await this.session.set(`draft:${windowId}`, draft);
+      if (rejected) await this.removePending(operationId);
       throw error;
     }
   }

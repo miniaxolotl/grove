@@ -10,6 +10,7 @@ import {
   MemoryService,
   sessionPrincipal,
   cleanupHandlers,
+  scheduleCleanup,
   runTask,
 } from "@lib/memory";
 import {
@@ -312,6 +313,61 @@ test("cache reuse emits content-free hit and avoided-request metrics", async () 
   );
   assert(!JSON.stringify(events).includes("private canary"));
   assert(!JSON.stringify(events).includes(f.accountId));
+});
+
+test("cache expiry and stale backoff independently schedule retention for idle accounts", async () => {
+  const cached = await fixture(),
+    cooled = await fixture();
+  await queryEmbedding(db, cached.accountId, cached.embedder, "expired", 20);
+  await queryEmbedding(db, cached.accountId, cached.embedder, "fresh", 20);
+  const first = await admin("ai_cache")
+    .where({ accountId: cached.accountId })
+    .orderBy("createdAt")
+    .first();
+  await admin("ai_cache")
+    .where({ accountId: cached.accountId, key: first.key })
+    .update({ expiresAt: admin.fn.now() });
+  for (const [profile, age] of [
+    ["old", 25],
+    ["recent", 23],
+  ] as const)
+    await admin("ai_provider_backoff").insert({
+      accountId: cooled.accountId,
+      profile,
+      epoch: 1,
+      probeId: randomUUID(),
+      retryAt: admin.raw("now() - (? * interval '1 hour')", [age]),
+    });
+  await scheduleCleanup(worker);
+  for (const accountId of [cached.accountId, cooled.accountId]) {
+    const task = await admin("background_tasks")
+      .where({ accountId, kind: "retention_cleanup" })
+      .first();
+    assert.ok(
+      task,
+      "expired cache or backoff should be sufficient to schedule cleanup",
+    );
+    await runTask(
+      worker,
+      cleanupHandlers(worker, async () => {}),
+      { id: task.id, lane: "maintenance" },
+    );
+    assert.equal(
+      (await admin("background_tasks").where({ id: task.id }).first()).status,
+      "succeeded",
+    );
+  }
+  const remaining = await admin("ai_cache")
+    .where({ accountId: cached.accountId })
+    .pluck("key");
+  assert.equal(remaining.length, 1);
+  assert.notEqual(remaining[0], first.key);
+  assert.deepEqual(
+    await admin("ai_provider_backoff")
+      .where({ accountId: cooled.accountId })
+      .pluck("profile"),
+    ["recent"],
+  );
 });
 
 test("cache data is purged by the account's durable deletion task", async () => {

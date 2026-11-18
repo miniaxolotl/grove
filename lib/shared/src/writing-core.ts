@@ -115,15 +115,18 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
         replacements: string[] = [],
       ) => {
         if (result.issues.length >= 50 || to > checkedTo) return;
+        // Rules scan masked prose; a replacement may only touch literal source text.
+        const original = source.slice(from, to);
+        if (original !== text.slice(from, to)) return;
         result.issues.push({
           id: `${rule}:${from}:${to}`,
           rule,
           message: rule,
           from,
           to,
-          original: source.slice(from, to),
+          original,
           replacements: [...new Set(replacements)]
-            .filter((r) => r !== source.slice(from, to))
+            .filter((r) => r !== original)
             .slice(0, 3),
         });
       };
@@ -212,9 +215,7 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
         spacing: () => {
           for (const match of text.matchAll(/\S( {2,})(?=\S)/g)) {
             const from = match.index + 1;
-            // Masked syntax isn't whitespace authored by the user.
-            if (source.slice(from, from + match[1].length) === match[1])
-              add("spacing", from, from + match[1].length, [" "]);
+            add("spacing", from, from + match[1].length, [" "]);
           }
           for (const match of text.matchAll(/\p{L}( +)(?=[,!?;:])/gu))
             add(

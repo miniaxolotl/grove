@@ -7,12 +7,17 @@ after a typing pause, and saving never waits for them.
 
 ## Reviewing suggestions
 
+On the guest checker, you can start typing while the page loads. Once the
+checker is ready, choose **Check writing** without having to edit the text again.
+
 - Spelling issues use a red wavy underline; grammar uses a dotted green one.
   Color is never the only signal: every issue opens the same short explanation.
 - Click an underline, or press **Alt+Enter** for the full list. The compact card
   shows the category, an explanation and up to three replacements, then
   **Ignore**, **Add word** (spelling only) and **All issues**.
 - One click applies a replacement to that exact range only, with normal Undo.
+  You can correct a word in Markdown image alt text without changing the image
+  link. A suggestion whose replacement would cross masked inline code is omitted.
   If the text changed underneath, the card says so and asks for a fresh check
   instead of editing stale text. The quiet status in the editor footer shows
   the current count, or **Retry writing checks** when the dictionary could not
@@ -48,8 +53,10 @@ immediately and stays on this device:
 ## Privacy and limits
 
 - Guests can use the [web writing checker](https://usegrove.cloud/writing)
-  without an account. Text is checked locally and is not saved; note storage,
-  account preferences and Ask Grove still require sign-in.
+  without an account. **Check writing** lists a short English explanation for
+  each issue, such as “This word appears twice.” Text is checked locally and
+  is not saved; note storage, account preferences and Ask Grove still require
+  sign-in.
 
 - Local checks never send keystrokes, prose, dictionary words or results
   anywhere. The 555 KB dictionary is fetched once from Grove itself on the first

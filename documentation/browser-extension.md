@@ -18,6 +18,8 @@ To build the unsigned packages, use Node 24 and pnpm 10.33, install the locked d
 `pnpm build:extension`. The output under `packages/browser-extension/dist/` contains
 `chrome/`, `firefox/`, `edge/`, a `grove-<browser>.zip` for each browser and
 `packages.build.json` with product version, configuration, input inventory and hashes.
+Changing the website brand assets or root license also runs extension packaging
+and browser checks because these files ship inside the ZIPs.
 Successful source CI also retains these unsigned ZIPs and their report as a
 `grove-browser-extensions-<source SHA>` artifact for 14 days.
 Protected production delivery also attaches verified browser ZIPs and checksums
@@ -297,7 +299,9 @@ the contested note for review instead of silently rebasing. Save outcome and
 newer unsaved edits remain visible without version/indexing diagnostics.
 There are no source-link fields. Mounted approved panels follow source metadata
 locally until the first edit pins it; only a save transmits it. Context-menu
-captures keep their original event source. Unknown/failed-save
+captures keep their original event source, including the first click that wakes
+the extension. The panel opens during the gesture; the persisted On/Off setting
+is checked before anything is added to its local inbox. Unknown/failed-save
 retries retain the exact original provenance snapshot even after a tab change.
 Restricted/private pages produce no automatic source. Required consent and uncertain-
 save safeguards remain; automatic provenance is not automatic note capture.
@@ -489,6 +493,9 @@ local structural validation, not proof of server storage, access or indexing.
 Runtime receipts come from authenticated responses. Network/ambiguous failures show
 **Save not confirmed**, not success; retry replays the original request without losing
 newer edits. Settings can reconcile a scoped opaque receipt after session loss.
+A definitive rejection keeps its retry snapshot in the draft, but does not
+leave an unconfirmed receipt in Settings. If an earlier attempt was ambiguous,
+its recovery receipt stays available even when a later retry is rejected.
 Local persistent storage contains only device enablement/appearance preferences,
 public OAuth registration, destination IDs
 and at most ten opaque recovery receipts, pruned after seven days; never note bodies,

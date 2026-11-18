@@ -1,5 +1,6 @@
 import type { Knex } from "knex";
 import { dailyNotes } from "./daily-note-migration.ts";
+import { cacheRetention } from "./cache-retention-migration.ts";
 import { writingAllowance } from "./writing-allowance-migration.ts";
 import { structuredDocuments } from "./structured-document-migration.ts";
 import { browserCapture } from "./browser-capture-migration.ts";
@@ -285,6 +286,7 @@ export const migrations = [
   billingTrial,
   writingAllowance,
   dailyNotes,
+  cacheRetention,
 ];
 
 export const migrationSource: Knex.MigrationSource<
