@@ -29,6 +29,15 @@ for (const [rule, source] of [
   ["agreement", "We need to make it work offline."],
   ["agreement", "Let it go for now."],
   ["plurals", "Compare 2024’s totals with 2020's budget."],
+  ["agreement", "I have saw blades. I have rose petals. I have read the note."],
+  ["agreement", "The notes I have went missing yesterday."],
+  ["agreement", "I’ve `never` wrote about it here."],
+  ["confusion", "These are the tools we use to make pottery."],
+  ["confusion", "What should I use to open it?"],
+  ["confusion", "I didn’t use to drink coffee."],
+  ["confusion", "I suppose to some extent it depends."],
+  ["quotes", "We played ’90s records from the class of '94."],
+  ["quotes", "She said, ‘I remember the ’80s.’"],
 ] as const) {
   test(`${rule} leaves this note alone: ${source}`, () => {
     assert.deepEqual(issuesFor(source, rule), []);
@@ -46,6 +55,10 @@ for (const [rule, source, corrected] of [
   ["agreement", "We should of waited.", "We should have waited."],
   ["plurals", "The 1990’s were different.", "The 1990s were different."],
   ["plurals", "A photo from the 1980's.", "A photo from the 1980s."],
+  ["agreement", "I’ve wrote the list.", "I’ve written the list."],
+  ["agreement", "She has went home.", "She has gone home."],
+  ["agreement", "We had chose the date.", "We had chosen the date."],
+  ["agreement", "He hasn't took a break.", "He hasn't taken a break."],
 ] as const) {
   test(`${rule} offers an exact edit: ${source}`, () => {
     const issues = issuesFor(source, rule);

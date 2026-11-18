@@ -22,6 +22,19 @@ import {
 
 export * from "./writing-settings.ts";
 
+// Only unambiguous past forms; e.g. “I have saw blades” is valid.
+const participles = new Map(
+  Object.entries({
+    went: "gone",
+    wrote: "written",
+    took: "taken",
+    chose: "chosen",
+    gave: "given",
+    knew: "known",
+    threw: "thrown",
+  }),
+);
+
 /**
  * Ordered suggestion transforms. Each maps a misspelling to candidate
  * variants; only dictionary words survive filtering, so transforms cannot
@@ -136,25 +149,35 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
         });
       };
       const words = [
-        ...text.matchAll(/[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*/gu),
+        ...text.matchAll(/[\p{L}\p{M}]+(?:['’‐‑-][\p{L}\p{M}]+)*/gu),
       ];
       const personal = new Set(settings.words.map(dictionaryWordKey));
-      if (settings.spelling)
-        for (const match of words) {
-          const word = match[0];
+      if (settings.spelling) {
+        const known = (word: string) => {
           const key = dictionaryWordKey(word);
-          if (
-            word.length > 48 ||
-            /^[A-Z]{2,}(?:['’]?s)?$/.test(word) ||
-            /[a-z][A-Z]/.test(word) ||
+          return (
             personal.has(key) ||
             (key.endsWith("'s") && personal.has(key.slice(0, -2))) ||
-            correct(word)
+            correct(word.replace(/[‐‑]/gu, "-"))
+          );
+        };
+        const checkPart = (word: string, at: number) => {
+          if (
+            word.length <= 48 &&
+            !/^[A-Z]{2,}(?:['’]?s)?$/.test(word) &&
+            !/[a-z][A-Z]/.test(word) &&
+            !known(word)
           )
-            continue;
-          // Typing is lookup-only. Alternatives are requested when an issue is opened.
-          add("spelling", match.index, match.index + word.length);
+            add("spelling", at, at + word.length);
+        };
+        for (const match of words) {
+          const word = match[0];
+          if (!/[-‐‑]/u.test(word)) checkPart(word, match.index);
+          else if (!(word.length <= 80 && known(word)))
+            for (const part of word.matchAll(/[^‐‑-]+/gu))
+              checkPart(part[0], match.index + part.index);
         }
+      }
       // Masked code and link destinations look like spaces in `text`. Use the
       // literal gap as evidence of adjacency; allow a soft wrap, not a new paragraph.
       const adjacent = (a: (typeof words)[number], b: (typeof words)[number]) =>
@@ -164,6 +187,10 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
       // One registry drives every rule: adding a rule means adding its
       // check here plus its ID in writingRules, its messages and its
       // settings entry. Execution follows writingRules order.
+      // A relative clause can end at “have” or take the object of “use”:
+      // “the notes I have went missing”, “the tools we use to draw”.
+      const startsClause = (index: number) =>
+        /(?:^|[.!?;:]|\n[ \t]*\n)[ \t“‘"']*$/.test(source.slice(0, index));
       const ruleChecks: Record<WritingRule, () => void> = {
         articles: () => {
           for (let i = 0; i + 1 < words.length; i++) {
@@ -171,14 +198,20 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
               next = words[i + 1];
             if (!/^(?:a|an)$/i.test(article[0]) || !adjacent(article, next))
               continue;
-            const expected = articleFor(next[0]);
+            if (next[0] === "A") i++; // In "an A in English", A is a grade.
+            // The shared tokenizer separates dotted initials. Recover the full
+            // abbreviation: N.A.S.A. is pronounced differently from N alone.
+            const dotted = /^[A-Z]$/.test(next[0])
+              ? /^[A-Z](?:\.[A-Z])+\b/.exec(text.slice(next.index))?.[0]
+              : undefined;
+            const expected = articleFor(dotted?.replaceAll(".", "") ?? next[0]);
             // A plural-looking noun after the article points at the noun's number,
             // not the article; ambiguous cases abstain rather than guess.
             const pluralShaped =
               /^(?:children|people|men|women|feet|teeth|mice|geese)$/i.test(
                 next[0],
               ) ||
-              (/s$/i.test(next[0]) && !/(?:ss|us|is)$/i.test(next[0]));
+              (/s$/.test(next[0]) && !/(?:ss|us|is)$/i.test(next[0]));
             if (
               expected &&
               !pluralShaped &&
@@ -299,6 +332,19 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
             // bare forms can be correct there: "does he have", "will she come".
             const subject = current[0].toLowerCase();
             const nextForm = next[0].toLowerCase().replaceAll("’", "'");
+            const participle = participles.get(nextForm);
+            if (
+              participle &&
+              (/^(?:i|we|you|they)['’]ve$/.test(subject) ||
+                (/^(?:have|has|had)(?:n['’]t)?$/.test(subject) &&
+                  /^(?:i|we|you|they|he|she|it)$/.test(previous) &&
+                  startsClause(words[i - 1].index)))
+            ) {
+              add("agreement", next.index, next.index + next[0].length, [
+                matchCase(next[0], participle),
+              ]);
+              continue;
+            }
             if (
               bareForms.has(nextForm) &&
               (questionOperators.test(previous) ||
@@ -435,25 +481,25 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
                 add("confusion", word.index, word.index + word[0].length, [
                   matchCase(word[0], "there"),
                 ]);
-              if (/^suppose$/i.test(word[0]) && /^to$/i.test(next[0]))
+              if (
+                /^suppose$/i.test(word[0]) &&
+                /^to$/i.test(next[0]) &&
+                previous &&
+                adjacent(previous, word) &&
+                /^(?:am|is|are|was|were|be|been|being|i['’]m|(?:you|we|they)['’]re|(?:he|she|it)['’]s)$/i.test(
+                  previous[0],
+                )
+              )
                 add("confusion", word.index, next.index + next[0].length, [
                   "supposed to",
                 ]);
               if (
                 /^use$/i.test(word[0]) &&
                 /^to$/i.test(next[0]) &&
-                !(
-                  previous &&
-                  (/^(?:do|does|did|don't|doesn't|didn't)$/i.test(
-                    previous[0],
-                  ) ||
-                    determiners.test(previous[0]) ||
-                    (/^(?:i|you|we|they|he|she|it)$/i.test(previous[0]) &&
-                      words[i - 2] &&
-                      /^(?:do|does|did|don't|doesn't|didn't)$/i.test(
-                        words[i - 2][0],
-                      )))
-                )
+                previous &&
+                adjacent(previous, word) &&
+                /^(?:i|you|we|they|he|she|it)$/i.test(previous[0]) &&
+                startsClause(previous.index)
               )
                 add("confusion", word.index, next.index + next[0].length, [
                   "used to",
@@ -509,6 +555,14 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
             const char = text[i];
             if (!/[“”‘’"']/.test(char) || text[i - 1] === "\\") continue;
             const top = stack.at(-1);
+            // A leading apostrophe stands for an omitted century. Preserve
+            // literal quoted numbers ('42') so their closing mark still pairs.
+            if (
+              (char === "’" || char === "'") &&
+              /^(?:\d{2}s?)\b(?!['’])/.test(text.slice(i + 1, i + 6)) &&
+              !/[\p{L}\p{N}]/u.test(text[i - 1] ?? "")
+            )
+              continue;
             if (
               (char === "'" || char === "’") &&
               /[\p{L}\p{N}]/u.test(text[i - 1] ?? "") &&

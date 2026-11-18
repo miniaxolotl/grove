@@ -48,6 +48,99 @@ test("dictionary suggestions correct note words and preserve a possessive’s ap
   }
 });
 
+// Each note pairs ordinary vocabulary with a nearby misspelling. Check both
+// inline detection and the first correction when the reader opens the issue.
+for (const [topic, source, typo, correction] of [
+  [
+    "reading",
+    "The ereader’s ebooks have endnotes. Add the webcomic to the booklist and discuss its worldbuilding and fanfiction. Save the endntoe.",
+    "endntoe",
+    "endnote",
+  ],
+  [
+    "cooking",
+    "Get tahini, gochujang, miso, kimchi, tempeh and farro. Make the frittatas on the stovetop; grate the zest with the zesetr.",
+    "zesetr",
+    "zester",
+  ],
+  [
+    "media",
+    "The showrunner’s filmography includes two docuseries. We rewatched the cutscene with the voiceover and saved the mixtpae.",
+    "mixtpae",
+    "mixtape",
+  ],
+  [
+    "personal planning",
+    "Plan a weeklong staycation: pack the daypacks, schedule playdates and set up autopay. Submit the timeshetes first.",
+    "timeshetes",
+    "timesheets",
+  ],
+  [
+    "design",
+    "The wireframes show draggable tooltips. Check the artboard’s kerning and grayscale at narrow viewports, then update the mockpu.",
+    "mockpu",
+    "mockup",
+  ],
+  [
+    "technical notes",
+    "The linter checks both codebases. Update the middleware, stylesheets and webhook’s hostname; document the toolchain in the chagnelog.",
+    "chagnelog",
+    "changelog",
+  ],
+]) {
+  test(`recognizes ${topic} vocabulary and suggests the nearby correction`, () => {
+    assert.deepEqual(
+      checker.check(source, settings).issues.map((issue) => issue.original),
+      [typo],
+    );
+    assert.equal(checker.suggest(typo)[0], correction);
+  });
+}
+
+test("note words take only the suffixes appropriate to their usage", () => {
+  const accepted = [
+    "filmographies",
+    "docuseries",
+    "docuseries’s",
+    "middleware's",
+    "timeboxes",
+    "timebox’s",
+    "timeboxed",
+    "timeboxing",
+    "livestreamed",
+    "livestreaming",
+    "wireframed",
+    "wireframing",
+    "declutters",
+    "decluttered",
+    "decluttering",
+    "scrollable",
+    "monospaced",
+  ];
+  const rejected = [
+    "filmographys",
+    "docuserieses",
+    "middlewares",
+    "timeboxs",
+    "timeboxxed",
+    "wireframeing",
+    "declutter's",
+    "declutterred",
+    "scrollables",
+    "monospaced’s",
+    "artboarded",
+    "webhooking",
+    "timesheetss",
+    "endnotebooklist",
+  ];
+  assert.deepEqual(
+    checker
+      .check([...accepted, ...rejected].join(" "), settings)
+      .issues.map((issue) => issue.original),
+    rejected,
+  );
+});
+
 test("personal names and acronyms keep their singular possessive without masking other suffixes", () => {
   const source =
     "Bramblewick’s notes on the API's limits and the SDK’s roadmap. Bramblewick’ll share Zorbleck’s notes.";

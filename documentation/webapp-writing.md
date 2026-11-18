@@ -35,9 +35,15 @@ checker is ready, choose **Check writing** without having to edit the text again
 - The English dictionary recognizes everyday note terms such as **watchlist**,
   **audiobook** and **backlink**, including plurals and possessives. For example,
   **watchlists** is accepted and **watchlsit** suggests **watchlist**.
+  Local vocabulary also covers software, science, medicine, law, finance,
+  geography, education and music. You can mix terms from different fields in one note.
+  Hyphenated compounds such as **read-only** and **state-of-the-art** work with
+  regular and nonbreaking hyphens. In **read-onyl**, only **onyl** needs correcting.
 - Grammar leaves **If she were available**, **we should of course wait**, and
   year possessives such as **2024’s budget** alone. Word-pair checks don’t join
   words separated by inline code or a blank paragraph.
+  It distinguishes **a UI change** from **an MRI-guided procedure**, leaves
+  either article before **SQL** alone, and suggests **I’ve written** for **I’ve wrote**.
 - **No issues found by spelling and basic grammar checks** means exactly that:
   it is not a complete grammar guarantee.
 

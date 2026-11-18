@@ -16,7 +16,11 @@ export const writingRules = [
 export type WritingRule = (typeof writingRules)[number];
 /** Compare personal entries without changing the spelling the writer saved. */
 export const dictionaryWordKey = (word: string) =>
-  word.normalize("NFC").toLocaleLowerCase("en").replaceAll("’", "'");
+  word
+    .normalize("NFC")
+    .toLocaleLowerCase("en")
+    .replaceAll("’", "'")
+    .replace(/[‐‑]/gu, "-");
 export const personalWordLimit = 1000;
 const ruleSchema = z
   .object({
@@ -48,7 +52,7 @@ export const writingSettingsSchema = z
           .string()
           .min(1)
           .max(80)
-          .regex(/^[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*$/u),
+          .regex(/^[\p{L}\p{M}]+(?:['’‐‑-][\p{L}\p{M}]+)*$/u),
       )
       .max(personalWordLimit)
       .default([]),
@@ -201,31 +205,25 @@ export function prose(text: string) {
 
 const soundAn = /^(?:hour|honest|honou?r|heir)/i;
 const soundA =
-  /^(?:uni(?:vers|form|on|que|t|corn|sex|fy|lateral)|us(?:e|er|ual)|useful|util|euro|one(?:\b|-)|once)/i;
+  /^(?:uni(?:vers|form|on|que|t|corn|sex|fy|fi|lateral)|us(?:e|ual)|ubiquit|util|utensil|euro|eulog|ewe|one(?:$|sie|ness)|once)/i;
+const variableSound = /^(?:herb|histori|homage|unioni[sz]ed|(?:sql|url|faq)$)/i;
+const spokenAcronyms = /^(?:NASA|NATO|UNESCO)$/;
+const spokenInitials = /^(?:AI|API|EU|FBI|MBA|MRI|SMS|UFO|UI|UK|US|USB)$/;
+
 export function articleFor(word: string): "a" | "an" | null {
-  if (soundAn.test(word)) return "an";
-  if (soundA.test(word)) return "a";
-  if (/^[A-Z]{2,}$/.test(word)) {
-    if (["NASA", "NATO", "UNESCO"].includes(word)) return "a";
-    if (
-      [
-        "FBI",
-        "MRI",
-        "HTML",
-        "HTTP",
-        "URL",
-        "USB",
-        "EU",
-        "UK",
-        "US",
-        "API",
-        "AI",
-      ].includes(word)
-    )
-      return /^[AEFHILMNORSX]/.test(word) ? "an" : "a";
-    return null;
+  // The first component carries the sound in "MRI-guided" and "one-off".
+  const first = word.split(/[-‐‑'’]/, 1)[0];
+  if (spokenAcronyms.test(first)) return "a";
+  if (spokenInitials.test(first) || /^[a-z]$/i.test(first)) {
+    if (/^h$/i.test(first)) return null; // aitch / haitch
+    return /^[aefilmnorsx]/i.test(first) ? "an" : "a";
   }
-  return /^[aeiou]/i.test(word) ? "an" : "a";
+  // Don't pronounce unknown abbreviations (SQL, URL) or mixed-case names
+  // (SQLite) by applying ordinary spelling rules to their first letter.
+  if (!/^[A-Za-z][a-z]+$/.test(first) || variableSound.test(first)) return null;
+  if (soundAn.test(first)) return "an";
+  if (soundA.test(first)) return "a";
+  return /^[aeiou]/i.test(first) ? "an" : "a";
 }
 
 /** Small, unambiguous wordy phrases only; ambiguous wording is left to the writer.
