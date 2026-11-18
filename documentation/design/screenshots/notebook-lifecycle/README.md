@@ -2,11 +2,11 @@
 
 The **17 November 2026** confirmation pass uses synthetic Website redesign
 notebook data in the Chromium dashboard fixture with production CSS, based on
-`c8de2701` plus the workspace clarity changes. The revised dialogs show reviewed
+`c56ff529` plus the second workspace clarity pass. The revised dialogs show reviewed
 subtree counts, reversibility and separate direct/parent sharing consequences.
-At 320px, the delete dialog is about 100px shorter than the baseline and focuses
-Cancel. The focused tests cover 1440/390/320px, Cancel, stale scope and bulk preview
-retry. These captures do not requalify WebKit or physical devices.
+At 320px, the delete dialog focuses Cancel. The focused tests cover
+1440/390/320px, draft preservation, Cancel, stale scope and preview retry.
+These captures do not requalify WebKit or physical devices.
 
 | Archive at 390px | Delete at 320px |
 | --- | --- |

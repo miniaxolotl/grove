@@ -1,10 +1,11 @@
 # Note and PDF import review
 
 The **17 November 2026** Settings and import confirmation captures use synthetic
-data in the Chromium dashboard fixture with production CSS, based on `c8de2701`
-plus the workspace clarity changes. The import card separates its primary and
+data in the Chromium dashboard fixture with production CSS, based on `c56ff529`
+plus the second workspace clarity pass. The import card separates its primary and
 secondary actions on desktop and wraps them at 320px. Confirmation keeps the
-public sharing warning next to consent. No real parser or device was used in this pass.
+public sharing warning next to consent. Browser checks include consent reset after
+another tab changes the review and scoped read recovery. No real parser or device was used in this pass.
 
 | Your data, 1440px | Your data, 320px | Import confirmation, 390px |
 | --- | --- | --- |

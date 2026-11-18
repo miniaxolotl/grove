@@ -462,9 +462,8 @@ for (const width of [1440, 390, 320]) {
         path: info.outputPath(`delete-notebook-${width}.png`),
         fullPage: true,
       });
-      await expect(dialog).toContainText("You can’t undo this in Grove.");
-      await expect(dialog).toContainText("without erasing retained data");
-      await expect(dialog).toContainText("shared parent notebooks no longer show these contents");
+      await expect(dialog).toContainText("You can’t restore these notebooks, notes or their history in Grove.");
+      await expect(dialog).toContainText("contents disappear from shared parent notebooks");
       await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
       const overflow = await page.evaluate(() =>
         [...document.querySelectorAll<HTMLElement>("body *")]
@@ -498,7 +497,33 @@ for (const width of [1440, 390, 320]) {
   });
 }
 
-test("notebook deletion applies instantly, rolls back conflicts and retries an uncertain response with the same operation", async ({
+test("notebook confirmation requires a fresh preview after a load failure", async ({ page }) => {
+  const state = await notebookLifecycleFixture(page);
+  await page.goto(`${base}/app/projects`);
+  const open = async () => {
+    await page.getByRole("button", { name: `More actions for ${project.name}` }).click();
+    await page.getByRole("button", { name: "Archive notebook", exact: true }).click();
+  };
+  await open();
+  const dialog = page.getByRole("dialog", { name: "Archive notebook", exact: true });
+  await expect(dialog.getByRole("button", { name: "Archive notebooks" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  let unavailable = true;
+  await page.route(`**/api/grove/projects/${project.id}/lifecycle`, (route) => {
+    if (!unavailable) return route.fallback();
+    return route.fulfill({ status: 503, json: { success: false, error: { code: "unavailable", message: "Please retry." } } });
+  });
+  await open();
+  await expect(dialog.getByRole("button", { name: "Try again" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Archive notebook", exact: true })).toBeDisabled();
+  unavailable = false;
+  await dialog.getByRole("button", { name: "Try again" }).press("Enter");
+  await expect(dialog.getByRole("button", { name: "Archive notebooks" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+  expect(state.lifecycleCalls).toHaveLength(0);
+});
+
+test("notebook deletion applies instantly, rolls back conflicts and allows a fresh confirmation", async ({
   page,
 }) => {
   const state = await notebookLifecycleFixture(page);
@@ -617,9 +642,7 @@ test("notebook archive never discards a retained local draft", async ({
     name: "Archive notebook",
     exact: true,
   });
-  await expect(dialog).toContainText(
-    "Your local writing will not be discarded",
-  );
+  await expect(dialog.getByRole("alert")).toContainText("Resolve 1 draft before archiving.");
   await expect(
     dialog.getByRole("button", { name: "Archive notebooks", exact: true }),
   ).toBeDisabled();
@@ -8011,7 +8034,7 @@ test("archived notebooks bulk delete removes each selected root", async ({
   previewUnavailable = false;
   await bulk.getByRole("button", { name: "Try again" }).click();
   await expect.poll(() => previewRequests).toBe(failedRequests + 1);
-  await expect(bulk).toContainText("You can’t undo this in Grove.");
+  await expect(bulk).toContainText("You can’t restore these notebooks, notes or their history in Grove.");
   await bulk
     .getByRole("button", { name: "Delete notebooks", exact: true })
     .click();

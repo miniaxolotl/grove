@@ -261,7 +261,7 @@ export function ImportNotesPanel({
     const p = projects.find((p) => p.id === projectId);
     return p ? { projectId: p.id, version: p.version ?? 1 } : null;
   });
-  const [reviewed, setReviewed] = useState(false);
+  const [reviewedVersion, setReviewedVersion] = useState<number>();
   const [dirtyNotes, setDirtyNotes] = useState<Set<string>>(() => new Set());
   const dialogBusy = useDialogBusy();
   const dirty = dirtyNotes.size > 0;
@@ -281,6 +281,8 @@ export function ImportNotesPanel({
     return () => dialogBusy(false);
   }, [dialogBusy, busy, dirty]);
   const chooser = useRef<HTMLInputElement>(null);
+  const chooseFiles = useRef<HTMLButtonElement>(null);
+  const intro = useRef<HTMLParagraphElement>(null);
   const inFlight = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const upload = useRef<{
@@ -350,7 +352,7 @@ export function ImportNotesPanel({
   async function refresh() {
     await query.refetch();
     if (batch?.taskId) await task.refetch();
-    setReviewed(false);
+    setReviewedVersion(undefined);
   }
   async function sendFiles(files: File[]) {
     if (
@@ -441,6 +443,17 @@ export function ImportNotesPanel({
   const mutable = batch?.status === "ready";
   const running = batch && ["preparing", "applying"].includes(batch.status);
   const preparing = batch?.status === "preparing";
+  const reviewed = !!batch && reviewedVersion === batch.version;
+  const read = id ? query : list;
+  const feedback =
+    message ||
+    (running
+      ? task.isError
+        ? "Couldn’t check progress."
+        : importStatus(preparing, task.data)
+      : busy
+        ? "Updating import…"
+        : "");
   const cancelButton = batch &&
     !["complete", "cancelled"].includes(batch.status) && (
       <Button
@@ -456,36 +469,53 @@ export function ImportNotesPanel({
           })
         }
       >
-        Cancel import
+        {batch.status === "applying" ? "Stop import" : "Cancel import"}
       </Button>
     );
   return (
     <div className="import-notes">
       <div className="import-intro">
-        <p>Review notes and choose where to save them.</p>
+        <p ref={intro} tabIndex={-1}>
+          Review files before saving notes.
+        </p>
         <Link className="text-button" href="/app/settings/files">
           View files &amp; storage
         </Link>
       </div>
-      {(error || query.error || list.error) && (
-        <div className="app-error" role="alert">
-          <p>{error || errorMessage(query.error ?? list.error)}</p>
-          <button
-            type="button"
-            onClick={() =>
-              void run(async () => {
-                await query.refetch();
-                await list.refetch();
-              })
-            }
-          >
-            Reload import
-          </button>
+      {(error || read.isError) && (
+        <div className="app-error my-0">
+          <p role="alert">
+            {error ||
+              (id
+                ? "Couldn’t load this import."
+                : "Couldn’t load recent imports.")}
+          </p>
+          {read.isError && (
+            <Button
+              variant="secondary"
+              className="mt-2"
+              disabled={read.isFetching || busy}
+              onClick={async (event) => {
+                const trigger = event.currentTarget;
+                const result = await read.refetch();
+                if (
+                  result.isSuccess &&
+                  (document.activeElement === trigger ||
+                    document.activeElement === document.body)
+                )
+                  (chooseFiles.current ?? intro.current)?.focus({
+                    preventScroll: true,
+                  });
+              }}
+            >
+              {read.isFetching ? "Reloading…" : "Reload import"}
+            </Button>
+          )}
         </div>
       )}
-      {message && (
+      {!running && feedback && (
         <p className="wrap-anywhere" role="status">
-          {message}
+          {feedback}
         </p>
       )}
       {busy && upload.current && (
@@ -508,6 +538,7 @@ export function ImportNotesPanel({
             <Upload size={22} aria-hidden="true" />
             <p>Drop files here</p>
             <Button
+              ref={chooseFiles}
               disabled={busy}
               aria-describedby="import-file-limits"
               onClick={() => chooser.current?.click()}
@@ -657,18 +688,12 @@ export function ImportNotesPanel({
           )}
           {running && (
             <section className="import-section">
-              <h3>
-                {batch.status === "preparing"
-                  ? "Preparing your notes"
-                  : "Importing your notes"}
-              </h3>
-              <p role="status">
-                {task.isError
-                  ? "Couldn’t check progress."
-                  : importStatus(preparing, task.data)}
+              <p role="status" className="font-medium">
+                {feedback}
               </p>
               <p className="import-small">
-                Return anytime from Recent imports.
+                Resume from Recent imports.
+                {!preparing && " Stopping keeps saved notes."}
               </p>
               {task.isError ? (
                 <Button
@@ -689,7 +714,7 @@ export function ImportNotesPanel({
                       })
                     }
                   >
-                    Retry remaining work
+                    {preparing ? "Retry preparation" : "Retry import"}
                   </Button>
                 )
               )}
@@ -791,10 +816,7 @@ export function ImportNotesPanel({
               </h3>
               <p>
                 {batch.imported} {batch.imported === 1 ? "note" : "notes"}{" "}
-                imported.{" "}
-                {batch.status === "cancelled"
-                  ? "Already imported notes are kept."
-                  : "Your original files remain private."}
+                imported.
               </p>
               <ul>
                 {batch.notes
@@ -849,8 +871,8 @@ export function ImportNotesPanel({
                 {batch.newNotebooks === 1 ? "notebook" : "notebooks"}
               </h3>
               <p>
-                A shared destination or parent notebook can show imported notes
-                right away. Original files stay private.
+                Shared notebooks, including parents, can show imported notes
+                right away. Originals stay private.
               </p>
               <p className="import-small">
                 Importing again can create duplicates.
@@ -859,7 +881,11 @@ export function ImportNotesPanel({
                 <input
                   type="checkbox"
                   checked={reviewed}
-                  onChange={(event) => setReviewed(event.target.checked)}
+                  onChange={(event) =>
+                    setReviewedVersion(
+                      event.target.checked ? batch.version : undefined,
+                    )
+                  }
                   disabled={busy}
                 />
                 I’ve reviewed the notes, destinations and sharing.
@@ -871,7 +897,13 @@ export function ImportNotesPanel({
               )}
               <div className="import-actions">
                 <Button
-                  disabled={busy || dirty || !reviewed || !batch.selected}
+                  disabled={
+                    busy ||
+                    dirty ||
+                    query.isError ||
+                    !reviewed ||
+                    !batch.selected
+                  }
                   onClick={() =>
                     void run(async () => {
                       if (confirm.current?.expectedVersion !== batch.version)
@@ -898,7 +930,6 @@ export function ImportNotesPanel({
           {!mutable && cancelButton}
         </>
       )}
-      {busy && !message && <p role="status">Updating import…</p>}
     </div>
   );
 }

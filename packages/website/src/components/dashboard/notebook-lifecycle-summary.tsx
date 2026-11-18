@@ -2,21 +2,31 @@ import type { NotebookLifecycleAction } from "@lib/shared/notebook-lifecycle";
 
 const consequences = {
   archive:
-    "Restore from Archived notebooks. Notes already archived stay archived.",
-  restore:
-    "Only notes archived with these notebooks return. Expired notes stay hidden, and retention dates don’t change.",
-  delete:
-    "Removes these notebooks, their notes and history from Grove without erasing retained data. You can’t undo this in Grove.",
+    "Restore from Archived notebooks. Previously archived notes stay archived.",
+  restore: "Previously archived or expired notes stay hidden.",
+  delete: "You can’t restore these notebooks, notes or their history in Grove.",
 };
 
 const sharing = {
   archive:
-    "Direct share links stop working. Restoring won’t turn them back on, but shared parent notebooks can show restored contents again.",
+    "Direct links turn off. Restoring can show these contents in shared parent notebooks, but won’t turn direct links back on.",
   restore:
-    "Direct share links stay off. Shared parent notebooks can show restored contents again.",
+    "Direct links stay off. Shared parent notebooks can show these contents again.",
   delete:
-    "Direct share links stop working, and shared parent notebooks no longer show these contents.",
+    "Direct share links stop working. The contents disappear from shared parent notebooks.",
 };
+
+export function notebookDraftWarning(
+  action: NotebookLifecycleAction,
+  count: number,
+) {
+  const verb = {
+    archive: "archiving",
+    restore: "restoring",
+    delete: "deleting",
+  }[action];
+  return `Resolve ${count} ${count === 1 ? "draft" : "drafts"} before ${verb}.`;
+}
 
 export function NotebookLifecycleSummary({
   action,

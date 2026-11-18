@@ -31,7 +31,8 @@ placement control; apply it explicitly before confirmation.
 5. Review the sharing notice, check the confirmation and choose **Confirm import**.
    New notebooks are created only with their first imported note. Existing notes
    are never silently merged or overwritten. New names are explicitly new notebooks,
-   even when another notebook has the same display name.
+   even when another notebook has the same display name. If the review changes
+   in another tab, confirm the updated version again.
 
 Imported text immediately follows existing public-share scope on the destination
 or a shared ancestor that includes it. Original files stay private and are **not** served by public note/notebook
@@ -125,9 +126,9 @@ The dialog distinguishes checking status, queued work, active work and stopped w
 Progress uses the task's reported file/note counts, not the number of uploaded
 files when a note total is unavailable. Completion comes from the batch result.
 
-Cancel before confirmation saves nothing to the library and clears unconfirmed
-bytes/previews. During import, cancellation stops remaining work; already-created
-notes/notebooks remain. **Retry remaining work** resumes a failed task without
+**Cancel import** before confirmation saves nothing and clears unconfirmed
+bytes/previews. **Stop import** stops remaining work; already-created notes and
+notebooks remain. **Retry import** resumes a failed task without
 duplicating committed records. It does not overwrite later edits or revive deleted
 notes. Re-importing the same file in a new batch can intentionally create duplicates;
 review the warning and exclude unwanted notes. There is no destructive batch Undo.

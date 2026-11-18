@@ -196,7 +196,7 @@ for (const width of [1440, 390, 320])
     ).toBeVisible();
     await expect(
       dialog.getByText(
-        "A shared destination or parent notebook can show imported notes right away. Original files stay private.",
+        "Shared notebooks, including parents, can show imported notes right away. Originals stay private.",
       ),
     ).toBeVisible();
     const placement = dialog.locator(".import-placement");
@@ -255,6 +255,22 @@ for (const width of [1440, 390, 320])
     await dialog
       .getByLabel("I’ve reviewed the notes, destinations and sharing.")
       .check();
+    if (width === 390) {
+      batch!.version++;
+      batch!.notes[0].content += "\n\nNew from another tab.";
+      await page.evaluate(() =>
+        window.dispatchEvent(new Event("visibilitychange")),
+      );
+      await expect(
+        dialog.getByRole("textbox", { name: "Content from Garden.md" }),
+      ).toHaveValue(/New from another tab\./);
+      await expect(
+        dialog.getByRole("button", { name: "Confirm import" }),
+      ).toBeDisabled();
+      await dialog
+        .getByLabel("I’ve reviewed the notes, destinations and sharing.")
+        .check();
+    }
     if (width === 390) {
       await dialog
         .getByRole("button", { name: "Confirm import", exact: true })
@@ -333,7 +349,51 @@ test("import status follows a queued, running and failed job and retries the sam
     "Import stopped. Imported notes are kept.",
   );
   await expect(dialog.getByText("internal_task_code")).toBeHidden();
-  await dialog.getByRole("button", { name: "Retry remaining work" }).click();
+  await dialog
+    .getByRole("button", { name: "Retry import", exact: true })
+    .click();
   await expect(queued).toBeVisible();
   expect(retries).toBe(1);
+});
+
+test("retrying recent imports only reads the list and restores focus", async ({
+  page,
+}) => {
+  let offline = true;
+  const reads: string[] = [];
+  await page.route("**/api/grove/**", async (route) => {
+    const url = route.request().url();
+    const path = fixturePath(url).replace("/api/grove", "");
+    if (path.startsWith("/import-batches")) reads.push(path);
+    if (path === "/import-batches" && offline)
+      return route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: { code: "unavailable", message: "Please retry." },
+        },
+      });
+    return route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(
+          url,
+          path === "/me" ? { accountId: "import-list-recovery" } : [],
+        ),
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/data`);
+  await page.getByRole("button", { name: "Import notes", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Import notes" });
+  const retry = dialog.getByRole("button", { name: "Reload import" });
+  await expect(retry).toBeVisible({ timeout: 15_000 });
+  const failedReads = reads.length;
+  offline = false;
+  await retry.press("Enter");
+  await expect(retry).toBeHidden();
+  expect(reads.slice(failedReads)).toEqual(["/import-batches"]);
+  await expect(
+    dialog.getByRole("button", { name: "Choose files" }),
+  ).toBeFocused();
 });

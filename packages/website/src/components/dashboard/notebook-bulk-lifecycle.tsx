@@ -3,13 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage, type Project } from "@/lib/dashboard-api";
 import type { NotebookLifecyclePreview } from "@lib/shared/notebook-lifecycle";
-import { Dialog, useDialogBusy } from "./dialog";
+import { Dialog } from "./dialog";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useNoteDraftRevision, useNoteDrafts } from "./note-drafts";
 import { useToast } from "./toasts";
 import { Button } from "./ui/button";
 import { LoadError } from "./load-error";
-import { NotebookLifecycleSummary } from "./notebook-lifecycle-summary";
+import {
+  NotebookLifecycleSummary,
+  notebookDraftWarning,
+} from "./notebook-lifecycle-summary";
 
 const verbs = { restore: "Restore", delete: "Delete" } as const;
 
@@ -34,45 +37,42 @@ export function NotebookBulkLifecycleDialog({
   const toast = useToast();
   const drafts = useNoteDrafts();
   useNoteDraftRevision();
-  const setDialogBusy = useDialogBusy();
   const [previews, setPreviews] = useState<Map<
     string,
     NotebookLifecyclePreview
   > | null>(null);
   const [loadError, setLoadError] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
-  const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
+  const cancel = useRef<HTMLButtonElement>(null);
   const idsKey = projects.map((project) => project.id).join(",");
-  const operationIds = useRef(new Map<string, string>());
   useEffect(() => {
-    let active = true;
-    setDialogBusy(true);
+    const controller = new AbortController();
     Promise.all(
       projects.map(async (project) => {
         const preview = await cache.fetch<NotebookLifecyclePreview>(
           `/projects/${project.id}/lifecycle`,
+          undefined,
+          controller.signal,
         );
         return [project.id, preview] as const;
       }),
     )
       .then((results) => {
-        if (active) {
+        if (!controller.signal.aborted) {
           setPreviews(new Map(results));
           setLoadError("");
         }
       })
       .catch((reason: unknown) => {
-        if (active) setLoadError(errorMessage(reason));
-      })
-      .finally(() => {
-        if (active) setDialogBusy(false);
+        if (!controller.signal.aborted) setLoadError(errorMessage(reason));
       });
     return () => {
-      active = false;
+      controller.abort();
     };
     // idsKey stands in for the fixed selection this dialog opened with.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cache, idsKey, loadAttempt, setDialogBusy]);
+  }, [cache, idsKey, loadAttempt]);
   const roots = useMemo(() => {
     if (!previews) return [];
     return projects
@@ -115,9 +115,8 @@ export function NotebookBulkLifecycleDialog({
     0,
   );
   async function confirm() {
-    if (!actionable.length || busy || draftCount) return;
-    setBusy(true);
-    setDialogBusy(true);
+    if (!actionable.length || submitting.current || draftCount) return;
+    submitting.current = true;
     const verb = action === "restore" ? "restored" : "deleted";
     const noun = (count: number) =>
       `${count} notebook${count === 1 ? "" : "s"}`;
@@ -131,11 +130,8 @@ export function NotebookBulkLifecycleDialog({
       const staged = cache.stage({ scopes: root.preview.projectIds });
       cache.applyNotebookLifecycle(action, root.preview.projectIds);
       try {
-        const retained = operationIds.current.get(root.project.id);
-        const operationId = retained ?? crypto.randomUUID();
-        operationIds.current.set(root.project.id, operationId);
         await cache.api(`/projects/${root.project.id}/${action}`, {
-          operationId,
+          operationId: crypto.randomUUID(),
           expectedVersion: root.preview.project.version,
           fingerprint: root.preview.fingerprint,
         });
@@ -147,8 +143,6 @@ export function NotebookBulkLifecycleDialog({
         failed.push(`${root.project.name}: ${errorMessage(reason)}`);
       }
     }
-    setBusy(false);
-    setDialogBusy(false);
     const parts: string[] = [];
     if (succeeded) parts.push(`${noun(succeeded)} ${verb}.`);
     if (failed.length)
@@ -174,16 +168,16 @@ export function NotebookBulkLifecycleDialog({
     <Dialog
       title={`${verbs[action]} ${projects.length === 1 ? "notebook" : "notebooks"}`}
       close={close}
-      busy={busy}
     >
       <div className="app-form">
         {!previews && !loadError ? (
-          <p role="status">Checking notebook contents…</p>
+          <p role="status">Checking contents…</p>
         ) : loadError ? (
           <LoadError
             title="Couldn’t check notebook contents"
             message={loadError}
             retry={() => {
+              cancel.current?.focus();
               setPreviews(null);
               setLoadError("");
               setLoadAttempt((attempt) => attempt + 1);
@@ -191,17 +185,19 @@ export function NotebookBulkLifecycleDialog({
           />
         ) : (
           <>
-            <p className="wrap-anywhere">
-              <strong>
-                {roots.map((root) => root.project.name).join(", ")}
-              </strong>
-            </p>
             {!!actionable.length && (
-              <NotebookLifecycleSummary
-                action={action}
-                notebooks={notebooks}
-                notes={notes}
-              />
+              <>
+                <p className="wrap-anywhere">
+                  <strong>
+                    {actionable.map((root) => root.project.name).join(", ")}
+                  </strong>
+                </p>
+                <NotebookLifecycleSummary
+                  action={action}
+                  notebooks={notebooks}
+                  notes={notes}
+                />
+              </>
             )}
             {!!blocked.length && action === "restore" && (
               <p role="alert" className="app-error my-0 wrap-anywhere">
@@ -211,9 +207,7 @@ export function NotebookBulkLifecycleDialog({
             )}
             {!!draftCount && (
               <p role="alert" className="app-error my-0">
-                Save or resolve {draftCount}{" "}
-                {draftCount === 1 ? "draft" : "drafts"} first. Your writing is
-                kept.
+                {notebookDraftWarning(action, draftCount)}
               </p>
             )}
           </>
@@ -221,7 +215,7 @@ export function NotebookBulkLifecycleDialog({
         <div className="mt-1 flex flex-wrap items-center gap-3">
           <Button
             variant="secondary"
-            disabled={busy}
+            ref={cancel}
             data-autofocus
             onClick={close}
           >
@@ -229,7 +223,7 @@ export function NotebookBulkLifecycleDialog({
           </Button>
           <Button
             variant={action === "delete" ? "danger" : "primary"}
-            disabled={!actionable.length || busy || !!draftCount}
+            disabled={!actionable.length || !!draftCount}
             onClick={() => void confirm()}
           >
             {`${verbs[action]} ${projects.length > 1 ? "notebooks" : "notebook"}`}

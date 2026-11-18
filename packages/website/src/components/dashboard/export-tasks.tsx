@@ -18,10 +18,10 @@ const status = (task: Task) => {
       ? `Preparing export · ${task.processed.toLocaleString()} records`
       : "Preparing export…";
   if (task.status === "cancelled") return "Cancelled";
-  if (task.error === "export_changed") return "Notes changed · retry";
-  if (task.error === "export_expired") return "Expired · retry";
-  if (task.status === "failed") return "Couldn’t export · retry";
-  return "Download unavailable · retry";
+  if (task.error === "export_changed") return "Notes changed";
+  if (task.error === "export_expired") return "Expired";
+  if (task.status === "failed") return "Export failed";
+  return "Download unavailable";
 };
 
 export function ExportTasks({ projectId }: { projectId?: string }) {
@@ -48,8 +48,19 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const exports = query.data?.filter((task) => task.kind === "export") ?? [];
   const running = exports.find(active);
-  async function mutate(id?: string, action?: "cancel" | "retry") {
-    if (inFlight.current) return;
+  function restoreFocus(trigger: HTMLButtonElement) {
+    if (
+      document.activeElement === trigger ||
+      document.activeElement === document.body
+    )
+      heading.current?.focus({ preventScroll: true });
+  }
+  async function mutate(
+    trigger: HTMLButtonElement,
+    id?: string,
+    action?: "cancel" | "retry",
+  ) {
+    if (inFlight.current || query.isError) return;
     inFlight.current = true;
     setBusy(id ?? "new");
     setError("");
@@ -68,7 +79,7 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
         setSubmitted(false);
       }
       await query.refetch();
-      heading.current?.focus({ preventScroll: true });
+      restoreFocus(trigger);
     } catch (error) {
       setError(errorMessage(error));
     } finally {
@@ -115,8 +126,8 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
       <Button
         variant="secondary"
         className="mt-3"
-        disabled={!!busy || !!running || query.isPending}
-        onClick={() => void mutate()}
+        disabled={!!busy || !!running || query.isPending || query.isError}
+        onClick={(event) => void mutate(event.currentTarget)}
       >
         {busy === "new" && (
           <LoaderCircle
@@ -135,7 +146,11 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
           {query.isError && (
             <IconButton
               label="Reload exports"
-              onClick={() => void query.refetch()}
+              disabled={query.isFetching || !!busy}
+              onClick={async (event) => {
+                const trigger = event.currentTarget;
+                if ((await query.refetch()).isSuccess) restoreFocus(trigger);
+              }}
             >
               <RotateCcw size={16} />
             </IconButton>
@@ -166,7 +181,9 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
               <span aria-hidden className="w-4 shrink-0" />
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm">{status(task)}</p>
+              <p className="text-sm">
+                {query.isError ? "Status unavailable" : status(task)}
+              </p>
               <p className="text-xs text-muted">
                 {task.scope?.projectId &&
                   (task.scope.includeDescendants
@@ -182,7 +199,7 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
                 </time>
               </p>
             </div>
-            {task.downloadable ? (
+            {query.isError ? null : task.downloadable ? (
               <a
                 className="app-icon"
                 href={`/api/grove/tasks/${task.id}/download`}
@@ -196,7 +213,9 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
               <IconButton
                 label="Cancel export"
                 disabled={!!busy}
-                onClick={() => void mutate(task.id, "cancel")}
+                onClick={(event) =>
+                  void mutate(event.currentTarget, task.id, "cancel")
+                }
               >
                 <X size={16} />
               </IconButton>
@@ -204,7 +223,9 @@ export function ExportTasks({ projectId }: { projectId?: string }) {
               <IconButton
                 label="Retry export"
                 disabled={!!busy || exports.some(active)}
-                onClick={() => void mutate(task.id, "retry")}
+                onClick={(event) =>
+                  void mutate(event.currentTarget, task.id, "retry")
+                }
               >
                 <RotateCcw size={16} />
               </IconButton>
