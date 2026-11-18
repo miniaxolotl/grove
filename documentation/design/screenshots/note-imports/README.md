@@ -1,5 +1,10 @@
 # Note and PDF import review
 
+[Notes immediately after import (1440×1000)](imported-notebook.png) shows the
+new Gardening notebook beside Research and both imported notes. Captured in
+Chromium using synthetic import responses and production CSS from `3001fd90`
+with the catalog refresh fix; this does not exercise extraction or a live worker.
+
 The **17 November 2026** Settings and import confirmation captures use synthetic
 data in the Chromium dashboard fixture with production CSS, based on `c56ff529`
 plus the second workspace clarity pass. The import card separates its primary and
