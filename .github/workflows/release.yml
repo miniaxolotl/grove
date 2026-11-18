@@ -9,7 +9,13 @@ concurrency:
   group: release-please-development
   cancel-in-progress: false
 jobs:
+  scope:
+    if: github.repository == 'miniaxolotl/grove' && github.ref == 'refs/heads/development' && github.ref_protected == true
+    uses: ./.github/workflows/website-impact.yml
+    with:
+      source: ${{ github.sha }}
   release-please:
+    needs: scope
     if: github.repository == 'miniaxolotl/grove' && github.ref == 'refs/heads/development' && github.ref_protected == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -33,7 +39,7 @@ jobs:
         with:
           token: ${{ github.token }}
           target-branch: development
-          config-file: release-please-config.json
+          config-file: release-please-website.json
           manifest-file: .release-please-manifest.json
       - name: Explicit CI dispatch for token-authored release PRs
         if: steps.release.outputs.prs_created == 'true'
