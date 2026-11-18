@@ -1,21 +1,12 @@
 "use client";
 import { ImportNotesPanel } from "./import-notes-button";
-import {
-  Fragment,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   X,
   Undo2,
-  List,
-  Network,
   CalendarDays,
   RefreshCw,
   Upload,
@@ -32,7 +23,10 @@ import {
 } from "@/lib/memory-display";
 import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
-import { LibrarySkeleton } from "./workspace-opening";
+import {
+  GraphSkeleton,
+  LibrarySkeleton as ListSkeleton,
+} from "./workspace-opening";
 import { MemoryRow } from "./memory-row";
 import {
   NoteListContinuation,
@@ -48,6 +42,7 @@ import {
   type LibraryFilters,
 } from "./library-filters";
 import { PageHeading } from "./ui/page-heading";
+import { LibraryViewSwitch, type LibraryView } from "./library-view-switch";
 import { ActionMenu } from "./ui/action-menu";
 import { NotebookSelect } from "./notebook-select";
 import { useNotebooks, useSetCurrentNotebook } from "./notebooks-provider";
@@ -71,11 +66,7 @@ const MemoryEditor = deferredFeature(
 );
 const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
-  loading: () => (
-    <p role="status" className="library-loading">
-      Opening graph…
-    </p>
-  ),
+  loading: GraphSkeleton,
 });
 
 type Action = "move" | "archive" | "restore";
@@ -99,7 +90,7 @@ export function MemoryLibrary({
   embedded?: boolean;
   initialKind?: string;
   onChanged?: () => void;
-  initialView?: "list" | "graph";
+  initialView?: LibraryView;
   initialProject?: string;
   initialSort?: "updated_desc" | "created_desc";
   onVisit?: (visit: NotebookVisit) => void;
@@ -108,9 +99,6 @@ export function MemoryLibrary({
   const api = cache.api;
   const workspace = useWorkspaceDrag();
   const [view, setView] = useState(initialView);
-  const viewChanged = useRef(false);
-  const moreButton = useRef<HTMLButtonElement>(null);
-  const listButton = useRef<HTMLButtonElement>(null);
   const [importing, setImporting] = useState(false);
   const {
     projects,
@@ -178,12 +166,6 @@ export function MemoryLibrary({
   const [undo, setUndo] = useState<Undo[]>([]);
   const requests = useRef(new Map<string, string>());
   const summary = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    if (!viewChanged.current) return;
-    viewChanged.current = false;
-    const target = view === "graph" ? listButton.current : moreButton.current;
-    (target ?? summary.current)?.focus({ preventScroll: true });
-  }, [view]);
   const scopedProject =
     fixedProject !== undefined
       ? fixedProject
@@ -443,12 +425,13 @@ export function MemoryLibrary({
     const target =
       (id
         ? document.querySelector<HTMLElement>(
-            `[data-note-id="${id}"] .memory-open`,
+            `[data-note-id="${id}"] .memory-open, .library-main .react-flow__node[data-id="${id}"]`,
           )
         : null) ??
       document.querySelector<HTMLElement>(
-        ".library-main .memory-open, .library-main .app-empty h2",
-      );
+        ".library-main .memory-open, .library-main .react-flow__node, .library-main .app-empty h2",
+      ) ??
+      summary.current;
     if (!target) return;
     const frame = requestAnimationFrame(() => {
       target.tabIndex = target.tabIndex < 0 ? -1 : target.tabIndex;
@@ -469,46 +452,14 @@ export function MemoryLibrary({
     selected && selected !== "new"
       ? items.findIndex((m) => m.id === selected.id)
       : -1;
-  function switchView(nextView: typeof view) {
-    viewChanged.current = true;
-    setView(nextView);
-  }
-  const moreActions = !archive &&
-    (!embedded || (view === "list" && items.length > 0)) && (
-      <ActionMenu
-        label="More note actions"
-        visibleLabel="More"
-        triggerRef={moreButton}
-      >
-        {view === "list" && items.length > 0 && (
-          <button type="button" onClick={() => switchView("graph")}>
-            <Network size={16} aria-hidden="true" /> Graph
-          </button>
-        )}
-        {!embedded && (
-          <>
-            <Link href="/app/archive" {...noteListWarmup(cache, "archived")}>
-              <Archive size={16} aria-hidden="true" /> Archive
-            </Link>
-            <Link
-              href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
-            >
-              <CalendarDays size={16} aria-hidden="true" />
-              Today’s note
-            </Link>
-            <button type="button" onClick={() => setImporting(true)}>
-              <Upload size={16} aria-hidden="true" />
-              Import notes
-            </button>
-          </>
-        )}
-      </ActionMenu>
-    );
+  const LibrarySkeleton =
+    !archive && view === "graph" ? GraphSkeleton : ListSkeleton;
   return (
     <>
       {!embedded && (
         <PageHeading
           title={title}
+          className={archive ? undefined : "library-heading"}
           actions={
             archive ? (
               <Link
@@ -519,7 +470,27 @@ export function MemoryLibrary({
                 Back to notes
               </Link>
             ) : (
-              moreActions
+              <>
+                <LibraryViewSwitch view={view} onChange={setView} />
+                <ActionMenu label="More note actions" visibleLabel="More">
+                  <Link
+                    href="/app/archive"
+                    {...noteListWarmup(cache, "archived")}
+                  >
+                    <Archive size={16} aria-hidden="true" /> Archive
+                  </Link>
+                  <Link
+                    href={`/app/notes/new?from=journal${scopedProject ? `&notebook=${encodeURIComponent(scopedProject)}` : ""}`}
+                  >
+                    <CalendarDays size={16} aria-hidden="true" />
+                    Today’s note
+                  </Link>
+                  <button type="button" onClick={() => setImporting(true)}>
+                    <Upload size={16} aria-hidden="true" />
+                    Import notes
+                  </button>
+                </ActionMenu>
+              </>
             )
           }
         />
@@ -622,18 +593,9 @@ export function MemoryLibrary({
                 ) : null}
               </span>
             </span>
-            {!archive && view === "graph" ? (
-              <button
-                type="button"
-                className="app-button secondary"
-                ref={listButton}
-                onClick={() => switchView("list")}
-              >
-                <List size={16} aria-hidden="true" /> Back to list
-              </button>
-            ) : embedded ? (
-              moreActions
-            ) : null}
+            {!archive && embedded && (
+              <LibraryViewSwitch view={view} onChange={setView} />
+            )}
           </div>
           {currentError && (
             <LoadError

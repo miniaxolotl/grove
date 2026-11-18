@@ -34,9 +34,14 @@ const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const moreNoteActions = (page: Page) =>
   page.getByRole("button", { name: "More note actions", exact: true });
 const showGraph = (page: Page) =>
-  page.getByRole("button", { name: "Graph", exact: true });
+  page
+    .getByRole("group", { name: "Note view", exact: true })
+    .getByRole("button", { name: "Graph", exact: true });
+const showList = (page: Page) =>
+  page
+    .getByRole("group", { name: "Note view", exact: true })
+    .getByRole("button", { name: "List", exact: true });
 async function openGraph(page: Page) {
-  await moreNoteActions(page).click();
   await showGraph(page).click();
 }
 
@@ -857,9 +862,7 @@ for (const width of [1440, 390, 320]) {
       expect(await trigger.boundingBox()).toEqual(triggerBefore);
       await panel.getByRole("button", { name: "Done", exact: true }).click();
       await openGraph(page);
-      await expect(
-        page.getByRole("button", { name: "Back to list" }),
-      ).toBeInViewport();
+      await expect(showList(page)).toBeInViewport();
       expect(await trigger.boundingBox()).toEqual(triggerBefore);
     });
   });
@@ -5149,44 +5152,77 @@ test("history switches retain each conversation's unsent draft and closing a hel
   await expect(input).toHaveValue("");
 });
 
-test("notebook Graph preserves scope and filters and returns focus to More", async ({
+const graphSwitchNotes = [
+  {
+    ...note,
+    projectId: project.id,
+    enrichment: {
+      ...note.enrichment!,
+      relationships: [
+        {
+          id: handoff.id,
+          version: handoff.version,
+          relationship: "complementary" as const,
+        },
+      ],
+    },
+  },
+  handoff,
+];
+
+test("notebook Graph preserves scope, shared filters and keyboard focus", async ({
   page,
-}) => {
+}, info) => {
   await fixture(page, [
-    { ...note, projectId: project.id },
-    { ...handoff, projectId: project.id },
+    ...graphSwitchNotes,
     { ...note, id: crypto.randomUUID(), projectId: null },
   ]);
+  let reads = 0;
+  await page.route("**/api/grove/memories/search", (route) => {
+    reads++;
+    return route.fallback();
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${base}/app/projects/${project.id}`);
   const search = page.getByRole("textbox", {
     name: "Search notes",
     exact: true,
   });
-  await search.fill("specific");
   const row = page.locator(".memory-open");
+  await expect(row).toHaveCount(2);
+  await openGraph(page);
+  await expect(page.locator(".react-flow__node")).toHaveCount(2);
+  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  await page.screenshot({
+    path: info.outputPath("graph-switch-notebook-390.png"),
+  });
+  await showList(page).click();
+  await search.fill("specific");
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("Review preferences");
-  const more = moreNoteActions(page);
   const graph = showGraph(page);
-  await expect(graph).toBeHidden();
-  await more.press("ArrowDown");
+  const list = showList(page);
+  const filteredReads = reads;
+  await expect(moreNoteActions(page)).toHaveCount(0);
+  await expect(list).toHaveAttribute("aria-pressed", "true");
+  await list.focus();
+  await page.keyboard.press("Tab");
   await expect(graph).toBeFocused();
-  await graph.press("Escape");
-  await expect(more).toBeFocused();
-  await more.press("ArrowDown");
   await graph.press("Enter");
-  const back = page.getByRole("button", { name: "Back to list" });
-  await expect(back).toBeFocused();
+  await expect(graph).toHaveAttribute("aria-pressed", "true");
+  await expect(graph).toBeFocused();
   await expect(page.locator(".react-flow__node")).toHaveCount(1);
   await expect(
     page.locator(`.react-flow__node[data-id="${note.id}"]`),
   ).toBeVisible();
-  await back.press("Enter");
-  await expect(more).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(list).toBeFocused();
+  await list.press("Space");
+  await expect(list).toBeFocused();
   await expect(search).toHaveValue("specific");
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("Review preferences");
+  expect(reads).toBe(filteredReads);
   await expect(page).toHaveURL(new RegExp(`/app/projects/${project.id}$`));
   await openGraph(page);
   await search.fill("no-matching-phrase");
@@ -5194,31 +5230,209 @@ test("notebook Graph preserves scope and filters and returns focus to More", asy
     page.getByRole("heading", { name: "No matching notes" }),
   ).toBeVisible();
   await expect(page.getByText("0 notes found", { exact: true })).toBeVisible();
-  await back.press("Enter");
-  await expect(page.locator(".library-summary")).toBeFocused();
+  await list.press("Enter");
+  await expect(list).toBeFocused();
   await expect(
     page.getByRole("button", { name: "Clear filters", exact: true }).last(),
   ).toBeVisible();
-  await expect(more).toBeHidden();
+  await expect(graph).toBeVisible();
+});
+
+test("Graph exposes failed connection reads and keeps list selection during retry", async ({
+  page,
+}) => {
+  await fixture(page, graphSwitchNotes);
+  let failing = true;
+  await page.route("**/api/grove/relationships/search", (route) =>
+    failing
+      ? route.fulfill({
+          status: 503,
+          json: {
+            success: false,
+            error: { code: "unavailable", message: "Connections unavailable" },
+          },
+        })
+      : route.fallback(),
+  );
+  await page.goto(`${base}/app`);
+  const checked = page.getByRole("checkbox", {
+    name: "Select Review preferences",
+  });
+  await checked.check();
+  await openGraph(page);
+  const graph = page.locator(".memory-graph");
+  await expect(graph.locator(".react-flow__node")).toHaveCount(2);
+  await expect(graph.getByRole("alert")).toContainText(
+    "Connections unavailable",
+  );
+  const retry = graph.getByRole("button", { name: "Try again" });
+  await expect(retry).toBeVisible();
+  failing = false;
+  await retry.click();
+  await expect(graph.locator(".react-flow__edge")).toHaveCount(1);
+  await showList(page).press("Enter");
+  await expect(checked).toBeChecked();
+  await expect(showList(page)).toBeFocused();
+});
+
+test("deleting an open graph note returns keyboard focus to its surviving neighbor", async ({
+  page,
+}) => {
+  await fixture(page, graphSwitchNotes);
+  await page.goto(`${base}/app/graph`);
+  await page.locator(`.react-flow__node[data-id="${note.id}"]`).press("Enter");
+  await openNoteAction(page, "Delete note…");
+  await page.getByRole("button", { name: "Delete this note" }).click();
+  await expect(page.locator(".react-flow__node")).toHaveCount(1);
+  await expect(
+    page.locator(`.react-flow__node[data-id="${handoff.id}"]`),
+  ).toBeFocused();
 });
 
 test("the direct Graph route still opens with an obvious return to Notes", async ({
   page,
 }) => {
   await fixture(page, [note]);
+  const release = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories/search", async (route) => {
+    await release.promise;
+    return route.fallback();
+  });
+  await page.setViewportSize({ width: 320, height: 844 });
   await page.goto(`${base}/app/graph`);
   await expect(
     page.getByRole("heading", { name: "Note graph", exact: true }),
   ).toBeVisible();
+  await expect(showGraph(page)).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Opening graph…" }),
+  ).toBeVisible();
+  await expect(showList(page)).toBeInViewport();
+  await showList(page).press("Enter");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Opening your notes…" }),
+  ).toBeVisible();
+  release.resolve();
+  await expect(page.locator(".memory-open")).toHaveCount(1);
+  await expect(showList(page)).toBeFocused();
+  await showGraph(page).press("Enter");
   await expect(page.locator(".react-flow__node")).toHaveCount(1);
-  await page.getByRole("button", { name: "Back to list" }).press("Enter");
+  await showList(page).press("Enter");
   await expect(
     page.getByRole("heading", { name: "Notes", exact: true }),
   ).toBeVisible();
-  await expect(moreNoteActions(page)).toBeFocused();
+  await expect(showList(page)).toBeFocused();
+  await expect(page).toHaveURL(`${base}/app/graph`);
   await expect(page.locator(".memory-open")).toContainText(
     "Review preferences",
   );
+});
+
+test("Notes keeps the List and Graph switch next to More without moving the filters", async ({
+  page,
+}, info) => {
+  await fixture(page, graphSwitchNotes);
+  await page.goto(`${base}/app`);
+  const more = moreNoteActions(page);
+  const actions = page.getByRole("group", { name: "More note actions" });
+  const list = showList(page);
+  const graph = showGraph(page);
+  const search = page.getByRole("textbox", { name: "Search notes" });
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator(".memory-open")).toHaveCount(2);
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(list).toHaveAttribute("aria-pressed", "true");
+    await expect(graph).toHaveAttribute("aria-pressed", "false");
+    const graphBounds = (await graph.boundingBox())!;
+    const moreBounds = (await more.boundingBox())!;
+    const searchBounds = await search.boundingBox();
+    expect(moreBounds.x).toBeGreaterThan(graphBounds.x + graphBounds.width);
+    expect(moreBounds.y + moreBounds.height / 2).toBeCloseTo(
+      graphBounds.y + graphBounds.height / 2,
+    );
+    expect(moreBounds.x + moreBounds.width).toBeLessThanOrEqual(width);
+    if (width === 1440)
+      await page.screenshot({
+        path: info.outputPath("graph-switch-list-1440.png"),
+      });
+    await graph.press("Enter");
+    await expect(graph).toBeFocused();
+    await expect(graph).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".react-flow__node")).toHaveCount(2);
+    await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+    expect(await more.boundingBox()).toEqual(moreBounds);
+    expect(await search.boundingBox()).toEqual(searchBounds);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(width);
+    if (width === 1440 || width === 320) {
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .include(".library-heading")
+            .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      await page.screenshot({
+        path: info.outputPath(`graph-switch-graph-${width}.png`),
+      });
+    }
+    await more.press("ArrowDown");
+    await expect(actions.getByRole("link", { name: "Archive" })).toBeFocused();
+    await expect(
+      actions.getByRole("link", { name: "Today’s note" }),
+    ).toBeVisible();
+    await expect(
+      actions.getByRole("button", { name: "Import notes" }),
+    ).toBeVisible();
+    await expect(
+      actions.getByRole("button", { name: "Graph", exact: true }),
+    ).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(more).toBeFocused();
+    await list.press("Enter");
+    await expect(list).toBeFocused();
+  }
+  await expect(page).toHaveURL(`${base}/app`);
+  await page.goto(`${base}/app/archive`);
+  await expect(
+    page.getByRole("heading", { name: "Archive", exact: true }),
+  ).toBeVisible();
+  await expect(list).toHaveCount(0);
+  await expect(graph).toHaveCount(0);
+});
+
+test("the Notes and Graph opening shells reserve the view controls without exposing fake buttons", async ({
+  page,
+}) => {
+  await fixture(page, graphSwitchNotes);
+  await page.setViewportSize({ width: 320, height: 844 });
+  for (const { path, heading, status } of [
+    { path: "/app", heading: "Notes", status: "Opening your notes…" },
+    { path: "/app/graph", heading: "Note graph", status: "Opening graph…" },
+  ]) {
+    await page.goto(`${base}${path}?fixtureOpening`);
+    const header = page.locator(".library-heading");
+    await expect(
+      header.getByRole("heading", { name: heading, exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: status }),
+    ).toBeVisible();
+    await expect(header.getByRole("button")).toHaveCount(0);
+    const controls = header.locator(".heading-actions");
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const opening = (await controls.boundingBox())!;
+    await page.goto(`${base}${path}`);
+    await expect(showGraph(page)).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const ready = (await controls.boundingBox())!;
+    expect(ready.width).toBe(opening.width);
+    expect(ready.height).toBe(opening.height);
+    expect(ready.x).toBe(opening.x);
+  }
 });
 
 test("the graph shows current scoped connections, supports zoom and keyboard reading, and stays usable on mobile", async ({
@@ -5454,7 +5668,6 @@ test("embedded touch graph yields to page scrolling and expanded fallback suppor
     );
     await fixture(page, [note, handoff]);
     await page.goto(`${base}/app`);
-    await moreNoteActions(page).tap();
     await showGraph(page).tap();
     const canvas = page.locator(".graph-canvas");
     await canvas.scrollIntoViewIfNeeded();

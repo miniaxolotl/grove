@@ -3,6 +3,25 @@
 Reviewed captures use the isolated dashboard fixture, production CSS and synthetic
 notes/notebooks. They contain no production account data.
 
+## List / Graph switch
+
+Captured in Chromium from the List / Graph change based on `c8de2701`, using
+the dashboard fixture with CSS from `pnpm build:website`. The “Website redesign”
+notebook contains two synthetic notes linked by one related connection.
+
+- [Notes list, 1440×900](graph-switch-list-1440.webp) and
+  [Graph, 1440×900](graph-switch-graph-1440.webp): the switch shows the active view
+  beside **More**, without moving the filters. Graph retains keyboard focus.
+- [Graph, 320×900](graph-switch-graph-320.webp): the switch keeps its text labels
+  beside **More** without horizontal overflow.
+- [Notebook graph, 390×844](graph-switch-notebook-390.webp): the same switch sits
+  beside the scoped note count.
+
+These captures show fixture behavior; they do not qualify a live account,
+physical touch or a screen reader.
+
+## Connection inspector evidence
+
 - [Linked notes, desktop](note-connections-desktop.png): compact rows with a short
   reason and quiet category; each row opens the shared inspector.
 - [Connection, desktop](note-connection-desktop.png): centered summary with source

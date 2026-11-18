@@ -38,6 +38,7 @@ export function useConnections(
   );
   return {
     page,
+    incomplete: !!result.error || (!!page && page.status !== "ready"),
     error: result.error ? errorMessage(result.error) : "",
     loading: result.isPending || result.isFetching,
     more: () => {

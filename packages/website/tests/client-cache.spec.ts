@@ -547,9 +547,17 @@ test("an empty library has one next step and keeps recovery when refresh fails",
   const more = page.getByRole("button", { name: "More note actions" });
   await more.click();
   await expect(
-    page.getByRole("button", { name: "Graph", exact: true }),
-  ).toBeHidden();
+    page
+      .getByRole("group", { name: "More note actions" })
+      .getByRole("button", { name: "Graph", exact: true }),
+  ).toHaveCount(0);
   await page.keyboard.press("Escape");
+  const view = page.getByRole("group", { name: "Note view", exact: true });
+  const graph = view.getByRole("button", { name: "Graph", exact: true });
+  await graph.press("Enter");
+  await expect(graph).toHaveAttribute("aria-pressed", "true");
+  await expect(empty).toBeVisible();
+  await view.getByRole("button", { name: "List", exact: true }).press("Enter");
   await write.focus();
   fail = true;
   await invalidateNotes(page);
