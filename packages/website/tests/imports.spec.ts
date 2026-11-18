@@ -234,15 +234,63 @@ for (const width of [1440, 390, 320])
       .fill(
         "# Garden journal\n\nWater seedlings in the morning. Check the soil first.",
       );
+    const storageLink = dialog.getByRole("link", {
+      name: "View files & storage",
+    });
+    const cancelImport = dialog.getByRole("button", { name: "Cancel import" });
+    await expect(storageLink).toHaveCount(0);
+    await expect(cancelImport).toBeDisabled();
+    const editor = first.getByRole("textbox", {
+      name: "Content from Garden.md",
+    });
+    await first.locator("summary").click();
+    const consent = dialog.getByLabel(
+      "I’ve reviewed the notes, destinations and sharing.",
+    );
+    await consent.focus();
+    await page.keyboard.press("Tab");
+    const recover = dialog
+      .locator(".import-confirm")
+      .getByRole("button", { name: "Return to edit" });
+    await expect(recover).toBeFocused();
+    if (width === 390) {
+      await cancelImport.scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: testInfo.outputPath("unsaved-review-390.png"),
+      });
+    }
+    expect(
+      await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true);
+    await page.keyboard.press("Enter");
+    await expect(editor).toBeFocused();
+    await expect(editor).toBeInViewport();
+    await expect(editor).toHaveValue(/Check the soil first\./);
     await expect(
       dialog.getByRole("button", { name: "Confirm import", exact: true }),
     ).toBeDisabled();
     await first.getByRole("button", { name: "Save reviewed note" }).click();
+    await expect(storageLink).toHaveAttribute("href", "/app/settings/files");
+    await expect(cancelImport).toBeEnabled();
     await second
       .getByText("Review note and destination", { exact: true })
       .click();
     await second.getByRole("combobox").first().click();
     await page.getByRole("option", { name: "Research", exact: true }).click();
+    const topRecovery = dialog
+      .locator(".import-intro")
+      .getByRole("button", { name: "Return to edit" });
+    await topRecovery.focus();
+    const secondEditor = second.getByRole("textbox", {
+      name: "Content from Botany.pdf",
+    });
+    await expect(secondEditor).not.toBeInViewport();
+    await page.keyboard.press("Space");
+    await expect(secondEditor).toBeFocused();
+    await expect(secondEditor).toBeInViewport();
+    await expect(second.getByRole("combobox").first()).toContainText(
+      "Research",
+    );
     await second.getByRole("button", { name: "Save reviewed note" }).click();
     await expect(
       second.getByRole("button", { name: "Save reviewed note" }),

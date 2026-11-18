@@ -45,3 +45,10 @@ document or model provider is used.
 | Desktop review                            | Phone review                           | Narrow phone review                           |
 | ----------------------------------------- | -------------------------------------- | --------------------------------------------- |
 | ![Desktop import review](review-1440.png) | ![Phone import review](review-390.png) | ![Narrow phone import review](review-320.png) |
+
+[Unsaved review at 390×844](unsaved-review-390.png) shows the save-or-discard
+message with **Return to edit** focused and confirmation and cancellation disabled.
+The keyboard journey reopens a collapsed editor and reaches an offscreen editor
+without losing its selected destination. Captured in the Chromium
+dashboard fixture on `5adf6ba4` with the recovery action, production CSS and
+synthetic review data. No live account or document parser was used.

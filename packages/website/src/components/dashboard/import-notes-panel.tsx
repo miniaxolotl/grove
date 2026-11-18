@@ -182,7 +182,7 @@ function DraftReview({
         </span>
       </label>
       <p className="import-small">{destinationLabel}</p>
-      <details>
+      <details data-unsaved={dirty || undefined}>
         <summary>Review note and destination</summary>
         <label>
           Note content
@@ -283,6 +283,7 @@ export function ImportNotesPanel({
   const chooser = useRef<HTMLInputElement>(null);
   const chooseFiles = useRef<HTMLButtonElement>(null);
   const intro = useRef<HTMLParagraphElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const inFlight = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const upload = useRef<{
@@ -461,7 +462,7 @@ export function ImportNotesPanel({
     !["complete", "cancelled"].includes(batch.status) && (
       <Button
         variant="secondary"
-        disabled={busy}
+        disabled={busy || dirty}
         onClick={() =>
           void run(async () => {
             controller.current?.abort();
@@ -475,15 +476,40 @@ export function ImportNotesPanel({
         {batch.status === "applying" ? "Stop import" : "Cancel import"}
       </Button>
     );
+  const returnToEdit = (
+    <button
+      type="button"
+      className="text-button"
+      disabled={busy}
+      onClick={() => {
+        const review = panel.current?.querySelector<HTMLDetailsElement>(
+          "details[data-unsaved]",
+        );
+        if (!review) return;
+        review.open = true;
+        review.querySelector("textarea")?.focus();
+      }}
+    >
+      Return to edit
+    </button>
+  );
   return (
-    <div className="import-notes">
+    <div className="import-notes" ref={panel}>
       <div className="import-intro">
         <p ref={intro} tabIndex={-1}>
           Review files before saving notes.
         </p>
-        <Link className="text-button" href="/app/settings/files">
-          View files &amp; storage
-        </Link>
+        {dirty ? (
+          returnToEdit
+        ) : busy ? (
+          <button type="button" className="text-button" disabled>
+            View files &amp; storage
+          </button>
+        ) : (
+          <Link className="text-button" href="/app/settings/files">
+            View files &amp; storage
+          </Link>
+        )}
       </div>
       {(error || read.isError) && (
         <div className="app-error my-0">
@@ -894,9 +920,12 @@ export function ImportNotesPanel({
                 I’ve reviewed the notes, destinations and sharing.
               </label>
               {dirty && (
-                <p role="status">
-                  Save or discard your note edits before continuing.
-                </p>
+                <div>
+                  <p role="status">
+                    Save or discard your note edits before continuing.
+                  </p>
+                  {returnToEdit}
+                </div>
               )}
               <div className="import-actions">
                 <Button
