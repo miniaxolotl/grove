@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.11.24](https://github.com/miniaxolotl/grove/compare/v1.11.23...v1.11.24) (2026-11-18)
+
+
+### Features
+
+* **website:** measure campaign visits and diagnose website errors ([#266](https://github.com/miniaxolotl/grove/issues/266)) ([1e2dd8b](https://github.com/miniaxolotl/grove/commit/1e2dd8b22b96417f8c04575fe9868ce71d0774da))
+
+
+### Bug Fixes
+
+* **ci:** validate shared extension assets on pull requests ([2684514](https://github.com/miniaxolotl/grove/commit/2684514c75b16478083f529dd021aff57b1b1593))
+* **cli:** preserve unrelated OpenCode plugin configuration ([#255](https://github.com/miniaxolotl/grove/issues/255)) ([4146726](https://github.com/miniaxolotl/grove/commit/4146726e6b2bb08829627709ab109bedbb30749b))
+* **cli:** validate init client before sign-in ([#254](https://github.com/miniaxolotl/grove/issues/254)) ([948555d](https://github.com/miniaxolotl/grove/commit/948555d4ba71d0f5162a7d9f982942cff854b90c))
+* **database:** require daily note bindings for readiness ([#250](https://github.com/miniaxolotl/grove/issues/250)) ([238b5af](https://github.com/miniaxolotl/grove/commit/238b5af1b7abd7fb769cbb92901409b9d1015b0e))
+* **deps:** align transitive Hono with the patched API version ([#251](https://github.com/miniaxolotl/grove/issues/251)) ([9c0a21b](https://github.com/miniaxolotl/grove/commit/9c0a21bcfd6dbc03e1ec0e5c9429cae76731d8cf))
+* **extension:** bind automatic updates to a saved capture receipt ([#259](https://github.com/miniaxolotl/grove/issues/259)) ([94528ca](https://github.com/miniaxolotl/grove/commit/94528ca0497dd6f8e4bd0686b1de17d14e646994))
+* **extension:** keep the context-menu click that wakes the worker ([#243](https://github.com/miniaxolotl/grove/issues/243)) ([21a5735](https://github.com/miniaxolotl/grove/commit/21a573568ca8502cde81fa9841415b608ed191ea))
+* **extension:** release focused editors when native proofing starts ([#261](https://github.com/miniaxolotl/grove/issues/261)) ([1e1272e](https://github.com/miniaxolotl/grove/commit/1e1272ed3364bb336586a266beb66ed7c6cd1428))
+* **extension:** remove rejected captures from recovery ([#246](https://github.com/miniaxolotl/grove/issues/246)) ([2a3f318](https://github.com/miniaxolotl/grove/commit/2a3f31883effbda9ad18a3b8d1d2dd35208dc677))
+* **graph:** keep the selected notebook current ([#252](https://github.com/miniaxolotl/grove/issues/252)) ([40815f9](https://github.com/miniaxolotl/grove/commit/40815f99b9b87306164c86526e4dffe9691c7f36))
+* **import:** guard exits from an unsaved review ([#260](https://github.com/miniaxolotl/grove/issues/260)) ([bd2e689](https://github.com/miniaxolotl/grove/commit/bd2e689447efa3b2dae67190afed6410ae73effa))
+* **jobs:** finish expired draft backlogs before reporting success ([#258](https://github.com/miniaxolotl/grove/issues/258)) ([8785465](https://github.com/miniaxolotl/grove/commit/8785465d3aa235381c0b204f08d6e3f4a5e4c79c))
+* **jobs:** schedule cache retention for idle accounts ([#245](https://github.com/miniaxolotl/grove/issues/245)) ([e43b833](https://github.com/miniaxolotl/grove/commit/e43b8332e4159381c85c2ef7dd04338b25df5540))
+* **opencode:** honor private sessions for targeted edits ([#253](https://github.com/miniaxolotl/grove/issues/253)) ([27c5f8c](https://github.com/miniaxolotl/grove/commit/27c5f8cd5e6492e5ac7d876deefa190daa2e90ce))
+* **website:** accept guest drafts typed before hydration ([#249](https://github.com/miniaxolotl/grove/issues/249)) ([0c53d54](https://github.com/miniaxolotl/grove/commit/0c53d54cc484449a689044f1c0dd3321425c051a))
+* **website:** explain guest writing suggestions ([#248](https://github.com/miniaxolotl/grove/issues/248)) ([9d84c3e](https://github.com/miniaxolotl/grove/commit/9d84c3e0d45868afcb8f456b702d153100905732))
+* **website:** identify the text in guest writing suggestions ([#265](https://github.com/miniaxolotl/grove/issues/265)) ([1713983](https://github.com/miniaxolotl/grove/commit/171398380897a230050a99bc703089630a5b4467))
+* **website:** surface direct extension links in setup and connections ([#263](https://github.com/miniaxolotl/grove/issues/263)) ([d950956](https://github.com/miniaxolotl/grove/commit/d950956eebf8aed0476c262515c964020fdef4b9))
+* **workspace:** show new notebooks after import ([#247](https://github.com/miniaxolotl/grove/issues/247)) ([20d2bf0](https://github.com/miniaxolotl/grove/commit/20d2bf06beb9fe7b2315fb550d83def993a68690))
+* **writing:** discard obsolete note checks after opt-out ([#257](https://github.com/miniaxolotl/grove/issues/257)) ([4c46c18](https://github.com/miniaxolotl/grove/commit/4c46c181e115c109b75f6b47dbd4488d943f7b9b))
+* **writing:** isolate shared dictionary loading from canceled checks ([#256](https://github.com/miniaxolotl/grove/issues/256)) ([6c5e457](https://github.com/miniaxolotl/grove/commit/6c5e4576fb330772040d4f47fe19fa7e89c424fa))
+* **writing:** preserve Markdown when applying corrections ([#240](https://github.com/miniaxolotl/grove/issues/240)) ([2cf8baf](https://github.com/miniaxolotl/grove/commit/2cf8baf6c0d083f23c8d565e033d2871393303ac))
+
 ## [1.11.23](https://github.com/miniaxolotl/grove/compare/v1.11.22...v1.11.23) (2026-11-18)
 
 
