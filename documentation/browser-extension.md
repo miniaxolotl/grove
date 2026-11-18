@@ -18,6 +18,8 @@ Use Node 24 and pnpm 10.33, install the locked dependencies, then run
 `pnpm build:extension`. The output under `packages/browser-extension/dist/` contains
 `chrome/`, `firefox/`, `edge/`, a `grove-<browser>.zip` for each browser and
 `packages.build.json` with product version, configuration, input inventory and hashes.
+Changing the website brand assets or root license also runs extension packaging
+and browser checks because these files ship inside the ZIPs.
 Successful source CI also retains these unsigned ZIPs and their report as a
 `grove-browser-extensions-<source SHA>` artifact for 14 days.
 Protected production delivery also attaches verified browser ZIPs and checksums

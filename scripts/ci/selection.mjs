@@ -38,7 +38,7 @@ export function classify(policy, paths) {
   for (const path of paths) {
     if (
       path.startsWith("documentation/") ||
-      ["README.md", "AGENTS.md", "LICENSE"].includes(path)
+      ["README.md", "AGENTS.md"].includes(path)
     )
       continue;
     const matches = path.endsWith("/package.json")
