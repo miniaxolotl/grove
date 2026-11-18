@@ -221,7 +221,7 @@ export function NotebookExplorer() {
             <NotebookTree
               remember
               showNotes
-              notesVisible={wide || open}
+              notesVisible={wide ? !sectionCollapsed : open}
               projects={projects}
               selectedId={currentNotebook}
               actions={(project) => (

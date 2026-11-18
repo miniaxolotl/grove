@@ -105,6 +105,7 @@ export function MemoryRow({
         <div className="memory-row-content">
           <button
             className="memory-open"
+            data-note-page-link
             disabled={busy}
             onClick={onOpen}
             onPointerEnter={onIntent}

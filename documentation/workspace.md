@@ -59,6 +59,12 @@ owns connection commands and approval.
   kind, topic, source, date, lifetime and sorting. They apply to the entire matching
   library, not just loaded rows. Queries remain in POST bodies. See
   [search](search.md) for relevance, typo/prefix matching and partial evidence.
+- Scroll to the end of Notes, Archive, a notebook’s list, or the notes in an
+  expanded sidebar notebook to load the next page. **Load more notes** is also
+  available to screen readers and appears on keyboard focus. Loaded rows stay
+  in place; if loading fails, retry at the end of the list. If search results
+  have changed, **Refresh search results** starts again with the same filters.
+  Graph expansion remains manual.
 - **New note** follows your current notebook; notes without one are **Unfiled**.
   Sidebar expansion, notebook collapse, list scroll and outline pinning can be
   remembered per account

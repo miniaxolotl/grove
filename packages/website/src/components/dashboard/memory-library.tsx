@@ -34,6 +34,10 @@ import { Dialog } from "./dialog";
 import { LoadError } from "./load-error";
 import { LibrarySkeleton } from "./workspace-opening";
 import { MemoryRow } from "./memory-row";
+import {
+  NoteListContinuation,
+  uniquePageNotes,
+} from "./note-list-continuation";
 import { deferredFeature } from "./deferred-feature";
 import { LibrarySelection } from "./library-selection";
 import { useWorkspaceDrag } from "./memory-drag";
@@ -205,16 +209,7 @@ export function MemoryLibrary({
     onVisit,
   );
   useSetCurrentNotebook(scopedProject);
-  const items = useMemo(
-    () => [
-      ...new Map(
-        query.data?.pages
-          .flatMap((page) => page.items)
-          .map((note) => [note.id, note]),
-      ).values(),
-    ],
-    [query.data],
-  );
+  const items = useMemo(() => uniquePageNotes(query.data?.pages), [query.data]);
   const next = query.hasNextPage;
   const loading = query.isPending || query.isFetchingNextPage;
   const searchMode = query.data?.pages[0]?.searchMode;
@@ -566,7 +561,9 @@ export function MemoryLibrary({
                 )}
               </span>
               <span className="library-sync" role="status">
-                {query.data && readError ? (
+                {query.data &&
+                readError &&
+                (view === "graph" || !query.isFetchNextPageError) ? (
                   <>
                     <span className="sr-only">
                       {staleSearch
@@ -597,7 +594,7 @@ export function MemoryLibrary({
                       onClick={() => {
                         summary.current?.focus({ preventScroll: true });
                         if (query.isFetchNextPageError && !staleSearch)
-                          void query.fetchNextPage();
+                          void query.fetchNextPage({ cancelRefetch: false });
                         else void query.refetch();
                       }}
                     >
@@ -666,9 +663,9 @@ export function MemoryLibrary({
               </button>
             </div>
           )}
-          {loading && !items.length ? (
+          {query.isPending && !items.length ? (
             <LibrarySkeleton archive={archive} showExcerpt={!!search} />
-          ) : !items.length && showEmptyState ? (
+          ) : !items.length && showEmptyState && !next ? (
             <section className="app-empty library-empty">
               <h2>
                 {filtered
@@ -710,7 +707,7 @@ export function MemoryLibrary({
               )}
             </section>
           ) : (
-            items.length > 0 &&
+            (items.length > 0 || (next && view === "list")) &&
             (view === "graph" ? (
               <MemoryGraph
                 key={JSON.stringify(noteOptions.queryKey)}
@@ -828,25 +825,26 @@ export function MemoryLibrary({
                       />
                     </Fragment>
                   ))}
+                  <NoteListContinuation
+                    key={JSON.stringify(noteOptions.queryKey)}
+                    query={query}
+                    paused={!!workspace.active}
+                  />
                 </ul>
               </div>
             ))
           )}
-          {next && (
+          {next && view === "graph" && (
             <div className="mt-6 text-center">
               <button
                 className="app-button secondary"
                 disabled={loading}
                 onClick={() => {
                   if (staleSearch) void query.refetch();
-                  else void query.fetchNextPage();
+                  else void query.fetchNextPage({ cancelRefetch: false });
                 }}
               >
-                {loading
-                  ? "Loading…"
-                  : view === "graph"
-                    ? "Expand graph"
-                    : "Load more"}
+                {loading ? "Loading…" : "Expand graph"}
               </button>
             </div>
           )}
