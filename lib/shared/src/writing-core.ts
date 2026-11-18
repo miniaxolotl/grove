@@ -1,9 +1,10 @@
-import nspell from "nspell";
+import { createNoteDictionary } from "./writing-dictionary.ts";
 import {
   agreementForms,
   articleFor,
   confusedPhrases,
   determiners,
+  dictionaryWordKey,
   matchCase,
   mandativeTriggers,
   objectPrepositions,
@@ -59,7 +60,7 @@ const candidateTransforms: ((word: string) => string[])[] = [
 ];
 
 export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
-  const spell = nspell(dictionary);
+  const spell = createNoteDictionary(dictionary);
   const correct = (word: string) => spell.correct(word.replaceAll("’", "'"));
   const alternatives = new Map<string, string[]>();
   return {
@@ -69,6 +70,7 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
       const phrase = phraseSuggestions.get(word.toLocaleLowerCase("en"));
       if (phrase) return [matchCase(word, phrase)];
       if (!alternatives.has(word)) {
+        const lookup = word.replaceAll("’", "'");
         if (alternatives.size >= 64)
           alternatives.delete(alternatives.keys().next().value!);
         const ranked: string[] = [];
@@ -76,20 +78,23 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
         const consider = (candidate: string) => {
           const key = candidate.toLocaleLowerCase("en");
           if (
-            candidate !== word &&
+            candidate !== lookup &&
             ranked.length < 3 &&
             !seen.has(key) &&
             correct(candidate)
           ) {
             seen.add(key);
-            ranked.push(matchCase(word, candidate));
+            const styled = word.includes("’")
+              ? candidate.replaceAll("'", "’")
+              : candidate;
+            ranked.push(matchCase(word, styled));
           }
         };
         // Deterministic generators run first: each only fires when its output is
         // a real dictionary word, so they cannot invent suggestions.
         for (const transform of candidateTransforms)
-          for (const candidate of transform(word)) consider(candidate);
-        for (const candidate of spell.suggest(word)) {
+          for (const candidate of transform(lookup)) consider(candidate);
+        for (const candidate of spell.suggest(lookup)) {
           if (ranked.length >= 3) break;
           consider(candidate);
         }
@@ -133,26 +138,29 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
       const words = [
         ...text.matchAll(/[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*/gu),
       ];
-      const personal = new Set(
-        settings.words.map((word) =>
-          word.toLocaleLowerCase("en").replaceAll("’", "'"),
-        ),
-      );
+      const personal = new Set(settings.words.map(dictionaryWordKey));
       if (settings.spelling)
         for (const match of words) {
           const word = match[0];
+          const key = dictionaryWordKey(word);
           if (
             word.length > 48 ||
-            /^[A-Z]{2,}$/.test(word) ||
-            /^[A-Z]{2,}s$/.test(word) ||
+            /^[A-Z]{2,}(?:['’]?s)?$/.test(word) ||
             /[a-z][A-Z]/.test(word) ||
-            personal.has(word.toLocaleLowerCase("en").replaceAll("’", "'")) ||
+            personal.has(key) ||
+            (key.endsWith("'s") && personal.has(key.slice(0, -2))) ||
             correct(word)
           )
             continue;
           // Typing is lookup-only. Alternatives are requested when an issue is opened.
           add("spelling", match.index, match.index + word.length);
         }
+      // Masked code and link destinations look like spaces in `text`. Use the
+      // literal gap as evidence of adjacency; allow a soft wrap, not a new paragraph.
+      const adjacent = (a: (typeof words)[number], b: (typeof words)[number]) =>
+        /^(?:[^\S\r\n]+|[^\S\r\n]*\r?\n[^\S\r\n]*)$/u.test(
+          source.slice(a.index + a[0].length, b.index),
+        );
       // One registry drives every rule: adding a rule means adding its
       // check here plus its ID in writingRules, its messages and its
       // settings entry. Execution follows writingRules order.
@@ -161,12 +169,7 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
           for (let i = 0; i + 1 < words.length; i++) {
             const article = words[i],
               next = words[i + 1];
-            if (
-              !/^(?:a|an)$/i.test(article[0]) ||
-              !/^\s+$/.test(
-                text.slice(article.index + article[0].length, next.index),
-              )
-            )
+            if (!/^(?:a|an)$/i.test(article[0]) || !adjacent(article, next))
               continue;
             const expected = articleFor(next[0]);
             // A plural-looking noun after the article points at the noun's number,
@@ -201,12 +204,15 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
               previous[0].toLowerCase() === current[0].toLowerCase() &&
               !/^(?:had|that|can|do|is)$/i.test(current[0]) &&
               /^ +$/.test(
-                text.slice(previous.index + previous[0].length, current.index),
+                source.slice(
+                  previous.index + previous[0].length,
+                  current.index,
+                ),
               )
             )
               add(
                 "repetition",
-                current.index,
+                previous.index + previous[0].length,
                 current.index + current[0].length,
                 [""],
               );
@@ -269,13 +275,6 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
               );
         },
         agreement: () => {
-          const between = (
-            a: { index: number; "0": string },
-            b: RegExpMatchArray,
-          ) => /^\s+$/.test(text.slice(a.index + a[0].length, b.index));
-          // Bare verb forms that can be correct after an operator or in a
-          // mandative clause. Derived from the singular-subject table so the
-          // two stay in sync: inflected forms ("goes") are never skipped.
           // Bare verb forms that can be correct after an operator or in a
           // mandative clause. Derived from the singular-subject table so the
           // two stay in sync: inflected forms ("goes") are never skipped.
@@ -287,54 +286,61 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
           for (let i = 0; i + 1 < words.length; i++) {
             const current = words[i],
               next = words[i + 1];
-            if (!between(current, next)) continue;
+            if (!adjacent(current, next)) continue;
             const previous =
-              i > 0 &&
-              /^\s+$/.test(
-                text.slice(
-                  words[i - 1].index + words[i - 1][0].length,
-                  current.index,
-                ),
-              )
-                ? words[i - 1][0].toLowerCase()
+              i > 0 && adjacent(words[i - 1], current)
+                ? words[i - 1][0].toLowerCase().replaceAll("’", "'")
                 : "";
             const beforePrevious =
-              i > 1 &&
-              previous &&
-              /^\s+$/.test(
-                text.slice(
-                  words[i - 2].index + words[i - 2][0].length,
-                  words[i - 1].index,
-                ),
-              )
+              i > 1 && previous && adjacent(words[i - 2], words[i - 1])
                 ? words[i - 2][0].toLowerCase()
                 : "";
             // Inverted questions put the operator before the pronoun, and only
             // bare forms can be correct there: "does he have", "will she come".
+            const subject = current[0].toLowerCase();
+            const nextForm = next[0].toLowerCase().replaceAll("’", "'");
             if (
-              questionOperators.test(previous) &&
-              bareForms.has(next[0].toLowerCase())
+              bareForms.has(nextForm) &&
+              (questionOperators.test(previous) ||
+                /^(?:do|does|did|wo|would|sha|should|ca|could|might|must)n't$/.test(
+                  previous,
+                ) ||
+                // In "let it go" and "make it work", it is the object.
+                (subject === "it" &&
+                  /^(?:let|lets|letting|make|makes|made|making)$/.test(
+                    previous,
+                  )))
+            )
+              continue;
+            if (
+              nextForm === "were" &&
+              /^(?:if|wish|wishes|wished|though)$/.test(previous)
             )
               continue;
             // Mandative subjunctive takes the base form: "I suggest he go".
-            const subject = current[0].toLowerCase();
             if (
               (subject === "he" || subject === "she" || subject === "it") &&
               (mandativeTriggers.test(previous) ||
                 (previous === "that" && mandativeTriggers.test(beforePrevious)))
             )
               continue;
-            const verb =
-              agreementForms[current[0].toLocaleLowerCase("en")]?.[
-                next[0].toLocaleLowerCase("en")
-              ];
-            if (verb)
+            const verb = agreementForms[subject]?.[nextForm];
+            if (typeof verb === "string")
               add("agreement", next.index, next.index + next[0].length, [
-                matchCase(next[0], verb),
+                matchCase(
+                  next[0],
+                  next[0].includes("’") ? verb.replaceAll("'", "’") : verb,
+                ),
               ]);
             else if (
               /^(?:should|could|would|must|might)$/i.test(current[0]) &&
-              /^of$/i.test(next[0])
+              /^of$/i.test(next[0]) &&
+              // Require evidence of a participle, not an aside like "of course".
+              words[i + 2] &&
+              adjacent(next, words[i + 2]) &&
+              /^(?:[a-z]+ed|been|seen|gone|done|had|got|gotten|made|read|said|sent|left|lost|won|run|known|shown|written|given|taken|come|become|kept|felt|found|bought|brought|thought|told|heard|put)$/i.test(
+                words[i + 2][0],
+              )
             )
               add("agreement", next.index, next.index + next[0].length, [
                 matchCase(next[0], "have"),
@@ -342,19 +348,31 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
           }
         },
         plurals: () => {
-          for (const match of text.matchAll(/\b\d{4}['’]s\b/g))
+          for (const match of text.matchAll(/\b\d{3}0['’]s\b/g)) {
+            const after = source.slice(
+              match.index + match[0].length,
+              checkedTo,
+            );
+            // A decade may be plural; a year's budget may be possessive.
+            if (
+              !/^[ \t]+(?:are|were|have)\b/i.test(after) &&
+              !(
+                /\bthe[ \t]+$/i.test(source.slice(0, match.index)) &&
+                /^(?:[.,;:!?]|$)/.test(after)
+              )
+            )
+              continue;
             add("plurals", match.index, match.index + match[0].length, [
               `${match[0].slice(0, -2)}s`,
             ]);
+          }
           for (let i = 0; i + 1 < words.length; i++) {
             const acronym = words[i],
               next = words[i + 1];
             if (
               !/^([A-Z]{2,})['’]s$/.test(acronym[0]) ||
               !/^(?:are|were|have)$/i.test(next[0]) ||
-              !/^\s+$/.test(
-                text.slice(acronym.index + acronym[0].length, next.index),
-              )
+              !adjacent(acronym, next)
             )
               continue;
             add("plurals", acronym.index, acronym.index + acronym[0].length, [
@@ -381,15 +399,11 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
                 digits + expected,
               ]);
           }
-          const gap = (
-            a: { index: number; "0": string },
-            b: { index: number; "0": string },
-          ) => /^\s+$/.test(text.slice(a.index + a[0].length, b.index));
           for (let i = 0; i < words.length; i++) {
             const word = words[i],
               next = words[i + 1],
               previous = words[i - 1];
-            if (next && gap(word, next)) {
+            if (next && adjacent(word, next)) {
               if (/^its$/i.test(word[0]) && determiners.test(next[0]))
                 // "its a/the/this…" is possessive before a determiner: it's.
                 add("confusion", word.index, word.index + word[0].length, [
@@ -399,15 +413,18 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
                 /^(?:its|their|your)$/i.test(word[0]) &&
                 /^(?:been|gone)$/i.test(next[0])
               )
-                // Participles cannot follow a possessive: "its been" is it's,
-                // "their gone" is they're, "your gone" is you're.
+                // "Been" requires have/has, while "gone" also allows be.
                 add("confusion", word.index, word.index + word[0].length, [
                   matchCase(
                     word[0],
                     /^their$/i.test(word[0])
-                      ? "they’re"
+                      ? /^been$/i.test(next[0])
+                        ? "they’ve"
+                        : "they’re"
                       : /^your$/i.test(word[0])
-                        ? "you’re"
+                        ? /^been$/i.test(next[0])
+                          ? "you’ve"
+                          : "you’re"
                         : "it’s",
                   ),
                 ]);
@@ -447,10 +464,10 @@ export function createEnglishChecker(dictionary: { aff: string; dic: string }) {
               /^I$/.test(word[0]) &&
               previous &&
               /^and$/i.test(previous[0]) &&
-              gap(previous, word)
+              adjacent(previous, word)
             )
               for (let k = i - 2; k >= 0 && k >= i - 5; k--) {
-                if (!gap(words[k], words[k + 1])) break;
+                if (!adjacent(words[k], words[k + 1])) break;
                 if (objectPrepositions.test(words[k][0])) {
                   add("confusion", word.index, word.index + word[0].length, [
                     "me",

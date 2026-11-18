@@ -2,6 +2,11 @@
 
 ## Guest suggestions
 
+![Watchlist and watchlists accepted, with only the typo “teh” reported](watchlist-check.png)
+
+Guest checker on a local production build, Chromium at 390 × 844 (form crop).
+The synthetic film note exercises a heading, running text and a plural.
+
 ![The guest checker quotes “the” and “notebok” beside their explanations](guest-writing-messages-320.png)
 
 Local Next.js production build of `fix/guest-writing-excerpts`, Playwright Chromium.

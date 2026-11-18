@@ -633,6 +633,11 @@ test("writing controls are browser-wide while personal words remain account/lang
   assert.equal(state.settings.rules.brackets, false);
   assert.equal(state.settings.rules.quotes, false);
   assert.deepEqual(state.settings.words, ["Grove", "Axolotl"]);
+  await store.configure(first, { addWord: "D’Arvél" });
+  const duplicate = await store.configure(first, { addWord: "d'arve\u0301l" });
+  assert.deepEqual(duplicate.settings.words, ["Grove", "Axolotl", "D’Arvél"]);
+  const removed = await store.configure(first, { removeWord: "D'ARVÉL" });
+  assert.deepEqual(removed.settings.words, ["Grove", "Axolotl"]);
   assert.equal((await store.read(other)).settings.words.length, 0);
   assert.equal((await store.read(other)).settings.spelling, false);
   assert.ok([...values.keys()].every((key) => key.endsWith(":en")));

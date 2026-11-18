@@ -99,6 +99,10 @@ They do not contain draft text or check results. Turning Grove off overrides the
 
 The bundled `dictionary-en` 4.0.0 data is SCOWL-derived **American English**, with
 `nspell` 2.1.5 for affix-aware lookup. Their MIT/BSD notices are included in the ZIP.
+The shared checker adds common note words such as **watchlist**, **roadmap** and
+**audiobook** with their plurals and possessives. Personal names are matched
+regardless of case, apostrophe style or equivalent accent encoding; adding a name
+also covers its possessive.
 There is no dictionary download, external spelling service or AI request. Basic rules
 cover brackets/quotes, **a/an** sound exceptions, repeated words, spacing, obvious
 capitalization (including the start of a new line or list item), unambiguous wordy

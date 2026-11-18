@@ -1,5 +1,16 @@
 import { expect, test } from "./telemetry-fixtures";
 
+test("Watchlist is accepted while a nearby typo is still identified", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/writing");
+  const input = page.getByRole("textbox", { name: "English text" });
+  await input.fill("Watchlist\nAdd this film to the watchlist. Share both watchlists with teh team.");
+  await page.getByRole("button", { name: "Check writing" }).click();
+  const issues = page.getByRole("list", { name: "Writing suggestions" });
+  await expect(issues.getByRole("listitem")).toHaveText([/“teh”\s+Possible spelling mistake\./]);
+  await page.locator(".guest-writing-form").screenshot({ path: info.outputPath("watchlist-check.png") });
+});
+
 for (const width of [320, 390, 1440]) {
   test(`guest suggestion excerpts support keyboard review at ${width}px`, async ({
     page,

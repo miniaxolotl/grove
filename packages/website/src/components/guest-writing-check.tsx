@@ -100,7 +100,7 @@ function quoteExcerpt(text: string) {
 }
 
 function issueExcerpt(issue: WritingResult["issues"][number], text: string) {
-  if (issue.original.trim()) return quoteExcerpt(issue.original);
+  if (issue.original.trim()) return quoteExcerpt(issue.original.trim());
   // Spacing checks cover either a run of spaces or a zero-length insertion.
   const spaces = issue.original.length;
   const gap =

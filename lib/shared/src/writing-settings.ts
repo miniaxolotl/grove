@@ -14,6 +14,10 @@ export const writingRules = [
   "confusion",
 ] as const;
 export type WritingRule = (typeof writingRules)[number];
+/** Compare personal entries without changing the spelling the writer saved. */
+export const dictionaryWordKey = (word: string) =>
+  word.normalize("NFC").toLocaleLowerCase("en").replaceAll("’", "'");
+export const personalWordLimit = 1000;
 const ruleSchema = z
   .object({
     brackets: z.boolean().default(true),
@@ -46,7 +50,7 @@ export const writingSettingsSchema = z
           .max(80)
           .regex(/^[\p{L}\p{M}]+(?:['’-][\p{L}\p{M}]+)*$/u),
       )
-      .max(1000)
+      .max(personalWordLimit)
       .default([]),
   })
   .strict();
