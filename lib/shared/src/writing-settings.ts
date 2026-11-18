@@ -182,11 +182,10 @@ export function prose(text: string) {
       hide,
     )
     .replace(/`+[^`\n]*`+/g, hide)
-    .replace(/!?(\[[^\]\n]*\])\([^)\n]*\)/g, (all: string, label: string) =>
-      ` ${label.slice(1, -1)}${" ".repeat(all.length - label.length + 1)}`.slice(
-        0,
-        all.length,
-      ),
+    .replace(
+      /(!?\[)([^\]\n]*)(\]\([^)\n]*\))/g,
+      (_, open: string, label: string, close: string) =>
+        hide(open) + label + hide(close),
     )
     .replace(
       /https?:\/\/[^\s<>]+|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b|<[^>\n]*>/gi,
