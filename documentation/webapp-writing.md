@@ -67,6 +67,8 @@ immediately and stays on this device:
 
 Where the private LanguageTool service is configured, signed-in writers can enable **Enhanced grammar** in Writing settings. It is off by default. An enhanced check sends one eligible paragraph to Grove's private checker; it never sends the complete note, a link destination or the personal dictionary. Masking Markdown is not anonymization: the words you wrote in the paragraph are still sent. Guests and the extension use local checks only.
 
+When the private service is not configured, enhanced checks are unavailable and existing opt-ins can still be revoked in Settings.
+
 Manual and automatic checking are separate choices. Corrections from both engines use the same editor underlines, issue list and Undo history. Saving does not depend on either engine. If hosted checking is busy or unavailable, local feedback remains available. Turn off Enhanced grammar to stop sending paragraphs.
 
 ## No double checking

@@ -4,9 +4,17 @@ export { projectWritingText } from "./writing-markdown.ts";
 
 export const proofingScope = "grove-note-editor";
 export const proofingVersion = 1;
-export const proofingConsentSchema = z
-  .strictObject({ enabled: z.boolean(), automatic: z.boolean() })
-  .refine((value) => value.enabled || !value.automatic);
+const consentFields = z.strictObject({
+  enabled: z.boolean(),
+  automatic: z.boolean(),
+});
+const validConsent = (value: { enabled: boolean; automatic: boolean }) =>
+  value.enabled || !value.automatic;
+export const proofingConsentSchema = consentFields.refine(validConsent);
+// Availability describes this deployment; it is not client-writable consent.
+export const proofingConsentStatusSchema = consentFields
+  .extend({ available: z.boolean().optional() })
+  .refine(validConsent);
 const rule = z.enum(["spelling", ...writingRules]);
 export const proofingCheckSchema = z.strictObject({
   text: z

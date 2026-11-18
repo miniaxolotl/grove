@@ -190,8 +190,8 @@ export function WritingPreferences() {
           id="writing-enhanced"
           label="Enhanced grammar"
           description="Send only the paragraph you check to Grove’s private grammar service for additional suggestions."
-          checked={enhanced.grant?.enabled ?? false}
-          disabled={!enhanced.grant}
+          checked={enhanced.preference?.enabled ?? false}
+          disabled={!enhanced.preference || (!enhanced.preference.available && !enhanced.preference.enabled)}
           onChange={(enabled) =>
             void enhanced.refresh({ enabled, automatic: false })
           }
@@ -207,6 +207,7 @@ export function WritingPreferences() {
             }
           />
         )}
+        {enhanced.preference?.available === false && <p role="status">Enhanced grammar is unavailable on this installation. On-device checks still work.</p>}
         {enhanced.failed && (
           <p role="status">
             Enhanced settings couldn’t be confirmed.{" "}

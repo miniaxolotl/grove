@@ -133,6 +133,28 @@ test("consent is session-only, tenant-isolated metadata, defaults off and record
   assert.equal(row.automatic, false);
 });
 
+test("disabling the private runtime prevents enrollment and checks but permits revocation", async () => {
+  const configured = app;
+  const before = calls;
+  await put(on);
+  try {
+    for (const languageToolUrl of [undefined, "https://example.test"]) {
+      app = createApp({ ...deps, languageToolUrl });
+      assert.deepEqual(await (await request("consent", "GET")).json(), {
+        ...on,
+        available: false,
+      });
+      assert.equal((await check()).status, 503);
+      assert.equal((await put(on)).status, 503);
+    }
+    assert.equal((await put(off)).status, 200);
+  } finally {
+    app = configured;
+  }
+  assert.deepEqual(await (await request("consent", "GET")).json(), off);
+  assert.equal(calls, before);
+});
+
 test("no LT calls for guests, expired sessions, non-session principals, foreign origins, revoked grants or invalid input", async () => {
   const start = calls;
   await put(off);

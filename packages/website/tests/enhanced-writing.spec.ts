@@ -28,6 +28,79 @@ async function workspace(page: Page, initial: ProofingConsent, content = text) {
   return writes;
 }
 
+test("an unavailable installation never sends a paragraph under an earlier grant", async ({
+  page,
+}) => {
+  await workspace(page, { enabled: true, automatic: true });
+  await page.route("**/api/grove/proofing/consent", (route) =>
+    route.fulfill({
+      json: { enabled: true, automatic: true, available: false },
+    }),
+  );
+  const transfers: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().endsWith("/proofing/check")) transfers.push(r.url());
+  });
+  await page.goto(editorUrl);
+  await expect(
+    editor(page).locator(".grove-writing-spelling").first(),
+  ).toBeVisible();
+  await editor(page).press("Control+End");
+  await page.keyboard.insertText(" Another enviroment.");
+  await expect(
+    editor(page)
+      .locator(".grove-writing-spelling")
+      .filter({ hasText: "enviroment" }),
+  ).toBeVisible();
+  await expect(check(page)).toHaveCount(0);
+  expect(transfers).toEqual([]);
+});
+
+test("heading markers do not turn hosted prose into an indented code block", async ({
+  page,
+}) => {
+  await workspace(
+    page,
+    { enabled: true, automatic: false },
+    "#### I hope your well.",
+  );
+  await page.route("**/api/grove/proofing/check", async (route) => {
+    const body: ProofingCheck = route.request().postDataJSON();
+    expect(body.text).toBe("I hope your well.");
+    const from = body.text.indexOf("your");
+    await route.fulfill({
+      json: {
+        revision: body.revision,
+        complete: true,
+        issues: [
+          {
+            id: "fixture",
+            rule: "confusion",
+            message: "confusion",
+            original: "your",
+            from,
+            to: from + 4,
+            replacements: ["you're"],
+          },
+        ],
+      },
+    });
+  });
+  await page.goto(editorUrl);
+  await editor(page).press("Control+End");
+  await check(page).click();
+  const match = editor(page)
+    .locator(".grove-writing-grammar")
+    .filter({ hasText: /^your$/ });
+  await expect(match).toHaveCount(1);
+  await match.click();
+  await page
+    .getByRole("dialog", { name: /Writing suggestion/ })
+    .getByRole("button", { name: "you're", exact: true })
+    .click();
+  await expect(editor(page)).toContainText("I hope you're well.");
+});
+
 test("an edit in formatted prose beyond 6,000 units uses its own paragraph for both checkers", async ({
   page,
 }) => {

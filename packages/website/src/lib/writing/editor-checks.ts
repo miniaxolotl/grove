@@ -309,11 +309,16 @@ export class EditorChecks {
     this.state.enhancedStatus = manual ? "Checking paragraph…" : "";
     this.paint();
     try {
+      // Formatting at the start of a block (e.g. a level-four heading) is
+      // masked to spaces. Sending those spaces through a second Markdown
+      // projection would turn the whole paragraph into an indented code block.
+      const text = block.text.trimStart();
+      const prefix = block.text.length - text.length;
       const data = proofingResultSchema.parse(
         await this.enhanced.request(
           "check",
           "POST",
-          { text: block.text, revision: rev, rules },
+          { text, revision: rev, rules },
           signal,
           manual ? "manual" : "automatic",
         ),
@@ -322,15 +327,17 @@ export class EditorChecks {
       if (data.revision !== rev) throw new Error("Stale check");
       const words = new Set(this.settings.words.map(dictionaryWordKey));
       for (const i of data.issues) {
+        const start = i.from + prefix,
+          end = i.to + prefix;
         if (
           !rules[i.rule] ||
-          !block.allows(i.from, i.to) ||
-          block.text.slice(i.from, i.to) !== i.original ||
+          !block.allows(start, end) ||
+          text.slice(i.from, i.to) !== i.original ||
           (i.rule === "spelling" && words.has(dictionaryWordKey(i.original)))
         )
           continue;
-        const from = block.from + i.from,
-          to = block.from + i.to;
+        const from = block.from + start,
+          to = block.from + end;
         this.hosted.push({
           ...i,
           from,

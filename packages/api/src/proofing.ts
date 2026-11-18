@@ -64,8 +64,7 @@ async function upstreamJson(response: Response) {
 
 /** Configuration is the only source of the origin. Malformed or absent config
  * disables the optional adapter without taking down notes or database readiness. */
-export function languageTool(origin?: string) {
-  let endpoint: URL | undefined;
+export function proofingEndpoint(origin?: string) {
   if (origin && URL.canParse(origin)) {
     const url = new URL(origin);
     if (
@@ -77,8 +76,12 @@ export function languageTool(origin?: string) {
       !url.password &&
       url.href === url.origin + "/"
     )
-      endpoint = new URL("/v2/check", url);
+      return new URL("/v2/check", url);
   }
+}
+
+export function languageTool(origin?: string) {
+  const endpoint = proofingEndpoint(origin);
   return async (
     input: ProofingCheck,
     signal: AbortSignal,

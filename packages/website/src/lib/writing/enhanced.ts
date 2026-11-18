@@ -3,11 +3,16 @@
 import { useClerk, useSession, useUser } from "@clerk/nextjs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  proofingConsentSchema,
+  proofingConsentStatusSchema,
   type ProofingConsent as Consent,
 } from "@lib/shared/proofing-contract";
 
-type Grant = Consent & { signal: AbortSignal };
+type Grant = Consent & {
+  signal: AbortSignal;
+  account: string;
+  sessionId: string;
+  available: boolean;
+};
 
 /** The credential SDK can't cancel its promise; a departed editor must stop waiting. */
 function sessionToken(token: Promise<string | null>, signal: AbortSignal) {
@@ -105,12 +110,12 @@ export function useEnhancedConsent(eligible = true) {
   const refresh = useCallback(
     async (next?: Consent) => {
       invalidate();
-      if (!current()) return;
+      if (!account || !sessionId || !current()) return;
       const controller = new AbortController();
       lifetime.current = controller;
       if (next) channel.current?.postMessage("pending");
       try {
-        const data = proofingConsentSchema.parse(
+        const data = proofingConsentStatusSchema.parse(
           await request(
             "consent",
             next ? "PUT" : "GET",
@@ -119,6 +124,9 @@ export function useEnhancedConsent(eligible = true) {
           ),
         );
         setGrant({
+          account,
+          sessionId,
+          available: data.available !== false,
           enabled: data.enabled,
           automatic: data.automatic,
           signal: controller.signal,
@@ -128,7 +136,7 @@ export function useEnhancedConsent(eligible = true) {
         if (!controller.signal.aborted) setFailed(true);
       }
     },
-    [current, request, invalidate],
+    [account, sessionId, current, request, invalidate],
   );
   useEffect(() => {
     if (!active) return;
@@ -169,8 +177,17 @@ export function useEnhancedConsent(eligible = true) {
       channel.current = null;
     };
   }, [account, active, refresh, invalidate, current, clerk]);
+  const preference =
+    active &&
+    grant?.account === account &&
+    grant?.sessionId === sessionId &&
+    grant &&
+    !grant.signal.aborted
+      ? grant
+      : null;
   return {
-    grant: active && grant && !grant.signal.aborted ? grant : null,
+    preference,
+    grant: preference?.available ? preference : null,
     failed,
     refresh,
     request,

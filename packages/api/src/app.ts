@@ -6,7 +6,7 @@ import {
   proofingConsentSchema,
   proofingCheckSchema,
 } from "@lib/shared/proofing-contract";
-import { languageTool } from "./proofing.ts";
+import { languageTool, proofingEndpoint } from "./proofing.ts";
 import { writingRequestSchema } from "@lib/shared/writing-assistance";
 import { ConversationDocuments } from "@lib/memory";
 import { memoryUpdateSchema } from "@lib/shared/memory-tools";
@@ -620,18 +620,22 @@ export function createApp(deps: AppDependencies) {
     c: import("hono").Context<Environment>,
     schema: z.ZodType<T>,
   ) => schema.parse(await c.req.json());
-  app.get("/v1/proofing/consent", async (c) =>
-    c.json(await proofing.settings(c.get("principal"))),
-  );
-  app.put("/v1/proofing/consent", async (c) =>
-    c.json(
-      await proofing.settings(
-        c.get("principal"),
-        await body(c, proofingConsentSchema),
-      ),
-    ),
-  );
-  app.post("/v1/proofing/check", async (c) => {
+  const configured = !!proofingEndpoint(deps.languageToolUrl);
+  function requireChecker() {
+    if (!configured) throw new GroveError('proofing_disabled','Enhanced grammar is not configured.',503);
+  }
+  app.get('/v1/proofing/consent',async c => {
+    const consent = await proofing.settings(c.get('principal'));
+    return c.json(configured ? consent : {...consent, available:false});
+  });
+  app.put('/v1/proofing/consent', async c => {
+    const value = await body(c, proofingConsentSchema);
+    if (value.enabled) requireChecker();
+    const consent = await proofing.settings(c.get('principal'),value);
+    return c.json(configured ? consent : {...consent, available:false});
+  });
+  app.post('/v1/proofing/check',async c => {
+    requireChecker();
     const principal = c.get("principal"),
       input = await body(c, proofingCheckSchema);
     const mode = z
