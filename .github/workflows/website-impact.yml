@@ -5,10 +5,16 @@ on:
       source:
         type: string
         required: true
+    outputs:
+      config:
+        value: ${{ jobs.compare.outputs.config }}
 permissions:
   contents: read
+  pull-requests: read
 jobs:
   compare:
+    outputs:
+      config: ${{ steps.scope.outputs.config }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -24,14 +30,22 @@ jobs:
         with:
           node-version: "24.21.0"
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Rebuild comparable package and ZIP inventories before any write
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SOURCE: ${{ inputs.source }}
+        run: node scripts/release/proofing-release.mjs "$EXPECTED_SOURCE"
+      - if: steps.scope.outputs.mode == 'website-only'
+        run: pnpm install --frozen-lockfile
+      - if: steps.scope.outputs.mode == 'website-only'
+        name: Rebuild comparable package and ZIP inventories before any write
         env:
           EXPECTED_SOURCE: ${{ inputs.source }}
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
           node scripts/release/select-website.mjs
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - if: steps.scope.outputs.mode == 'website-only'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: website-selection-${{ inputs.source }}-${{ github.run_attempt }}
           path: website-selection.json

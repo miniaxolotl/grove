@@ -207,7 +207,12 @@ export function createAppSpec(env) {
 }
 
 // Rollouts preserve the provider's encrypted secrets, DNS and operator settings.
-export function updateImageSpec(current, digest, ltDigest) {
+export function updateImageSpec(
+  current,
+  digest,
+  ltDigest,
+  coordinated = false,
+) {
   imageDigest(digest);
   assert.equal(
     current.name,
@@ -231,14 +236,21 @@ export function updateImageSpec(current, digest, ltDigest) {
   const existing = privateChecker(spec);
   if (ltDigest !== undefined) {
     imageDigest(ltDigest);
-    if (existing) existing.image.digest = ltDigest;
-    else
+    if (existing) {
+      if (coordinated)
+        assert.equal(
+          existing.image.repository,
+          "grove",
+          "Unexpected staged checker registry",
+        );
+      existing.image.digest = ltDigest;
+    } else
       spec.services.push({
         name: "languagetool",
         image: {
           registry_type: "DOCKER_HUB",
           registry: "miniaxolotl",
-          repository: "grove-languagetool",
+          repository: coordinated ? "grove" : "grove-languagetool",
           digest: ltDigest,
         },
         internal_ports: [8081],
@@ -267,7 +279,10 @@ function privateChecker(spec) {
     parts.length === 1 &&
       part.image?.registry_type === "DOCKER_HUB" &&
       part.image.registry === "miniaxolotl" &&
-      part.image.repository === "grove-languagetool" &&
+      ["grove", "grove-languagetool"].includes(part.image.repository) &&
+      !spec.services.some(
+        (s) => s.name === "api" && s.image?.digest === part.image.digest,
+      ) &&
       !part.image.tag &&
       !part.image.deploy_on_push?.enabled &&
       !part.run_command &&
@@ -323,12 +338,28 @@ async function main() {
       "app-id": { type: "string" },
       digest: { type: "string" },
       "languagetool-digest": { type: "string" },
+      "coordinated-checker": { type: "string" },
     },
   });
   const token = required(process.env, "DIGITALOCEAN_ACCESS_TOKEN");
   const appId = values["app-id"] ?? process.env.DIGITALOCEAN_APP_ID;
-  const requestedLt = values["languagetool-digest"];
-  if (requestedLt !== undefined) {
+  const coordinated = values["coordinated-checker"] !== undefined;
+  const requestedLt =
+    values["coordinated-checker"] ?? values["languagetool-digest"];
+  if (coordinated) {
+    assert(
+      !values["languagetool-digest"] &&
+        appId &&
+        !values.create &&
+        (values.wait || values.propose) &&
+        process.env.GITHUB_ACTIONS === "true" &&
+        process.env.RELEASE_TAG === "v1.11.26",
+      "Invalid coordinated checker rollout",
+    );
+    assertCurrentRef(workflowContext());
+    imageDigest(requestedLt);
+  }
+  if (requestedLt !== undefined && !coordinated) {
     imageDigest(requestedLt);
     assert(
       appId &&
@@ -370,7 +401,7 @@ async function main() {
     assert.match(appId, /^[0-9a-f-]{36}$/, "Invalid DigitalOcean app ID");
     const { app } = await request(`/apps/${appId}`);
     previousApp = app;
-    if (requestedLt !== undefined) {
+    if (requestedLt !== undefined && !coordinated) {
       const apiDigest = values.digest ?? process.env.GROVE_IMAGE_DIGEST;
       assert(
         !app.in_progress_deployment?.id &&
@@ -391,6 +422,30 @@ async function main() {
         "An ordinary release cannot change the active LanguageTool digest or topology",
       );
     }
+    if (coordinated) {
+      assert(
+        !app.in_progress_deployment?.id &&
+          app.active_deployment?.phase === "ACTIVE",
+        "Existing rollout must be settled",
+      );
+      for (const candidate of [app.spec, app.active_deployment.spec]) {
+        const checker = privateChecker(candidate);
+        if (checker)
+          assert(
+            checker.instance_count === 1 &&
+              checker.instance_size_slug === "apps-s-1vcpu-1gb-fixed" &&
+              checker.image.repository === "grove" &&
+              checker.image.digest === requestedLt,
+            "Unexpected existing checker; reconcile before release",
+          );
+        assert(
+          !candidate.services
+            .find((s) => s.name === "api")
+            ?.envs?.some((e) => e.key === "LANGUAGETOOL_URL" && e.value),
+          "Stage checker with text transmission off",
+        );
+      }
+    }
     previousIds = [
       app.active_deployment?.id,
       app.in_progress_deployment?.id,
@@ -399,6 +454,7 @@ async function main() {
       app.spec,
       values.digest ?? process.env.GROVE_IMAGE_DIGEST,
       requestedLt,
+      coordinated,
     );
   } else {
     assert(
@@ -427,6 +483,28 @@ async function main() {
   );
   if (values.propose) return;
 
+  if (
+    coordinated &&
+    !previousApp.in_progress_deployment?.id &&
+    isDeepStrictEqual(previousApp.spec, spec) &&
+    previousApp.active_deployment?.phase === "ACTIVE" &&
+    findDeployment(
+      [previousApp.active_deployment],
+      values.digest ?? process.env.GROVE_IMAGE_DIGEST,
+      [],
+      ltDigest,
+    )
+  ) {
+    assertCurrentRef(workflowContext());
+    console.log(
+      JSON.stringify({
+        action: "already-active",
+        deploymentId: previousApp.active_deployment.id,
+        languagetoolDigest: ltDigest,
+      }),
+    );
+    return;
+  }
   if (appId) {
     const { app: current } = await request(`/apps/${appId}`);
     assertUnchangedApp(previousApp, current);
