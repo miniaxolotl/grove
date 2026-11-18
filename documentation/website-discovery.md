@@ -1,9 +1,10 @@
 # Public reference discovery
 
-`/docs` and its five allowlisted reference pages render the committed product
+`/docs` groups common notebook tasks, app-specific setup, reference and support.
+The six allowlisted article pages render the committed product
 documentation at build time. `packages/website/src/content/documentation.ts` is the
 public manifest for navigation, sitemap coverage, metadata and source filenames.
-`client.md`, `server.md`, `models.md`, `ask-tools.md` and `hosted-chat.md` remain the
+`workspace.md`, `client.md`, `server.md`, `models.md`, `ask-tools.md` and `hosted-chat.md` are the
 only body sources: edit them rather than creating a second website copy.
 
 The loader reads only manifest filenames from the repository's `documentation/`
@@ -17,6 +18,9 @@ reused and a pinned server-side heading-slug plugin preserves fragment navigatio
 Approved relative Markdown links resolve to own-domain pages. Other repository
 references remain explicit production GitHub links, not speculative public routes.
 Commands and tables scroll locally with keyboard focus rather than widening phones.
+Each article has section shortcuts beside the text on desktop and under **In
+this guide** on phones. The app links on `/docs` and the selected tool's guide on
+`/install` point to the same instructions; hosted chats use custom OAuth setup.
 Document pages are matched to the website source, not every separately installed
 client or self-hosted runtime. Existing beta/provider qualification limits remain.
 
