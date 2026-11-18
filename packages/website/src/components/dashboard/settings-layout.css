@@ -69,6 +69,10 @@
   border: 0;
   padding-top: 0;
 }
+/* Keep save, error and retry feedback on the same line of its own. */
+.settings-ai .settings-save-status {
+  flex-basis: 100%;
+}
 @media (min-width: 1200px) {
   .settings-writing .writing-preferences-panel,
   .settings-content.settings-ai {

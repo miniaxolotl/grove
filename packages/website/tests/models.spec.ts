@@ -29,6 +29,8 @@ const config = () =>
 test("preferences retain newer edits during saving and errors do not move the form", async ({
   page,
 }) => {
+  // The narrowest two-column layout must accommodate the longer error status.
+  await page.setViewportSize({ width: 1200, height: 900 });
   const preferences = {
     captureEnabled: true,
     recallEnabled: true,
