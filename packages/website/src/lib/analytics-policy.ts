@@ -43,6 +43,19 @@ const workspaceRoutes = new Set([
 export function pagePath(value: string): string {
   try {
     const path = new URL(value, origin).pathname.replace(/\/$/, "") || "/";
+    if (
+      [
+        "/contact",
+        "/support",
+        "/install",
+        "/self-host",
+        "/pricing",
+        "/docs",
+        "/examples",
+        "/writing",
+      ].includes(path)
+    )
+      return path;
     if (publicRoutes.has(path) || workspaceRoutes.has(path)) return path;
     if (path.startsWith("/s/")) return "/s/:token";
     const dynamic = path.match(
@@ -235,7 +248,13 @@ export function sanitizeEvent(
   )
     properties.version = input.version;
   // Campaign dimensions are public, low-cardinality labels, never redirect/identity tokens.
-  for (const key of ["utm_source", "utm_medium", "utm_campaign"]) {
+  for (const key of [
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_content",
+    "utm_term",
+  ]) {
     if (
       typeof input[key] === "string" &&
       /^[a-z][a-z0-9_-]{0,63}$/i.test(input[key])
