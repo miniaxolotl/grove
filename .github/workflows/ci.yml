@@ -21,6 +21,10 @@ permissions:
   actions: read
   pull-requests: read
 
+env:
+  # Match the production image; hosted CI uses the bundled CPU runtime.
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
 jobs:
   changes:
     name: Change Classification
