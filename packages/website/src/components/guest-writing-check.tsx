@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  englishMessages,
   writingSettingsSchema,
   type WritingResult,
 } from "@lib/shared/writing-settings";
@@ -83,7 +84,7 @@ export function GuestWritingCheck() {
       {!!result?.issues.length && (
         <ul aria-label="Writing suggestions">
           {result.issues.map((issue) => (
-            <li key={issue.id}>{issue.message}</li>
+            <li key={issue.id}>{englishMessages[issue.message]}</li>
           ))}
         </ul>
       )}
