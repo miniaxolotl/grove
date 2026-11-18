@@ -5,6 +5,9 @@ Use the admitted source, current provider readbacks and private configuration.
 Historical deployment IDs, test totals and provider observations are in the
 [evidence archive](archive/README.md), not defaults to replay.
 
+For a local, read-only comparison of a candidate with the last verified delivery
+per destination, see [Preview release impact](development/release-impact.md).
+
 ## Topology and configuration
 
 - Website: `https://usegrove.cloud`, Next.js on Vercel; production branch `production`.

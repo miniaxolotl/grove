@@ -1,0 +1,104 @@
+{
+  "policy": 1,
+  "environment": "production",
+  "observedAt": "2026-11-18",
+  "targets": {
+    "website": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "productionSha": "9fdab919144f2b0494ae7347f74024adceedd724",
+        "deploymentUrl": "https://grove-fq82h3ejo-bramble-labs-inc.vercel.app",
+        "deploymentId": "dpl_EYSFnSoGPMNifoMEG8LB51yWw11z",
+        "alias": "https://usegrove.cloud"
+      },
+      "evidence": "https://github.com/miniaxolotl/grove/actions/runs/44339009513"
+    },
+    "service": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "imageDigest": "sha256:083e2eb0fc6598b70ed67d2f917c77a831dd8851bd00922fcaa493ec29451fb6",
+        "deploymentId": "e1cf515c-997f-4985-b7fe-817009f5484e",
+        "phase": "ACTIVE"
+      },
+      "evidence": "https://github.com/miniaxolotl/grove/actions/runs/44339009513"
+    },
+    "downloads": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "assets": {
+          "downloads.json": "sha256:d6f3b33680766e1ad836a3d9f9d4a704258e984365e4151f9809ff2270e97f4b",
+          "grove-chrome.zip": "sha256:047c6399270b32d0d2dcfd11dd61649ecde76d36ae3c0efcddcd3dec6147269a",
+          "grove-edge.zip": "sha256:b0074a3433007136ae6cf409ad4f4e5af20ea787637b231f4d76a4ce0bbe56c1",
+          "grove-firefox.zip": "sha256:2183633cdec23b6f5bc6688758307cb00ea695733e7354f8885af5845713590d",
+          "packages.build.json": "sha256:54105013a64a6717af12b96147ee24b71d178033fc102f4846a99eea6c93f78b",
+          "SHA256SUMS": "sha256:59e0653cd7b4d789c1a6a3e5355368a64251bfb47cc3df07a449ea1ae4a55b41"
+        }
+      },
+      "evidence": "https://github.com/miniaxolotl/grove/releases/tag/v1.11.24"
+    },
+    "npm:grove-server": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-swv1M2CoVu1wmx5UP3Yfm7qQF3NNw4Dzfyisc9hlX/1+mEt8jPIl2JU7goHheklywcU3wqSxQeaX7e9z1rZz5g==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove-server/1.11.24"
+    },
+    "npm:grove": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-Nf8c1L3VFJm4Il/JLwzQbB6iCxcJvlCDgPx1iziY2hdi7G2MC/D0oqRpGRU+vbr+rqmGZsOa9Re2aVu/LYq0zw==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove/1.11.24"
+    },
+    "npm:grove-claude-plugin": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-qfhZuKLIOD1bH911RU1JrFa8Prscq6sysQRDVe6dLU3uYndltn2iQC0kV8O82jDxGpAs3JTJZhLHJDn3G0hpFw==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove-claude-plugin/1.11.24"
+    },
+    "npm:grove-codex-plugin": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-f30RFWcpwma3X8+4cRiEJqEQHSr25XYNO2ijE+PAicfHXrbxGEX2oqyfHnimtLA+GI13IWnEdrPCpQnipd3+lw==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove-codex-plugin/1.11.24"
+    },
+    "npm:grove-opencode-plugin": {
+      "source": "9ee71cc987a443c020fbf6030f76664b4cc5e914",
+      "identity": {
+        "version": "1.11.24",
+        "integrity": "sha512-Pu/2g7drAgepNcWIoaVzErLOJaVINevtwYezWYHDSNG6bQPmUP2pUIRVVMjg9oUpTpkhITFh28J7MkN0jA1xpA==",
+        "latest": "1.11.24"
+      },
+      "evidence": "https://registry.npmjs.org/@miniaxolotl/grove-opencode-plugin/1.11.24"
+    }
+  },
+  "storeChannels": {
+    "chrome": {
+      "state": "review",
+      "identity": null,
+      "reason": "No verified reservation, submission, approval or live listing receipt"
+    },
+    "edge": {
+      "state": "review",
+      "identity": null,
+      "reason": "No verified reservation, submission, approval or live listing receipt"
+    },
+    "firefox": {
+      "state": "review",
+      "identity": null,
+      "reason": "No verified reservation, submission, approval or live listing receipt"
+    }
+  }
+}
