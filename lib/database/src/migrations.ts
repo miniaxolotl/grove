@@ -1,5 +1,7 @@
 import type { Knex } from "knex";
+import { exportReadyEmail } from "./export-ready-migration.ts";
 import { importDestination } from "./import-destination-migration.ts";
+import { deletionReceipt } from "./deletion-receipt-migration.ts";
 import { dailyNotes } from "./daily-note-migration.ts";
 import { cacheRetention } from "./cache-retention-migration.ts";
 import { writingAllowance } from "./writing-allowance-migration.ts";
@@ -291,6 +293,8 @@ export const migrations = [
   cacheRetention,
   proofingConsents,
   importDestination,
+  exportReadyEmail,
+  deletionReceipt,
 ];
 
 export const migrationSource: Knex.MigrationSource<

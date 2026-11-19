@@ -383,7 +383,20 @@ test("isolated restore replays current deletions and revocations without changin
     await source("conversation_documents")
       .where({ id: removedDocument })
       .update({ removedAt: source.fn.now() });
+    // Staged ciphertext from a backup is never replayed or copied from authority.
+    const receiptId = randomUUID();
+    for (const database of databases)
+      await database("deletion_receipts").insert({
+        id: receiptId,
+        accountId: b,
+        snapshot: Buffer.alloc(40),
+      });
     const result = await reconcileRestore(source, target);
+    assert.equal((await target("deletion_receipts")).length, 0);
+    assert.equal(
+      (await source("deletion_receipts").where({ id: receiptId })).length,
+      1,
+    );
     const restoredOrder = await target("accounts").where({ id: a }).first();
     const authorityOrder = await source("accounts").where({ id: a }).first();
     assert(

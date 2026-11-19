@@ -468,6 +468,7 @@ export function exportHandlers(
   db: Knex,
   store: ArtifactStore,
   media?: { read(key: string, signal: AbortSignal): Promise<Readable> } | null,
+  notifyReady = false,
 ): { export: TaskHandler; artifact_cleanup: TaskHandler } {
   const exportTask: TaskHandler = async (task, signal) => {
     const stage = Number(task.cursor.stage ?? 0),
@@ -505,9 +506,25 @@ export function exportHandlers(
       await taskTransaction(db, task, async (trx) => {
         await assertVersion(trx, task);
         await trx("export_objects").where({ objectKey: key }).update({ bytes });
+        const preparationId = randomUUID();
+        const current = await trx("background_tasks")
+          .where({ id: task.id })
+          .where("expiresAt", ">", trx.raw("clock_timestamp()"))
+          .first("id");
+        if (!current) throw new TaskError("export_expired", false);
+        if (notifyReady) {
+          await trx("transactional_emails").insert({
+            accountId: task.accountId,
+            kind: "export_ready",
+            eventKey: `export_ready:${task.id}:${preparationId}`,
+            exportTaskId: task.id,
+            exportPreparationId: preparationId,
+          });
+        }
         return {
           complete: true,
           result: {
+            preparationId,
             key,
             bytes,
             format: task.payload.includeMedia

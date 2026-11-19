@@ -62,6 +62,51 @@ async function fixture() {
   return { principal, service, worker };
 }
 
+test("ordinary email fences changed recipient and template after an uncertain send", async () => {
+  for (const changed of ["recipient", "origin"]) {
+    const { principal } = await fixture();
+    const job = await admin("transactional_emails")
+      .where({ accountId: principal.accountId })
+      .first();
+    const config = {
+      key: "re_fixture",
+      from: "grove@example.test",
+      siteUrl: "https://grove.example.test",
+    };
+    let calls = 0;
+    const transport: typeof fetch = async () => {
+      calls++;
+      throw new Error("accepted but disconnected");
+    };
+    await deliverEmail(
+      workerDb,
+      config,
+      async () => "owner@example.test",
+      job.id,
+      transport,
+    );
+    await admin("transactional_emails")
+      .where({ id: job.id })
+      .update({ dueAt: admin.fn.now() });
+    await deliverEmail(
+      workerDb,
+      changed === "origin"
+        ? { ...config, siteUrl: "https://changed.example.test" }
+        : config,
+      async () =>
+        changed === "recipient" ? "changed@example.test" : "owner@example.test",
+      job.id,
+      transport,
+    );
+    const row = await admin("transactional_emails")
+      .where({ id: job.id })
+      .first();
+    assert.equal(calls, 1);
+    assert.equal(row.errorCode, "email_payload_changed");
+    assert(row.failedAt);
+  }
+});
+
 test("ephemeral lifetime is independent of kind; moves preserve expiry, restore renews, permanent conversion survives maintenance", async () => {
   const { principal, service, worker } = await fixture();
   const memory = await service.remember(
@@ -428,7 +473,11 @@ test("Ask Grove discards answers after cancellation, revoked access, disabled su
     await started.promise;
     if (change === "cancel") {
       controller.abort();
-      assert.equal(inferenceSignal?.aborted, true, "caller cancellation reaches the composed cache/provider signal");
+      assert.equal(
+        inferenceSignal?.aborted,
+        true,
+        "caller cancellation reaches the composed cache/provider signal",
+      );
     }
     if (change === "revoke")
       await service.revoke(principal, grant.connection.id);
