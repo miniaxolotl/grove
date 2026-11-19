@@ -115,6 +115,12 @@ change only that file. The following coordinated Release Please stamp is verifie
 with the shared stamp checker and patch-first release-intent policy; extra source
 edits, floating heads and mixed selected/held declarations are rejected.
 
+Source Release discovers both the declaration push and its direct version-stamp
+push through those same strict validators. Production admission still requires
+the explicit stamped-source validation. A code/docs repair retires any previous
+source-bound declaration; after it merges, a separate declaration-only PR must
+anchor the newly accepted source before its next coordinated patch release.
+
 Protected Deploy persists `publication_pending` **before** image/package writes,
 then verifies every package integrity, both image registries and the actual held
 image metadata/entrypoints. Only then does it emit `published_held`. Ordinary
