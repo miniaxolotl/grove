@@ -208,7 +208,8 @@ export async function fixture(
           },
         },
       });
-    if (path === "/me") data = { plan: null };
+    if (path === "/proofing/consent") return route.fulfill({json:{enabled:false, automatic:false}});
+    else if (path === "/me") data = { plan: null };
     else if (path === "/relationships/search") {
       const input = connectionQuerySchema.parse(body);
       const items = [...pairs.values()].filter(

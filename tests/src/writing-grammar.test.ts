@@ -1,17 +1,17 @@
+import { checker } from "./fixtures/harper-checker.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   applyWritingEdit,
-  createEnglishChecker,
   writingSettingsSchema,
   type WritingRule,
 } from "../../lib/shared/src/writing-core.ts";
 
-// Grammar runs independently of dictionary coverage.
-const checker = createEnglishChecker({ aff: "SET UTF-8\n", dic: "1\nnote\n" });
 const settings = writingSettingsSchema.parse({ spelling: false });
-const issuesFor = (source: string, rule: WritingRule) =>
-  checker.check(source, settings).issues.filter((issue) => issue.rule === rule);
+const issuesFor = async (source: string, rule: WritingRule) =>
+  (await checker.check(source, settings)).issues.filter(
+    (issue) => issue.rule === rule,
+  );
 
 for (const [rule, source] of [
   ["articles", "Assign a `Retry` action."],
@@ -39,8 +39,8 @@ for (const [rule, source] of [
   ["quotes", "We played ’90s records from the class of '94."],
   ["quotes", "She said, ‘I remember the ’80s.’"],
 ] as const) {
-  test(`${rule} leaves this note alone: ${source}`, () => {
-    assert.deepEqual(issuesFor(source, rule), []);
+  test(`${rule} leaves this note alone: ${source}`, async () => {
+    assert.deepEqual(await issuesFor(source, rule), []);
   });
 }
 
@@ -60,8 +60,8 @@ for (const [rule, source, corrected] of [
   ["agreement", "We had chose the date.", "We had chosen the date."],
   ["agreement", "He hasn't took a break.", "He hasn't taken a break."],
 ] as const) {
-  test(`${rule} offers an exact edit: ${source}`, () => {
-    const issues = issuesFor(source, rule);
+  test(`${rule} offers an exact edit: ${source}`, async () => {
+    const issues = await issuesFor(source, rule);
     assert.equal(issues.length, 1);
     const [issue] = issues;
     assert.equal(

@@ -43,6 +43,7 @@ export async function startServer() {
     telemetry: reporter,
     shareLinkKey: env.SHARE_LINK_KEY,
     writingStagingKey: env.WRITING_STAGING_KEY,
+    languageToolUrl: process.env.LANGUAGETOOL_URL,
     writingProviderNotice: env.WRITING_PROVIDER_NOTICE,
     capacity: {
       concurrency: env.API_MAX_IN_FLIGHT,

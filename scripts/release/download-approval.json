@@ -1,0 +1,36 @@
+{
+  "edge": {
+    "source": "1a03079f088612c7d0333ff169197d58508c3a86",
+    "production": "505cf22c56d39d5087e7b680e17ecbdc1d3bf9b5",
+    "artifactId": 14478176214,
+    "containerDigest": "sha256:f6e23576cbc61d3fbd0f47ab6c0f7054d835d5e48adbf99429f2084c964dc306",
+    "promotionPr": 285,
+    "releaseId": 450636544,
+    "deployRun": 44414320062,
+    "sourceRun": 44411802502,
+    "zipDigest": "sha256:46a36fef8ae2c744295593adf5479143ead763c04e6635033202a86ae82238b0",
+    "store": {
+      "previousFloor": "1.11.22",
+      "version": "1.11.25",
+      "submittedDigest": "sha256:46a36fef8ae2c744295593adf5479143ead763c04e6635033202a86ae82238b0",
+      "evidence": "https://github.com/miniaxolotl/grove/pull/285#issuecomment-6994170235"
+    }
+  },
+  "firefox": {
+    "source": "1a03079f088612c7d0333ff169197d58508c3a86",
+    "production": "505cf22c56d39d5087e7b680e17ecbdc1d3bf9b5",
+    "artifactId": 14478176214,
+    "containerDigest": "sha256:f6e23576cbc61d3fbd0f47ab6c0f7054d835d5e48adbf99429f2084c964dc306",
+    "promotionPr": 285,
+    "releaseId": 450636544,
+    "deployRun": 44414320062,
+    "sourceRun": 44411802502,
+    "zipDigest": "sha256:e8f4aa79bf78ae0b7da0fb7d2cf29cb73b450dd8bba74e85af47f137dd0bc159",
+    "store": {
+      "previousFloor": "1.11.22",
+      "version": "1.11.25",
+      "submittedDigest": "sha256:e8f4aa79bf78ae0b7da0fb7d2cf29cb73b450dd8bba74e85af47f137dd0bc159",
+      "evidence": "https://github.com/miniaxolotl/grove/pull/285#issuecomment-6994170235"
+    }
+  }
+}

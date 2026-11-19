@@ -1,0 +1,99 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+import { route } from "./proofing-release.mjs";
+import { updateImageSpec, findDeployment } from "../deploy-digitalocean.mjs";
+const base = "947a4e62c5c84a4c34ef540a0dacfa7ebe06b187",
+  merged = "a".repeat(40),
+  stamp = "b".repeat(40);
+const pr = {
+  number: 289,
+  base: { ref: "development" },
+  merged: true,
+  merge_commit_sha: merged,
+};
+const manifest = JSON.parse(readFileSync("release-please-config.json"));
+function fixture(extra = "", edit = () => {}) {
+  return {
+    git: (cmd, ...args) =>
+      cmd === "diff"
+        ? `CHANGELOG.md\npackage.json${extra}`
+        : args[0] === `${merged}^1`
+          ? base
+          : merged,
+    read: (ref, path) => {
+      const ver = ref === merged ? "1.11.26" : "1.11.27";
+      const value =
+        path === "release-please-config.json"
+          ? globalThis.structuredClone(manifest)
+          : path === ".release-please-manifest.json"
+            ? { ".": ver }
+            : path.endsWith("marketplace.json")
+              ? { plugins: [{ source: { version: ver } }] }
+              : { version: ver };
+      if (ref === stamp) edit(path, value);
+      return value;
+    },
+  };
+}
+test("only the actual proofing merge can request the coordinated source release", () => {
+  assert.equal(route(merged, pr, false, fixture()), "coordinated");
+  for (const p of [
+    { ...pr, merged: false },
+    { ...pr, number: 286 },
+    { ...pr, base: { ref: "production" } },
+  ])
+    assert.equal(route(merged, p, false, fixture()), "website-only");
+  assert.equal(route(merged, pr, true, fixture()), "website-only");
+});
+test("release stamp must be an otherwise unmodified direct successor with all installer versions updated", () => {
+  assert.equal(route(stamp, pr, true, fixture()), "coordinated");
+  assert.throws(
+    () => route(stamp, pr, true, fixture("\npackages/api/src/server.ts")),
+    /Unreviewed/,
+  );
+  assert.throws(
+    () =>
+      route(
+        stamp,
+        pr,
+        true,
+        fixture("", (path, obj) => {
+          if (path === "packages/api/package.json") obj.version = "1.11.24";
+        }),
+      ),
+    /Unexpected/,
+  );
+  assert.throws(
+    () =>
+      route(
+        stamp,
+        pr,
+        true,
+        fixture("", (path, obj) => {
+          if (path === "package.json") obj.scripts = { build: "changed" };
+        }),
+      ),
+    /Unexpected/,
+  );
+});
+test("coordinated topology uses two immutable images, one internal checker and no automatic text transmission", () => {
+  const spec = JSON.parse(readFileSync(".do/app.json"));
+  const main = "sha256:" + "a".repeat(64),
+    checker = "sha256:" + "b".repeat(64);
+  const next = updateImageSpec(spec, main, checker, true);
+  const lt = next.services.find((s) => s.name === "languagetool");
+  assert.deepEqual(lt.internal_ports, [8081]);
+  assert.equal(lt.image.repository, "grove");
+  assert.equal(lt.image.digest, checker);
+  assert.equal(lt.instance_count, 1);
+  assert.equal(lt.instance_size_slug, "apps-s-1vcpu-1gb-fixed");
+  assert.equal(lt.http_port, undefined);
+  assert.deepEqual(next.ingress, spec.ingress);
+  assert(!JSON.stringify(next).includes("LANGUAGETOOL_URL"));
+  assert.equal(
+    findDeployment([{ id: "all", spec: next }], main, [], checker)?.id,
+    "all",
+  );
+  assert.throws(() => updateImageSpec(spec, main, main, true));
+});

@@ -32,6 +32,7 @@ const clerk = {
   },
   session: {
     id: "telemetry-fixture-session",
+    status: 'active', expireAt: new Date(Date.now() + 600_000),
     getToken: async () => "fixture-token",
   },
   signOut: async () => {},

@@ -1,15 +1,16 @@
+import { checker } from "./fixtures/harper-checker.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   applyWritingEdit,
-  createEnglishChecker,
   writingSettingsSchema,
 } from "../../lib/shared/src/writing-core.ts";
 
-const engine = createEnglishChecker({ aff: "SET UTF-8\n", dic: "1\nnote\n" });
 const settings = writingSettingsSchema.parse({ spelling: false });
-const issuesFor = (source: string, rule: "confusion" | "redundancy") =>
-  engine.check(source, settings).issues.filter((issue) => issue.rule === rule);
+const issuesFor = async (source: string, rule: "confusion" | "redundancy") =>
+  (await checker.check(source, settings)).issues.filter(
+    (issue) => issue.rule === rule,
+  );
 
 for (const [rule, source] of [
   ["confusion", "After you and I met, things changed."],
@@ -26,8 +27,8 @@ for (const [rule, source] of [
   ["redundancy", "Most best practices change over time."],
   ["redundancy", "They won the most best actor awards."],
 ] as const) {
-  test(`preserves ${rule} contrast: ${source}`, () => {
-    assert.deepEqual(issuesFor(source, rule), []);
+  test(`preserves ${rule} contrast: ${source}`, async () => {
+    assert.deepEqual(await issuesFor(source, rule), []);
   });
 }
 
@@ -53,8 +54,8 @@ for (const [rule, source, corrected] of [
   ["redundancy", "It was the most biggest day.", "It was the biggest day."],
   ["redundancy", "We meet on a regular basis.", "We meet regularly."],
 ] as const) {
-  test(`applies a complete ${rule} edit: ${source}`, () => {
-    const issues = issuesFor(source, rule);
+  test(`applies a complete ${rule} edit: ${source}`, async () => {
+    const issues = await issuesFor(source, rule);
     assert.equal(issues.length, 1);
     const [issue] = issues;
     assert.equal(

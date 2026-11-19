@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { type NextRequest } from "next/server";
 import { site } from "@/lib/site";
 import { showBilling } from "@/lib/flags";
+import { boundedProofingBody, proofingRoute } from "@/lib/writing/bff";
 
 export const maxDuration = 180;
 
@@ -27,6 +28,9 @@ async function forward(
   )
     return fail(403, "Request origin is not allowed");
   const path = (await context.params).path.join("/");
+  const proofing = proofingRoute(path, request.method);
+  if (proofing && (!session.sessionId || session.sessionId !== request.headers.get('X-Grove-Proofing-Session')))
+    return fail(401, 'Writing session changed');
   const billing = /^(billing|billing\/(?:checkout|portal|trial))$/.test(path);
   const admin =
     path === "admin" || path === "admin/audit"
@@ -80,6 +84,7 @@ async function forward(
     !importRoute &&
     !billing &&
     !admin &&
+    !proofing &&
     !speech &&
     !allowed.test(path) &&
     !(
@@ -130,7 +135,8 @@ async function forward(
         )
       : ["GET", "HEAD"].includes(request.method)
         ? undefined
-        : await request.text();
+        : proofing ? await boundedProofingBody(request.body) : await request.text();
+    if (proofing && content === null) return fail(413, 'Request body is too large');
     if (typeof content === "string" && Buffer.byteLength(content) > 128 * 1024)
       return fail(413, "Request body is too large");
     const target = new URL(`/v1/${path}`, origin.origin);
@@ -162,6 +168,8 @@ async function forward(
       method: request.method,
       headers: {
         Authorization: `Bearer ${token}`,
+        ...(proofing ? { Origin: site.url, 'X-Grove-Telemetry': 'off' } : {}),
+        ...(path === 'proofing/check' ? {'X-Grove-Proofing-Mode': request.headers.get('X-Grove-Proofing-Mode') ?? 'manual'} : {}),
         ...(media && request.headers.get("range")
           ? { Range: request.headers.get("range")! }
           : {}),

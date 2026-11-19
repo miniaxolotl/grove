@@ -25,21 +25,33 @@ for (const target of ["chrome", "edge"])
       ),
     );
     const extension = resolve(`packages/browser-extension/dist/${target}`);
+    const chromeBinary =
+      target === "chrome" && process.env.EXTENSION_CHROME_BINARY;
     const context = await chromium.launchPersistentContext(directory, {
       channel: "chromium",
       ignoreDefaultArgs: ["--disable-extensions"],
       ...(target === "edge" && process.env.EXTENSION_EDGE_BINARY
         ? { executablePath: process.env.EXTENSION_EDGE_BINARY }
         : {}),
+      ...(chromeBinary ? { executablePath: chromeBinary } : {}),
       headless: process.env.EXTENSION_HEADED !== "1",
       args: [
-        `--disable-extensions-except=${extension}`,
-        `--load-extension=${extension}`,
+        ...(chromeBinary
+          ? ["--enable-unsafe-extension-debugging"]
+          : [
+              `--disable-extensions-except=${extension}`,
+              `--load-extension=${extension}`,
+            ]),
       ],
       viewport: { width: 390, height: 844 },
     });
     try {
       console.info(`${target} host: ${context.browser().version()}`);
+      if (chromeBinary) {
+        const cdp = await context.browser().newBrowserCDPSession();
+        await cdp.send("Extensions.loadUnpacked", { path: extension });
+        await cdp.detach();
+      }
       const worker =
         context.serviceWorkers()[0] ??
         (await context.waitForEvent("serviceworker"));
@@ -102,7 +114,37 @@ for (const target of ["chrome", "edge"])
         }),
       );
       await localPage.goto("https://notes.writing-fixture.test/form");
-      await localPage.locator("#draft").fill("Watchlist: the serializer writes to a read-onyl datastore.");
+      await context.setOffline(true);
+      const offlineRequests = [];
+      const recordRequest = (request) => {
+        if (/^https?:/.test(request.url())) offlineRequests.push(request.url());
+      };
+      context.on("request", recordRequest);
+      // Fresh install with no panel, account, per-site grant prompt or network.
+      await localPage
+        .locator("#draft")
+        .fill("This is a sentnce. This is a apple.");
+      await localPage
+        .locator("mark.spelling")
+        .filter({ hasText: "sentnce" })
+        .waitFor();
+      await localPage
+        .locator("mark.grammar")
+        .filter({ hasText: /^a$/ })
+        .waitFor();
+      assert.equal(await localPage.locator("mark").count(), 2);
+      await localPage.locator("#draft").dispatchEvent("compositionstart");
+      await localPage.locator("#draft").press("Alt+Enter");
+      assert.equal(
+        await localPage.locator("mark").count(),
+        0,
+        "do not check unfinished IME text",
+      );
+      await localPage.locator("#draft").dispatchEvent("compositionend");
+      await localPage.locator("mark.spelling").waitFor();
+      await localPage
+        .locator("#draft")
+        .fill("Watchlist: the serializer writes to a read-onyl datastore.");
       await localPage
         .locator("div[data-grove-writing-ui]")
         .waitFor({ state: "attached" });
@@ -127,8 +169,16 @@ for (const target of ["chrome", "edge"])
         .click();
       if (process.env.EXTENSION_SCREENSHOTS) {
         await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
-        await localPage.getByRole("button", { name: "only", exact: true }).waitFor();
-        await localPage.screenshot({ path: join(process.env.EXTENSION_SCREENSHOTS, `${target}-compound-card.png`), clip: { x: 0, y: 0, width: 390, height: 450 } });
+        await localPage
+          .getByRole("button", { name: "only", exact: true })
+          .waitFor();
+        await localPage.screenshot({
+          path: join(
+            process.env.EXTENSION_SCREENSHOTS,
+            `${target}-compound-card.png`,
+          ),
+          clip: { x: 0, y: 0, width: 390, height: 450 },
+        });
       }
       await localPage
         .getByRole("button", { name: "only", exact: true })
@@ -138,6 +188,35 @@ for (const target of ["chrome", "edge"])
         "Watchlist: the serializer writes to a read-only datastore.",
         "fresh install checks an unlisted website without signing in or site setup",
       );
+      assert.deepEqual(
+        offlineRequests,
+        [],
+        "offline checking does not even attempt HTTP(S)",
+      );
+      context.off("request", recordRequest);
+      await context.setOffline(false);
+      // Exercise independently persisted opt-outs through the signed-out UI,
+      // then reload the content script and inspect real worker results.
+      const guestPanel = await context.newPage();
+      await guestPanel.goto(`chrome-extension://${extensionId}/panel.html`);
+      await guestPanel
+        .getByRole("button", { name: "Writing settings" })
+        .click();
+      for (const off of ["spelling", "grammar"]) {
+        const checkbox = guestPanel.locator(`#writing-${off}`);
+        await checkbox.uncheck();
+        await localPage.reload();
+        await localPage
+          .locator("#draft")
+          .fill("This is a sentnce. This is a apple.");
+        await localPage
+          .locator(off === "grammar" ? "mark.spelling" : "mark.grammar")
+          .waitFor();
+        assert.equal(await localPage.locator(`mark.${off}`).count(), 0);
+        await checkbox.check();
+        await localPage.locator(`mark.${off}`).waitFor();
+      }
+      await guestPanel.close();
       await worker.evaluate(async () => {
         const stored = (await chrome.storage.local.get("writing-browser:en"))[
           "writing-browser:en"
@@ -542,46 +621,50 @@ for (const target of ["chrome", "edge"])
         })
         .waitFor({ timeout: 3000 });
       await page.locator("#dismiss-notice").click();
-      await page.evaluate(async () => {
-        const window = await globalThis.chrome.windows.getCurrent();
-        globalThis.chrome.sidePanel.onOpened.addListener((info) => {
-          globalThis.nativePanelOpened = info;
+      // Edge may start the newly opened panel's ordinary connect/notebooks
+      // requests after open() resolves. Probe it after the no-network check.
+      async function checkNativePanel() {
+        await page.evaluate(async () => {
+          const window = await globalThis.chrome.windows.getCurrent();
+          globalThis.chrome.sidePanel.onOpened.addListener((info) => {
+            globalThis.nativePanelOpened = info;
+          });
+          const button = document.createElement("button");
+          button.id = "native-panel-probe";
+          button.textContent = "Native panel probe";
+          button.onclick = () => {
+            void globalThis.chrome.sidePanel.open({ windowId: window.id }).then(
+              () => {
+                globalThis.nativePanelResult = "accepted";
+              },
+              (error) => {
+                globalThis.nativePanelResult = error.message;
+              },
+            );
+          };
+          document.body.prepend(button);
         });
-        const button = document.createElement("button");
-        button.id = "native-panel-probe";
-        button.textContent = "Native panel probe";
-        button.onclick = () => {
-          void globalThis.chrome.sidePanel.open({ windowId: window.id }).then(
-            () => {
-              globalThis.nativePanelResult = "accepted";
-            },
-            (error) => {
-              globalThis.nativePanelResult = error.message;
-            },
+        await page.locator("#native-panel-probe").click();
+        await page.waitForFunction(() => globalThis.nativePanelResult);
+        assert.equal(
+          await page.evaluate(() => globalThis.nativePanelResult),
+          "accepted",
+        );
+        if (!process.env.EXTENSION_EDGE_BINARY || target !== "edge") {
+          await page.waitForFunction(() => globalThis.nativePanelOpened);
+          assert.ok(
+            (
+              await page.evaluate(() => globalThis.nativePanelOpened.path)
+            ).endsWith("/panel.html"),
           );
-        };
-        document.body.prepend(button);
-      });
-      await page.locator("#native-panel-probe").click();
-      await page.waitForFunction(() => globalThis.nativePanelResult);
-      assert.equal(
-        await page.evaluate(() => globalThis.nativePanelResult),
-        "accepted",
-      );
-      if (!process.env.EXTENSION_EDGE_BINARY || target !== "edge") {
-        await page.waitForFunction(() => globalThis.nativePanelOpened);
-        assert.ok(
-          (
-            await page.evaluate(() => globalThis.nativePanelOpened.path)
-          ).endsWith("/panel.html"),
-        );
-      } else
-        console.info(
-          "Native Edge accepted sidePanel.open; onOpened/visible sidebar is not asserted by this supplemental host test.",
-        );
-      await page
-        .locator("#native-panel-probe")
-        .evaluate((element) => element.remove());
+        } else
+          console.info(
+            "Native Edge accepted sidePanel.open; onOpened/visible sidebar is not asserted by this supplemental host test.",
+          );
+        await page
+          .locator("#native-panel-probe")
+          .evaluate((element) => element.remove());
+      }
       assert.equal(await page.locator("#note").inputValue(), "");
       const requestsBeforeWriting = await worker.evaluate(
         () => globalThis.fixtureRequests.length,
@@ -629,9 +712,12 @@ for (const target of ["chrome", "edge"])
         "This is a sentnce.",
         "corrections must preserve native Undo",
       );
-      assert.equal(
-        await worker.evaluate(() => globalThis.fixtureRequests.length),
-        requestsBeforeWriting,
+      assert.deepEqual(
+        await worker.evaluate(
+          (before) => globalThis.fixtureRequests.slice(before),
+          requestsBeforeWriting,
+        ),
+        [],
         "typing, checking, correction and Undo must not call the server/model",
       );
       const writingTimings = await page.evaluate(
@@ -821,7 +907,6 @@ for (const target of ["chrome", "edge"])
             func: () => {
               const send = chrome.runtime.sendMessage.bind(chrome.runtime);
               globalThis.writingChecks = 0;
-              globalThis.writingSuggestions = 0;
               globalThis.holdWritingResults = true;
               globalThis.writingResultGate = new Promise((resolve) => {
                 globalThis.releaseWritingResult = resolve;
@@ -829,8 +914,6 @@ for (const target of ["chrome", "edge"])
               chrome.runtime.sendMessage = async (message, ...rest) => {
                 if (message.kind === "writingSiteCheck")
                   globalThis.writingChecks++;
-                if (message.kind === "writingSiteSuggest")
-                  globalThis.writingSuggestions++;
                 const response = await send(message, ...rest);
                 if (
                   message.kind === "writingSiteCheck" &&
@@ -838,18 +921,6 @@ for (const target of ["chrome", "edge"])
                 ) {
                   document.documentElement.dataset.writingHeld = "true";
                   await globalThis.writingResultGate;
-                }
-                if (
-                  message.kind === "writingSiteSuggest" &&
-                  message.payload.word === "sentnce" &&
-                  globalThis.holdSuggestions
-                ) {
-                  document.documentElement.dataset.suggestionsHeld = "true";
-                  await globalThis.suggestionGate;
-                  globalThis.requestAnimationFrame(() => {
-                    document.documentElement.dataset.suggestionReleased =
-                      "true";
-                  });
                 }
                 return response;
               };
@@ -898,35 +969,7 @@ for (const target of ["chrome", "edge"])
         stableEditor,
         "checking and review must not shift/remount the editor",
       );
-      const [{ result: alternativesWhileTyping }] = await worker.evaluate(
-        async (tabId) =>
-          chrome.scripting.executeScript({
-            target: { tabId },
-            world: "ISOLATED",
-            func: () => globalThis.writingSuggestions,
-          }),
-        writingSourceTab.id,
-      );
-      assert.equal(
-        alternativesWhileTyping,
-        0,
-        "typing and issue-list review must not generate spelling candidates",
-      );
       await sourcePage.keyboard.press("Escape");
-      await worker.evaluate(
-        async (tabId) =>
-          chrome.scripting.executeScript({
-            target: { tabId },
-            world: "ISOLATED",
-            func: () => {
-              globalThis.holdSuggestions = true;
-              globalThis.suggestionGate = new Promise((resolve) => {
-                globalThis.releaseSuggestions = resolve;
-              });
-            },
-          }),
-        writingSourceTab.id,
-      );
       await sourcePage
         .locator("#wrapped")
         .fill("This is a sentnce with a zorbler.");
@@ -934,33 +977,18 @@ for (const target of ["chrome", "edge"])
       await sourcePage
         .getByRole("button", { name: "sentnce — Spelling", exact: true })
         .click();
-      await sourcePage.waitForFunction(
-        () => document.documentElement.dataset.suggestionsHeld === "true",
-      );
+      await sourcePage
+        .getByRole("button", { name: "sentence", exact: true })
+        .waitFor();
       await sourcePage
         .getByRole("button", { name: "Ignore", exact: true })
         .focus();
-      await worker.evaluate(
-        async (tabId) =>
-          chrome.scripting.executeScript({
-            target: { tabId },
-            world: "ISOLATED",
-            func: () => {
-              globalThis.holdSuggestions = false;
-              globalThis.releaseSuggestions();
-            },
-          }),
-        writingSourceTab.id,
-      );
-      await sourcePage.waitForFunction(
-        () => document.documentElement.dataset.suggestionReleased === "true",
-      );
       assert.equal(
         await sourcePage
           .locator("div[data-grove-writing-ui]")
           .evaluate((element) => element.shadowRoot.activeElement?.textContent),
         "Ignore",
-        "alternatives arriving must not replace the focused action or steal keyboard focus",
+        "the keyboard action stays focusable alongside Harper alternatives",
       );
       await sourcePage
         .getByRole("button", { name: "Ignore", exact: true })
@@ -969,21 +997,6 @@ for (const target of ["chrome", "edge"])
       await sourcePage
         .getByRole("button", { name: "zorbler — Spelling", exact: true })
         .click();
-      await worker.evaluate(
-        async (tabId) =>
-          chrome.scripting.executeScript({
-            target: { tabId },
-            world: "ISOLATED",
-            func: () => {
-              globalThis.holdSuggestions = false;
-              globalThis.releaseSuggestions();
-            },
-          }),
-        writingSourceTab.id,
-      );
-      await sourcePage.waitForFunction(
-        () => document.documentElement.dataset.suggestionReleased === "true",
-      );
       await sourcePage
         .getByRole("dialog", { name: "Writing suggestions" })
         .getByText("zorbler", { exact: true })
@@ -994,7 +1007,7 @@ for (const target of ["chrome", "edge"])
           .getByText("sentnce", { exact: true })
           .count(),
         0,
-        "late alternatives must not revive an ignored or previously opened issue",
+        "the next issue must not reuse the ignored issue's suggestions",
       );
       await sourcePage
         .getByRole("button", { name: "All issues", exact: true })
@@ -1140,6 +1153,7 @@ for (const target of ["chrome", "edge"])
         requestsBeforeWriting,
         "website checking must not use HTTP/model requests",
       );
+      await checkNativePanel();
       const siteAIEnabled = await page.evaluate(
         async ({ accountId, connectionId, origin }) => {
           const window = await chrome.windows.getCurrent();

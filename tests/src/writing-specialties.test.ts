@@ -1,20 +1,8 @@
+import { checker } from "./fixtures/harper-checker.ts";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import {
-  createEnglishChecker,
-  writingSettingsSchema,
-} from "../../lib/shared/src/writing-core.ts";
+import { writingSettingsSchema } from "../../lib/shared/src/writing-core.ts";
 
-const load = (name: string) =>
-  readFileSync(
-    new URL(
-      `../../packages/website/public/dictionaries/en.${name}`,
-      import.meta.url,
-    ),
-    "utf8",
-  );
-const engine = createEnglishChecker({ aff: load("aff"), dic: load("dic") });
 const settings = writingSettingsSchema.parse({ grammar: false });
 for (const [field, prose, typo, correction] of [
   [
@@ -66,15 +54,19 @@ for (const [field, prose, typo, correction] of [
     "polyrhythm",
   ],
 ] as const) {
-  test(`recognizes ${field} terminology while still correcting nearby errors`, () => {
+  test(`recognizes ${field} terminology while still correcting nearby errors`, async () => {
     assert.deepEqual(
-      engine.check(prose, settings).issues.map((i) => i.original),
+      (await checker.check(prose, settings)).issues.map((i) => i.original),
       [],
     );
     assert.deepEqual(
-      engine.check(typo, settings).issues.map((i) => i.original),
+      (await checker.check(typo, settings)).issues.map((i) => i.original),
       [typo],
     );
-    assert.ok(engine.suggest(typo).includes(correction));
+    assert.ok(
+      (await checker.check(typo, settings)).issues[0].replacements.includes(
+        correction,
+      ),
+    );
   });
 }

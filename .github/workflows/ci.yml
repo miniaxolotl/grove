@@ -254,7 +254,7 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.selection).image }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -266,3 +266,5 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Rehearse private LanguageTool readiness, overload and restart
+        run: bash ops/languagetool/verify.sh

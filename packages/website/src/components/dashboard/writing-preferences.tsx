@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { dictionaryWordKey, personalWordLimit, writingRules, type WritingRule } from "@lib/shared/writing-settings";
+import { useEnhancedConsent } from "@/lib/writing/enhanced";
+import {
+  dictionaryWordKey,
+  personalWordLimit,
+  writingRules,
+  type WritingRule,
+} from "@lib/shared/writing-settings";
 import {
   loadWritingSettings,
   saveWritingSettings,
@@ -97,6 +103,7 @@ function Row({
  * browser extension, independent word list until a shared dictionary lands.
  */
 export function WritingPreferences() {
+  const enhanced = useEnhancedConsent();
   const [settings, setSettings] = useState<WritingSettings>(() =>
     loadWritingSettings(),
   );
@@ -145,7 +152,7 @@ export function WritingPreferences() {
           Writing
         </h2>
         <p className="settings-section-description">
-          Spelling and grammar checks run on this device. Changes apply
+          Spelling and basic grammar run on this device. Changes apply
           immediately.
         </p>
       </header>
@@ -174,6 +181,45 @@ export function WritingPreferences() {
           checked={settings.grammar}
           onChange={(grammar) => update({ grammar })}
         />
+      </fieldset>
+      <fieldset className="ai-preference-group">
+        <legend>
+          <h3>Enhanced grammar</h3>
+        </legend>
+        <Row
+          id="writing-enhanced"
+          label="Enhanced grammar"
+          description="Send only the paragraph you check to Grove’s private grammar service for additional suggestions."
+          checked={enhanced.preference?.enabled ?? false}
+          disabled={!enhanced.preference || (!enhanced.preference.available && !enhanced.preference.enabled)}
+          onChange={(enabled) =>
+            void enhanced.refresh({ enabled, automatic: false })
+          }
+        />
+        {enhanced.grant?.enabled && (
+          <Row
+            id="writing-enhanced-auto"
+            label="Automatically check edited paragraphs"
+            description="Send the edited paragraph after a typing pause. Leave off to check only when you ask."
+            checked={enhanced.grant.automatic}
+            onChange={(automatic) =>
+              void enhanced.refresh({ enabled: true, automatic })
+            }
+          />
+        )}
+        {enhanced.preference?.available === false && <p role="status">Enhanced grammar is unavailable on this installation. On-device checks still work.</p>}
+        {enhanced.failed && (
+          <p role="status">
+            Enhanced settings couldn’t be confirmed.{" "}
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => void enhanced.refresh()}
+            >
+              Retry
+            </button>
+          </p>
+        )}
       </fieldset>
       <div className="writing-secondary">
         <details className="settings-options">

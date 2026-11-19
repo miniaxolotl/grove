@@ -134,6 +134,7 @@ services:
       <<: *runtime
       DATABASE_URL: postgresql://grove_api:${API_DATABASE_PASSWORD}@postgres:5432/grove
       SHARE_LINK_KEY: ${SHARE_LINK_KEY:-}
+      LANGUAGETOOL_URL: ${LANGUAGETOOL_URL:-}
       OPENAI_APPS_CHALLENGE: ${OPENAI_APPS_CHALLENGE:-}
       EXA_API_KEY: ${EXA_API_KEY:-}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
@@ -154,7 +155,24 @@ services:
       ]
     depends_on:
       migrate: { condition: service_completed_successfully }
-    networks: [database, outbound]
+    networks: [database, outbound, proofing]
+
+  languagetool:
+    profiles: [proofing]
+    build: ./ops/languagetool
+    restart: unless-stopped
+    networks: [proofing]
+    read_only: true
+    tmpfs: ["/tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777"]
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1.0
+    pids_limit: 100
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    ulimits:
+      core: 0
+    logging: { driver: none }
 
   worker:
     image: grove-api:local
@@ -188,6 +206,7 @@ services:
     networks: [database, outbound]
 
 networks:
+  proofing: { internal: true }
   database: { internal: true }
   outbound: {}
 volumes:

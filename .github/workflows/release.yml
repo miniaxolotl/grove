@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  pull-requests: read
 concurrency:
   group: release-please-development
   cancel-in-progress: false
@@ -39,7 +40,7 @@ jobs:
         with:
           token: ${{ github.token }}
           target-branch: development
-          config-file: release-please-website.json
+          config-file: ${{ needs.scope.outputs.config }}
           manifest-file: .release-please-manifest.json
       - name: Explicit CI dispatch for token-authored release PRs
         if: steps.release.outputs.prs_created == 'true'

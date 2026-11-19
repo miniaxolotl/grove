@@ -163,6 +163,8 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
         projectIds: [],
       });
       await target("api_keys").delete();
+      // Require fresh editor consent: an older backup cannot prove a current grant.
+      await target("proofing_consents").delete();
       // A restored live link may have been revoked or narrowed after the backup.
       const invalidatedShares = await target("public_shares").update({
         revokedAt: target.fn.now(),

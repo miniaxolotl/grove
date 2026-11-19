@@ -1,17 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { EditorView } from "@codemirror/view";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { EditorView, ViewUpdate } from "@codemirror/view";
 import {
   dictionaryWordKey,
   englishMessages,
-  mapIgnoredIssues,
   personalWordLimit,
   type WritingIssue,
   type WritingPatch,
   type WritingSettings,
 } from "@lib/shared/writing-settings";
-import { loadWritingChecker } from "@/lib/writing/dictionary";
+import { isolateHistory } from "@codemirror/commands";
+import { openWritingChecker } from "@/lib/writing/harper";
+import { useEnhancedConsent } from "@/lib/writing/enhanced";
+import {
+  EditorChecks,
+  type CheckState,
+  type WritingStatus,
+} from "@/lib/writing/editor-checks";
 import {
   loadWritingSettings,
   NATIVE_WRITING_ATTRIBUTE,
@@ -20,323 +33,170 @@ import {
 } from "@/lib/writing/settings";
 import { setWritingIssues } from "@/lib/writing/proofing";
 
-export type WritingStatus =
-  | "idle"
-  | "checking"
-  | "ready"
-  | "unavailable"
-  | "off";
-
+const blank: CheckState = {
+  issues: [],
+  status: "idle",
+  notice: "",
+  enhancedStatus: "",
+};
 export function useWritingProofing(
   view: EditorView | null,
-  doc: string,
-  options: { disabled?: boolean; preview?: boolean } = {},
+  {
+    disabled,
+    preview,
+    noteId,
+  }: { disabled?: boolean; preview?: boolean; noteId?: string },
 ) {
-  const { disabled = false, preview = false } = options;
-  const [settings, setSettings] = useState<WritingSettings>(() =>
-    loadWritingSettings(),
-  );
-  const [issues, setIssues] = useState<WritingIssue[]>([]);
+  const [settings, setSettings] =
+    useState<WritingSettings>(loadWritingSettings);
+  const [result, setResult] = useState<CheckState>(blank);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [listOpen, setListOpen] = useState(false);
-  const [status, setStatus] = useState<WritingStatus>("idle");
   const [notice, setNotice] = useState("");
-  const [lookup, setLookup] = useState<{ id: string; words: string[] } | null>(
-    null,
-  );
-  const checker = useRef<ReturnType<typeof loadWritingChecker> | null>(null);
-  const snapshot = useRef("");
-  const ignored = useRef<WritingIssue[]>([]);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const composing = useRef(false);
-  const abort = useRef<AbortController | null>(null);
-  const state = useRef({ settings, disabled, preview, doc });
-  useEffect(() => {
-    state.current = { settings, disabled, preview, doc };
-  });
-
-  useEffect(() => subscribeWritingSettings(() => setSettings(loadWritingSettings())), []);
-
   const active =
-    !disabled && !preview && settings.enabled && (settings.spelling || settings.grammar);
-
-  // First-party ownership marker: the browser extension stands down on pages
-  // that advertise native proofing, so two writers never share one editor.
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (!view || !active) {
-      if (!document.querySelector("[data-grove-native-writing]")) return;
-      document.documentElement.removeAttribute(NATIVE_WRITING_ATTRIBUTE);
-      return;
-    }
-    document.documentElement.setAttribute(NATIVE_WRITING_ATTRIBUTE, "true");
+    !preview &&
+    !disabled &&
+    settings.enabled &&
+    (settings.grammar || settings.spelling);
+  const {
+    grant: consent,
+    request,
+    current,
+  } = useEnhancedConsent(!!view && active);
+  const grant = consent?.enabled ? consent : null;
+  const worker = useRef<ReturnType<typeof openWritingChecker> | null>(null);
+  const controller = useRef<EditorChecks | null>(null);
+  const ignored = useRef<WritingIssue[]>([]);
+  useLayoutEffect(() => {
+    ignored.current = [];
     return () => {
-      document.documentElement.removeAttribute(NATIVE_WRITING_ATTRIBUTE);
+      worker.current?.dispose();
+      worker.current = null;
     };
-  }, [view, active]);
-
-  // Native browser spellcheck draws a second set of underlines; the qualified
-  // Grove adapter replaces its visual function while active and restores it.
-  useEffect(() => {
-    const element = view?.contentDOM;
-    if (!element) return;
-    const previous = element.getAttribute("spellcheck");
-    element.setAttribute("spellcheck", active ? "false" : "true");
+  }, [view, noteId]);
+  useLayoutEffect(() => {
+    if (!active || !view) return;
+    const checks = new EditorChecks(
+      view,
+      settings,
+      { grant, request, current },
+      worker,
+      ignored,
+      setResult,
+    );
+    controller.current = checks;
     return () => {
-      if (previous === null) element.removeAttribute("spellcheck");
-      else element.setAttribute("spellcheck", previous);
+      checks.stop();
+      controller.current = null;
     };
-  }, [view, active]);
-
-  const runCheck = useCallback(
-    async (text: string, manual: boolean) => {
-      const current = state.current;
-      if (
-        current.disabled ||
-        current.preview ||
-        !current.settings.enabled ||
-        (!current.settings.spelling && !current.settings.grammar)
-      ) {
-        setIssues([]);
-        setStatus("off");
-        return;
-      }
-      if (!manual && !current.settings.automatic) {
-        if (!abort.current)
-          setStatus((previous) => previous === "checking" ? "idle" : previous);
-        return;
-      }
-      if (!text.trim()) {
-        snapshot.current = text;
-        ignored.current = [];
-        setIssues([]);
-        setStatus("ready");
-        return;
-      }
-      setStatus("checking");
-      setNotice("");
-      const controller = new AbortController();
-      try {
-        abort.current?.abort();
-        abort.current = controller;
-        checker.current ??= loadWritingChecker();
-        const engine = await checker.current;
-        controller.signal.throwIfAborted();
-        if (abort.current !== controller || state.current.doc !== text) return;
-        const fresh = engine.check(text, state.current.settings);
-        const kept = mapIgnoredIssues(snapshot.current, text, ignored.current);
-        ignored.current = kept;
-        const hidden = new Set(kept.map((issue) => issue.id));
-        snapshot.current = text;
-        setIssues(fresh.issues.filter((issue) => !hidden.has(issue.id)));
-        setStatus("ready");
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        checker.current = null;
-        if (abort.current !== controller) return;
-        setStatus("unavailable");
-        setNotice(
-          error instanceof Error
-            ? error.message
-            : "Writing checks aren’t available. Try again.",
-        );
-      }
-    },
+  }, [active, view, settings, grant, request, current, noteId]);
+  useEffect(
+    () => subscribeWritingSettings(() => setSettings(loadWritingSettings())),
     [],
   );
-
-  const checkNow = useCallback(
-    (manual = true) => runCheck(state.current.doc, manual),
-    [runCheck],
-  );
-
   useEffect(() => {
-    if (timer.current) clearTimeout(timer.current);
-    // Scheduling only: all state updates happen in the async check, never
-    // synchronously in this effect. Empty and inactive states resolve there.
-    timer.current = setTimeout(
-      () => {
-        if (!composing.current) void runCheck(state.current.doc, false);
-      },
-      composing.current ? 800 : 350,
-    );
+    if (!view) return;
+    // Preserve first-party ownership even when the writer opts out.
+    document.documentElement.setAttribute(NATIVE_WRITING_ATTRIBUTE, "true");
+    const previous = view.contentDOM.getAttribute("spellcheck");
+    view.contentDOM.setAttribute("spellcheck", active ? "false" : "true");
     return () => {
-      if (timer.current) clearTimeout(timer.current);
-      // This editor may stop waiting, but another consumer can still need
-      // the pending dictionary. Discard this run's results, not the fetch.
-      abort.current = null;
+      document.documentElement.removeAttribute(NATIVE_WRITING_ATTRIBUTE);
+      if (previous === null) view.contentDOM.removeAttribute("spellcheck");
+      else view.contentDOM.setAttribute("spellcheck", previous);
     };
-  }, [view, doc, active, settings.automatic, runCheck]);
-
-  // Keep decorations in sync with the visible issue set.
+  }, [view, active]);
+  const issues = active ? result.issues : blank.issues;
   const visible = useMemo(
     () => (settings.highlights ? issues : []),
-    [settings.highlights, issues],
+    [issues, settings.highlights],
   );
   useEffect(() => {
     if (view) view.dispatch({ effects: setWritingIssues.of(visible) });
   }, [view, visible]);
-
-  // Click an underline to review it; Alt+Enter opens the issue list.
   useEffect(() => {
-    if (!view) return;
-    const element = view.dom;
-    const onClick = (event: MouseEvent) => {
-      if (!event.isTrusted) return;
+    if (!view || !active) return;
+    const click = (event: MouseEvent) => {
+      if (!event.isTrusted || !view.state.selection.main.empty) return;
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-      if (pos == null || view.state.selection.main.from !== view.state.selection.main.to)
-        return;
-      const hit = issues.find((issue) => issue.from <= pos && pos <= issue.to);
+      const hit = issues.find(
+        (i) => pos !== null && i.from <= pos && pos <= i.to,
+      );
       if (hit) {
         setSelectedId(hit.id);
         setListOpen(false);
+        setNotice("");
       }
     };
-    const onKey = (event: KeyboardEvent) => {
+    const key = (event: KeyboardEvent) => {
       if (event.isTrusted && event.altKey && event.key === "Enter") {
         event.preventDefault();
         setListOpen(true);
       }
     };
-    const onComposition = (event: Event) => {
-      composing.current = event.type === "compositionstart";
-      if (composing.current && timer.current) clearTimeout(timer.current);
-    };
-    element.addEventListener("click", onClick);
-    element.addEventListener("keydown", onKey);
-    element.addEventListener("compositionstart", onComposition);
-    element.addEventListener("compositionend", onComposition);
+    view.dom.addEventListener("click", click);
+    view.dom.addEventListener("keydown", key);
     return () => {
-      element.removeEventListener("click", onClick);
-      element.removeEventListener("keydown", onKey);
-      element.removeEventListener("compositionstart", onComposition);
-      element.removeEventListener("compositionend", onComposition);
+      view.dom.removeEventListener("click", click);
+      view.dom.removeEventListener("keydown", key);
     };
-  }, [view, issues]);
-
-  const selected = issues.find((issue) => issue.id === selectedId) ?? null;
-
-  const selectIssue = useCallback((id: string | null) => {
-    setSelectedId(id);
-    if (id) {
-      setListOpen(false);
-      setNotice("");
+  }, [view, issues, active]);
+  const selected = issues.find((i) => i.id === selectedId) ?? null;
+  const applyReplacement = (issue: WritingIssue, replacement: string) => {
+    if (!view || !controller.current?.canApply(issue, replacement)) {
+      setNotice("Writing changed. Check again before applying.");
+      return false;
     }
-  }, []);
-  const alternatives =
-    selected && lookup?.id === selected.id
-      ? lookup.words
-      : (selected?.replacements ?? []);
-
-  // Lookup-only suggestions when a spelling card opens: typing never suggests.
-  // The derived fallback above covers the synchronous render; this effect only
-  // fills in the async lookup result.
-  useEffect(() => {
-    if (!selected || selected.rule !== "spelling" || !checker.current) return;
-    let cancelled = false;
-    checker.current
-      .then((engine) => {
-        if (!cancelled)
-          setLookup({ id: selected.id, words: engine.suggest(selected.original) });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [selected]);
-
-  const applyReplacement = useCallback(
-    (issue: WritingIssue, replacement: string) => {
-      const editor = view;
-      if (!editor) return false;
-      const doc = editor.state.doc.toString();
-      // Conservative apply: the live range must still hold the exact source
-      // text, and spelling suggestions come from the on-open lookup, not the
-      // issue payload — so validate the range, not issue membership.
-      if (
-        issue.from < 0 ||
-        issue.to > doc.length ||
-        issue.to <= issue.from ||
-        doc.slice(issue.from, issue.to) !== issue.original ||
-        replacement === issue.original
-      ) {
-        setNotice("Writing changed. Check it again before applying this suggestion.");
-        checkNow(true);
-        return false;
-      }
-      editor.dispatch({
-        changes: { from: issue.from, to: issue.to, insert: replacement },
-        selection: { anchor: issue.from + replacement.length },
-      });
-      editor.focus();
-      ignored.current = mapIgnoredIssues(
-        snapshot.current,
-        editor.state.doc.toString(),
-        ignored.current.filter((kept) => kept.id !== issue.id),
-      );
-      snapshot.current = editor.state.doc.toString();
-      setIssues((current) => current.filter((kept) => kept.id !== issue.id));
-      setSelectedId(null);
-      return true;
-    },
-    [view, checkNow],
-  );
-
-  const ignoreIssue = useCallback((issue: WritingIssue) => {
-    ignored.current = [...ignored.current, issue];
-    setIssues((current) => current.filter((kept) => kept.id !== issue.id));
+    view.dispatch({
+      changes: { from: issue.from, to: issue.to, insert: replacement },
+      selection: { anchor: issue.from + replacement.length },
+      annotations: isolateHistory.of("full"),
+      userEvent: "input.proofing",
+    });
+    view.focus();
     setSelectedId(null);
+    return true;
+  };
+  const updateSettings = (patch: WritingPatch) =>
+    setSettings(saveWritingSettings(patch));
+  const addWord = (word: string) => {
+    const { words } = loadWritingSettings();
+    if (words.some((w) => dictionaryWordKey(w) === dictionaryWordKey(word)))
+      return;
+    if (words.length >= personalWordLimit) {
+      setNotice("Dictionary full. Remove a word in Writing settings first.");
+      return;
+    }
+    updateSettings({ words: [...words, word] });
+    setSelectedId(null);
+  };
+  const onUpdate = useCallback((update: ViewUpdate) => {
+    controller.current?.change(update);
+    if (update.docChanged) setSelectedId(null);
   }, []);
-
-  const addWord = useCallback(
-    (word: string) => {
-      const clean = word.trim();
-      if (!clean) return;
-      const { words } = loadWritingSettings();
-      const key = dictionaryWordKey(clean);
-      if (!words.some((entry) => dictionaryWordKey(entry) === key)) {
-        if (words.length >= personalWordLimit) {
-          setNotice("Dictionary full. Remove a word in Writing settings first.");
-          return;
-        }
-        setSettings(saveWritingSettings({ words: [...words, clean] }));
-      }
-      setIssues((current) =>
-        current.filter(
-          (issue) =>
-            !(
-              issue.rule === "spelling" &&
-              dictionaryWordKey(issue.original) === key
-            ),
-        ),
-      );
-      setSelectedId(null);
-      checkNow(true);
-    },
-    [checkNow],
-  );
-
-  const updateSettings = useCallback(
-    (patch: WritingPatch) => setSettings(saveWritingSettings(patch)),
-    [],
-  );
-
   return {
     settings,
     updateSettings,
+    selected,
+    selectIssue: setSelectedId,
     issues,
     visible,
-    selected,
-    selectIssue,
+    alternatives: selected?.replacements ?? [],
+    applyReplacement,
+    ignoreIssue: (issue: WritingIssue) => {
+      controller.current?.ignore(issue);
+      setSelectedId(null);
+    },
+    addWord,
+    checkNow: () => controller.current?.checkLocal(),
+    checkEnhanced: () => controller.current?.manual(),
+    enhanced: grant?.enabled,
+    enhancedStatus: result.enhancedStatus,
     listOpen,
     setListOpen,
-    alternatives,
-    applyReplacement,
-    ignoreIssue,
-    addWord,
-    checkNow,
-    status: active ? status : "off",
-    notice,
+    status: active ? result.status : ("off" as const),
+    notice: notice || result.notice,
+    onUpdate,
   };
 }
 
@@ -416,7 +276,12 @@ export function WritingIssueCard({
     >
       <header>
         <strong>{writingCategoryLabel(issue.rule)}</strong>
-        <button type="button" className="grove-writing-close" onClick={() => onClose(true)} aria-label="Close suggestion">
+        <button
+          type="button"
+          className="grove-writing-close"
+          onClick={() => onClose(true)}
+          aria-label="Close suggestion"
+        >
           ×
         </button>
       </header>
@@ -435,7 +300,13 @@ export function WritingIssueCard({
           ))}
         </div>
       ) : (
-        <p className="grove-writing-original">“{issue.rule === "repetition" ? issue.original.trimStart() : issue.original}”</p>
+        <p className="grove-writing-original">
+          “
+          {issue.rule === "repetition"
+            ? issue.original.trimStart()
+            : issue.original}
+          ”
+        </p>
       )}
       {notice ? (
         <p className="grove-writing-notice" role="alert">
