@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.27](https://github.com/miniaxolotl/grove/compare/v1.11.26...v1.11.27) (2026-11-19)
+
+
+### Bug Fixes
+
+* **release:** reconcile the approved coordinated proofing candidate ([#289](https://github.com/miniaxolotl/grove/issues/289)) ([812f98e](https://github.com/miniaxolotl/grove/commit/812f98e8574711fe73440707b291978b1f8cc226))
+
 ## [1.11.26](https://github.com/miniaxolotl/grove/compare/v1.11.25...v1.11.26) (2026-11-19)
 
 
