@@ -42,7 +42,7 @@ export class WritingController {
   private result: WritingResult | null = null;
   private ignored = new Map<string, WritingIssue>();
   private previousText = "";
-  private suggestions = new Map<string, string[]>();
+  private pending: Promise<WritingResult> | undefined;
   private anchor: WritingIssue | undefined;
   private epoch = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -57,7 +57,6 @@ export class WritingController {
     private options: {
       settings: () => WritingSettings;
       check: (text: string) => Promise<WritingResult>;
-      suggest: (word: string) => Promise<string[]>;
       addWord: (word: string) => Promise<void>;
       status: (result: WritingResult | null, error?: string) => void;
       tools?: WritingToolTransport;
@@ -236,12 +235,15 @@ export class WritingController {
   async check() {
     this.invalidate();
     if (!this.allowed() || this.composing) return;
-    const epoch = this.epoch,
-      snapshot = this.editor.value,
+    const epoch = this.epoch;
+    // Keep just the latest eligible revision when edits arrive during startup.
+    if (this.pending) await this.pending.catch(() => undefined);
+    if (epoch !== this.epoch || !this.allowed() || this.composing) return;
+    const snapshot = this.editor.value,
       settings = this.options.settings();
     if (!snapshot.trim() || (!settings.spelling && !settings.grammar)) return;
     try {
-      const result = await this.options.check(snapshot);
+      const result = await (this.pending = this.options.check(snapshot));
       if (
         epoch !== this.epoch ||
         !this.allowed() ||
@@ -255,6 +257,8 @@ export class WritingController {
     } catch {
       if (epoch === this.epoch)
         this.options.status(null, "Writing checks could not load. Try again.");
+    } finally {
+      this.pending = undefined;
     }
   }
   private render() {
@@ -401,10 +405,6 @@ export class WritingController {
           ),
         );
     } else {
-      if (issue.rule === "spelling") {
-        const cached = this.suggestions.get(issue.original);
-        if (cached) issue.replacements = cached;
-      }
       const description = document.createElement("p");
       description.textContent = englishMessages[issue.message];
       const original = document.createElement("p");
@@ -414,51 +414,16 @@ export class WritingController {
       actions.className = "actions";
       const replacements = document.createElement("div");
       replacements.className = "replacements";
-      const showReplacements = () => {
-        replacements.replaceChildren();
-        for (const replacement of issue.replacements)
-          replacements.append(
-            this.button(
-              replacement || "Remove",
-              () => this.apply(issue, replacement),
-              "replacement",
-            ),
-          );
-        if (!issue.replacements.length)
-          replacements.textContent = "No alternative found.";
-      };
-      showReplacements();
-      if (issue.rule === "spelling" && !this.suggestions.has(issue.original)) {
-        const epoch = this.epoch;
-        const current = () =>
-          epoch === this.epoch &&
-          this.anchor === issue &&
-          !this.card.hidden &&
-          this.allowed() &&
-          this.snapshot === this.editor.value;
-        const load = () => {
-          replacements.textContent = "Finding alternatives…";
-          void this.options
-            .suggest(issue.original)
-            .then((values) => {
-              if (!current()) return;
-              if (this.suggestions.size >= 64)
-                this.suggestions.delete(this.suggestions.keys().next().value!);
-              this.suggestions.set(issue.original, values);
-              issue.replacements = values;
-              showReplacements();
-              this.schedulePosition();
-            })
-            .catch(() => {
-              if (!current()) return;
-              replacements.replaceChildren(
-                this.button("Retry alternatives", load),
-              );
-              this.schedulePosition();
-            });
-        };
-        load();
-      }
+      for (const replacement of issue.replacements)
+        replacements.append(
+          this.button(
+            replacement || "Remove",
+            () => this.apply(issue, replacement),
+            "replacement",
+          ),
+        );
+      if (!issue.replacements.length)
+        replacements.textContent = "No alternative found.";
       actions.append(
         this.button("All issues", () => this.review(), "close"),
         this.button("Ignore", () => {

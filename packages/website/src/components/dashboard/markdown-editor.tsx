@@ -70,7 +70,8 @@ import { workspaceCommand } from "@/lib/workspace-commands";
 import { NoteContextMenu } from "./note-context-menu";
 import { englishMessages } from "@lib/shared/writing-settings";
 import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
-import { writingField } from "@/lib/writing/proofing";import {
+import { writingField } from "@/lib/writing/proofing";
+import {
   useWritingProofing,
   WritingIssueCard,
   WritingStatusButton,
@@ -241,10 +242,12 @@ export function MarkdownEditor({
   const [writingMode, setWritingMode] = useState<"live" | "source">("live");
   const mode = preview ? "preview" : writingMode;
   const [proofingView, setProofingView] = useState<EditorView | null>(null);
-  const proofing = useWritingProofing(proofingView, documentValue, {
+  const proofing = useWritingProofing(proofingView, {
+    noteId,
     disabled,
     preview: mode === "preview",
   });
+  const observeProofing = useEffectEvent(proofing.onUpdate);
   const moveImage = (from: number, to: number, destination: number) => {
     const editor = view.current;
     if (
@@ -408,6 +411,7 @@ export function MarkdownEditor({
             if (update.selectionSet || update.docChanged)
               queueTracking("cursor");
             if (update.docChanged) {
+              observeProofing(update);
               change.current(
                 update.state.doc.toString(),
                 update.transactions.some(
@@ -926,13 +930,15 @@ export function MarkdownEditor({
                 status={proofing.status}
                 count={proofing.issues.length}
                 onOpen={() => proofing.setListOpen(true)}
-                onRetry={() => proofing.checkNow(true)}
+                onRetry={() => proofing.checkNow()}
               />
+              {proofing.enhanced && <button type="button" className="text-button" onClick={() => void proofing.checkEnhanced()}>Check paragraph</button>}
+              {proofing.enhanced && proofing.enhancedStatus && <span role="status" className="grove-writing-status">{proofing.enhancedStatus}</span>}
               {!proofing.settings.automatic && proofing.status !== "off" && (
                 <button
                   type="button"
                   className="text-button"
-                  onClick={() => proofing.checkNow(true)}
+                  onClick={() => proofing.checkNow()}
                 >
                   Check writing
                 </button>
@@ -979,7 +985,7 @@ export function MarkdownEditor({
               <button
                 type="button"
                 className="text-button"
-                onClick={() => proofing.checkNow(true)}
+                onClick={() => proofing.checkNow()}
               >
                 Retry
               </button>

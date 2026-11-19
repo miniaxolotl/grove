@@ -41,14 +41,14 @@ async function openDraft(page: Page) {
   await expect(page.locator("html[data-grove-native-writing]")).toHaveCount(1);
 }
 
-test("superseding a check during dictionary loading keeps the next check usable", async ({ page }) => {
+test("superseding a check during worker startup keeps the next check usable", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
   });
-  const requested = page.waitForRequest("**/dictionaries/en.dic");
+  const requested = page.waitForRequest(/\/proofing\/worker\.js\?/);
   const gate = Promise.withResolvers<void>();
   let requests = 0;
-  await page.route("**/dictionaries/en.dic", async (route) => {
+  await page.route(/\/proofing\/worker\.js\?/, async (route) => {
     requests++;
     await gate.promise;
     await route.continue();
@@ -73,7 +73,7 @@ for (const width of [1440, 390]) {
       const editor = page.getByRole("textbox", {
         name: "What should stay with you?",
       });
-      // Engine + dictionary load lazily on first edit; status counts issues.
+      // Engine + worker load lazily on first edit; status counts issues.
       const status = page.locator(".grove-writing-status");
       await expect(status.first()).toContainText(/suggestion/, {
         timeout: 30000,
@@ -165,9 +165,9 @@ for (const width of [1440, 390]) {
 test("switching to manual checks discards an automatic check still loading", async ({
   page,
 }) => {
-  const requested = page.waitForRequest("**/dictionaries/en.dic");
+  const requested = page.waitForRequest(/\/proofing\/worker\.js\?/);
   const gate = Promise.withResolvers<void>();
-  await page.route("**/dictionaries/en.dic", async (route) => {
+  await page.route(/\/proofing\/worker\.js\?/, async (route) => {
     await gate.promise;
     await route.continue();
   });
@@ -177,7 +177,7 @@ test("switching to manual checks discards an automatic check still loading", asy
   await expect(checking).toBeVisible();
   // Preferences changed in another tab while the first check was waiting.
   const otherTab = await page.context().newPage();
-  await otherTab.goto(`${base}/dictionaries/en.aff`);
+  await otherTab.goto(`${base}/robots.txt`);
   await otherTab.evaluate(() => {
     localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
   });

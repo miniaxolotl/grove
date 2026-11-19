@@ -31,6 +31,7 @@ import { relationships } from "./relationship-migration.ts";
 import { publicSharing } from "./sharing-migration.ts";
 import { shareExpiration } from "./share-expiration-migration.ts";
 import { aiPreferences } from "./preferences-migration.ts";
+import { proofingConsents } from "./proofing-migration.ts";
 import { queueProcessing } from "./queue-migration.ts";
 import { notebookAssistance } from "./assistance-migration.ts";
 import { notebookLifecycle } from "./notebook-lifecycle-migration.ts";
@@ -287,6 +288,7 @@ export const migrations = [
   writingAllowance,
   dailyNotes,
   cacheRetention,
+  proofingConsents,
 ];
 
 export const migrationSource: Knex.MigrationSource<

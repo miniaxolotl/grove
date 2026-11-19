@@ -48,7 +48,6 @@ const writingController = new WritingController(
         preferences.enabled && !!state && approved(),
       ),
     check: (text) => rpc("writingCheck", { text }),
-    suggest: (word) => rpc("writingSuggest", { word }),
     tools: {
       availability: () => state?.identity.writingTools ?? unavailableWriting,
       consent: async (accepted) => {

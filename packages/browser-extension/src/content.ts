@@ -122,7 +122,6 @@ if (!environment.groveWritingInstalled) {
           complete: result.complete && text.length <= NOTE_CONTENT_MAX,
         };
       },
-      suggest: (word) => rpc("writingSiteSuggest", { word }),
       tools: {
         availability: () => (binding ? tools : unavailableWriting),
         consent: async (accepted) => {

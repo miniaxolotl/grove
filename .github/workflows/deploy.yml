@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     outputs:
-      mode: website-only
+      mode: ${{ steps.scope.outputs.mode }}
       sha: ${{ steps.candidate.outputs.sha }}
       tag: ${{ steps.candidate.outputs.tag }}
       version: ${{ steps.candidate.outputs.version }}
@@ -41,9 +41,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/release/promotion.mjs production "$GITHUB_SHA"
 
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE: ${{ steps.candidate.outputs.sha }}
+        run: node scripts/release/proofing-release.mjs "$SOURCE" released
+
   publish:
-    # The selective publisher has no npm/image credentials. Coordinated delivery
-    # needs a separately admitted installer-impact policy before reactivation.
     if: needs.candidate.outputs.mode == 'coordinated'
     needs: candidate
     runs-on: ubuntu-latest
@@ -55,6 +59,7 @@ jobs:
       id-token: write
     outputs:
       digest: ${{ steps.image.outputs.digest }}
+      checker: ${{ steps.checker.outputs.digest }}
     env:
       GH_TOKEN: ${{ github.token }}
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -154,6 +159,20 @@ jobs:
           sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Publish or verify the approved private checker image
+        id: checker
+        run: bash scripts/release/checker-image.sh
+      - name: Validate approved three-service proposal before npm publication
+        env:
+          GROVE_IMAGE_DIGEST: ${{ steps.existing.outputs.digest || steps.build.outputs.digest }}
+          CHECKER_DIGEST: ${{ steps.checker.outputs.digest }}
+        run: |
+          node scripts/ci/current-ref.mjs
+          [[ "$GROVE_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          tag="miniaxolotl/grove:sha-$RELEASE_SOURCE_SHA"
+          docker buildx imagetools create --prefer-index=false --tag "$tag" "ghcr.io/miniaxolotl/grove@$GROVE_IMAGE_DIGEST"
+          test "$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')" = "$GROVE_IMAGE_DIGEST"
+          node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --propose
       - name: Publish all coordinated npm artifacts
         run: node scripts/publish.mjs
       - id: image
@@ -173,8 +192,8 @@ jobs:
             done
           done
           echo "digest=$GROVE_IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
-          jq -n --arg sha "$RELEASE_SOURCE_SHA" --arg tag "$RELEASE_TAG" --arg digest "$GROVE_IMAGE_DIGEST" \
-            '{sha:$sha,tag:$tag,image:"ghcr.io/miniaxolotl/grove",digest:$digest}' > manifest.json
+          jq -n --arg sha "$RELEASE_SOURCE_SHA" --arg tag "$RELEASE_TAG" --arg digest "$GROVE_IMAGE_DIGEST" --arg checker "${{ steps.checker.outputs.digest }}" \
+            '{sha:$sha,tag:$tag,image:"ghcr.io/miniaxolotl/grove",digest:$digest,checker:{image:"miniaxolotl/grove",digest:$checker}}' > manifest.json
       - name: Attach verified browser downloads to the source release
         run: node scripts/release/assets.mjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -195,6 +214,7 @@ jobs:
       DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
       RELEASE_SOURCE_SHA: ${{ needs.candidate.outputs.sha }}
       GROVE_IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
+      RELEASE_TAG: ${{ needs.candidate.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -213,18 +233,25 @@ jobs:
           GROVE_WORKER_DATABASE_URL: ${{ secrets.GROVE_WORKER_DATABASE_URL }}
         run: node --import tsx scripts/release/database-preflight.mjs
       - name: Deploy the verified image to API and worker
-        run: node scripts/deploy-digitalocean.mjs --wait
+        env:
+          CHECKER_DIGEST: ${{ needs.publish.outputs.checker }}
+        run: node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --wait
       - name: Verify production API readiness
         run: curl --fail --retry 5 --max-time 30 https://api.usegrove.cloud/health/ready
 
   website-scope:
+    if: needs.candidate.outputs.mode == 'website-only'
     needs: candidate
     uses: ./.github/workflows/website-impact.yml
     with:
       source: ${{ needs.candidate.outputs.sha }}
 
   website:
-    needs: [candidate, website-scope]
+    needs: [candidate, website-scope, deploy]
+    if: >-
+      !cancelled() && needs.candidate.result == 'success' &&
+      ((needs.candidate.outputs.mode == 'website-only' && needs.website-scope.result == 'success' && needs.deploy.result == 'skipped') ||
+      (needs.candidate.outputs.mode == 'coordinated' && needs.deploy.result == 'success' && needs.website-scope.result == 'skipped'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: production
@@ -246,6 +273,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Verify the existing service, downloads, npm packages and website
+        if: needs.candidate.outputs.mode == 'website-only'
         id: receipts
         env:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
@@ -259,7 +287,7 @@ jobs:
           node --import tsx scripts/release/database-preflight.mjs
           curl --fail --retry 3 --max-time 30 https://api.usegrove.cloud/health/ready
       - name: Build and deploy the admitted website after backend readiness
-        if: steps.receipts.outputs.alreadyDelivered == 'false'
+        if: needs.candidate.outputs.mode == 'coordinated' || steps.receipts.outputs.alreadyDelivered == 'false'
         run: node scripts/release/website.mjs deploy
       - name: Verify the existing deployment is healthy on retry
         if: steps.receipts.outputs.alreadyDelivered == 'true'

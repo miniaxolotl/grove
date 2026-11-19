@@ -26,6 +26,13 @@ export type MessageSender = {
   tab?: { id?: number; windowId?: number; incognito?: boolean };
 };
 export type BrowserHost = NativePanelHost & {
+  offscreen?: {
+    createDocument(options: {
+      url: string;
+      reasons: ["WORKERS"];
+      justification: string;
+    }): Promise<void>;
+  };
   identity: BrowserIdentity;
   runtime: {
     id: string;

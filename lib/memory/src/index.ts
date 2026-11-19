@@ -132,6 +132,7 @@ export {
 } from "./conversation-documents.ts";
 export { SpeechJobs, speechHandlers, configureSpeech } from "./speech.ts";
 export { WritingTools, writingHandlers } from "./writing-jobs.ts";
+export { ProofingConsents } from "./proofing-consents.ts";
 export { exportHandlers, type ArtifactStore } from "./exports.ts";
 export {
   importHandlers,
