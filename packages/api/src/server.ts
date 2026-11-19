@@ -9,9 +9,14 @@ import { clerkDeletionRecipient } from "./deletion-recipient.ts";
 import { clerkAdminDirectory } from "./system-admin.ts";
 import { accountIdentity, closeTelemetry, telemetry } from "@lib/telemetry";
 import { requestCollectionAllowed } from "@lib/telemetry/context";
+import { releaseEntry } from "./release-hold.ts";
 import { configureSpeech } from "@lib/memory";
 
 export async function startServer() {
+  return releaseEntry("api", startRuntimeServer);
+}
+
+async function startRuntimeServer() {
   const runtime = await createRuntime();
   const { env, db, memories } = runtime;
   await configureSpeech(db, runtime.speech);
