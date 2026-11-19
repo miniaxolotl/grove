@@ -1,4 +1,3 @@
-import { availableParallelism } from "node:os";
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.WEBSITE_TEST_PORT || 4372);
@@ -9,7 +8,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.GITHUB_ACTIONS === "true" ? Math.min(4, availableParallelism()) : 2,
+  workers: 2,
   reporter: "list",
   use: {
     baseURL,
