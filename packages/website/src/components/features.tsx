@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { NotebookTools } from "./notebook-tools";
 import styles from "./overview.module.css";
 
 export function Features() {
@@ -11,10 +11,14 @@ export function Features() {
     >
       <div className={`page-container ${styles.featureSpread}`}>
         <div>
-          <h2 id="features-heading">Work with your notes</h2>
+          <h2 id="features-heading">Make more of your notes</h2>
           <dl className={styles.featureList}>
             <dt>Save notes</dt>
-            <dd>Write, import a PDF, or record a voice note.</dd>
+            <dd>
+              Keep lecture notes, PDFs and short voice recordings together.
+            </dd>
+            <dt>Read and listen</dt>
+            <dd>Transcribe a recording or hear your notes read aloud.</dd>
             <dt>Review edits</dt>
             <dd>Compare drafts or restore an earlier version.</dd>
             <dt>Share notes</dt>
@@ -27,23 +31,7 @@ export function Features() {
             Read the notebook guide
           </Link>
         </div>
-        <figure className={styles.revision}>
-          <picture>
-            <source
-              media="(max-width: 599px)"
-              srcSet="/images/marketing/revision-review-phone.webp"
-              width={340}
-              height={345}
-            />
-            <Image
-              src="/images/marketing/revision-review.webp"
-              width={640}
-              height={510}
-              sizes="(min-width: 800px) 44vw, 90vw"
-              alt="Revision history comparing two versions: ‘working’ is crossed out and ‘tested’ is underlined."
-            />
-          </picture>
-        </figure>
+        <NotebookTools />
       </div>
     </section>
   );

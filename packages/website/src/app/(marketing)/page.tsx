@@ -17,9 +17,12 @@ export default async function HomePage() {
     <main id="main" className={`notebook-home ${styles.overview}`}>
       <section className={styles.opening} aria-labelledby="hero-heading">
         <div className={`page-container ${styles.intro}`}>
-          <h1 id="hero-heading">Private notes, easy to find</h1>
+          <h1 id="hero-heading">Your AI notebook</h1>
           <div>
-            <p>Search your notes or ask Grove a question.</p>
+            <p>
+              Bring notes, readings and recordings together. Ask questions,
+              check the sources, and listen back.
+            </p>
             <div className={styles.actions}>
               <Link
                 href="/sign-up"

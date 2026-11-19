@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useClerk } from "@clerk/nextjs";
 import Link from "next/link";
-import { ExportTasks } from "./export-tasks";
+import { AccountExports } from "./export-tasks";
 import { ImportNotesButton } from "./import-notes-button";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { errorMessage } from "@/lib/dashboard-api";
@@ -80,7 +80,7 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
               </div>
             </section>
             <section className="app-panel">
-              <ExportTasks />
+              <AccountExports />
             </section>
             <section className="app-panel">
               <h2 className="font-editorial text-2xl">

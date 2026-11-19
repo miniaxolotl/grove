@@ -17,10 +17,10 @@
   margin-bottom: clamp(28px, 4vw, 54px);
 }
 .intro h1 {
-  font-size: clamp(42px, 5.4vw, 78px);
-  font-weight: 620;
-  letter-spacing: -0.052em;
-  line-height: 1.02;
+  font-size: clamp(40px, 4.6vw, 66px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
   max-width: 14ch;
   text-wrap: balance;
 }
@@ -47,7 +47,7 @@
   align-items: center;
   min-height: 44px;
   font-size: 15px;
-  font-weight: 520;
+  font-weight: 500;
   color: var(--brand-accent);
   text-decoration: underline;
   text-underline-offset: 4px;
@@ -57,9 +57,8 @@
   text-decoration-color: currentColor;
 }
 .stage {
-  background: #e5eddf;
-  border-radius: 10px;
-  padding: clamp(12px, 3.2vw, 46px);
+  background: transparent;
+  padding: 0;
 }
 .stage :global(.notebook-preview) {
   overflow: hidden;
@@ -117,17 +116,6 @@
   margin-top: 4px;
   line-height: 1.55;
   max-width: 44ch;
-}
-.revision {
-  background: #e4e9e2;
-  padding: clamp(14px, 3vw, 42px);
-  border-radius: 8px;
-}
-.revision img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 4px;
 }
 .setup {
   background: var(--brand-accent);

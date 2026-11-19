@@ -188,6 +188,9 @@ test("a filtered empty library can return to all memories without losing the que
     "",
   );
   await expect(
+    page.getByRole("textbox", { name: "Search notes" }),
+  ).toBeFocused();
+  await expect(
     page.getByRole("button", { name: /^I prefer concise/ }),
   ).toBeVisible();
 });

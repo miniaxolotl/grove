@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { tenant, type Knex } from "@lib/database";
 import { GroveError, type Principal } from "@lib/shared/contracts";
 import type {
   Task,
@@ -25,6 +26,51 @@ type TaskRow = {
 
 export const fingerprint = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
+
+// Shared by task status, authenticated download and the delivery-time check.
+function availability(row: TaskRow, version: string) {
+  const stale =
+    row.kind === "export" &&
+    row.status === "succeeded" &&
+    String(row.payload.exportVersion) !== version;
+  const expired =
+    row.expiresAt != null && new Date(row.expiresAt) <= new Date();
+  const downloadable =
+    row.kind === "export" &&
+    row.status === "succeeded" &&
+    !stale &&
+    row.expiresAt != null &&
+    !expired &&
+    !!row.result?.key;
+  return { stale, expired, downloadable };
+}
+
+export async function resolveExportReady(
+  db: Knex,
+  job: {
+    accountId: string;
+    exportTaskId: string | null;
+    exportPreparationId: string | null;
+  },
+): Promise<{ taskId: string; expiresAt: string } | null> {
+  if (!job.exportTaskId || !job.exportPreparationId) return null;
+  return tenant(db, job.accountId, async (trx) => {
+    const row = await trx("background_tasks as t")
+      .join("accounts as a", "a.id", "t.accountId")
+      .where({
+        "a.id": job.accountId,
+        "a.status": "active",
+        "t.kind": "export",
+        "t.id": job.exportTaskId,
+      })
+      .whereRaw("t.result->>'preparationId' = ?", [job.exportPreparationId!])
+      .first("t.*", "a.exportVersion");
+    if (!row || !availability(row, String(row.exportVersion)).downloadable)
+      return null;
+    return { taskId: row.id, expiresAt: new Date(row.expiresAt).toISOString() };
+  });
+}
+
 export class Tasks {
   constructor(
     private service: MemoryService,
@@ -348,11 +394,7 @@ export class Tasks {
     });
   }
   private present(row: TaskRow, version: string): Task {
-    const stale =
-      row.kind === "export" &&
-      row.status === "succeeded" &&
-      String(row.payload.exportVersion) !== version;
-    const expired = row.expiresAt && new Date(row.expiresAt) <= new Date();
+    const { stale, expired, downloadable } = availability(row, version);
     return {
       id: row.id,
       kind: row.kind,
@@ -379,12 +421,7 @@ export class Tasks {
             },
           }
         : {}),
-      downloadable:
-        row.kind === "export" &&
-        row.status === "succeeded" &&
-        !stale &&
-        !expired &&
-        !!row.result?.key,
+      downloadable,
     };
   }
 }

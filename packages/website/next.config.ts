@@ -13,6 +13,7 @@ if (upload && !process.env.SENTRY_AUTH_TOKEN)
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  allowedDevOrigins: ["10.8.0.5"],
   async headers() {
     return [
       ...["/sign-in/:path*", "/sign-up/:path*", "/app/:path*"].map(

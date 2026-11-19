@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL, URL } from "node:url";
 import { readGitHubJson } from "../ci/github-json.mjs";
+import { resolveDecision } from "./selected-decision.mjs";
 
 const tagPattern = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const hashPattern = /^[a-f0-9]{40}$/;
@@ -135,7 +136,8 @@ export function assertSelection(policy, pr, candidate, run, record) {
       record.target === pr.base.ref &&
       record.tag === candidate.tag &&
       record.sha === candidate.sha &&
-      record.tree === candidate.tree,
+      record.tree === candidate.tree &&
+      (record.decisionHash ?? null) === (candidate.decisionHash ?? null),
     "Frozen selection evidence mismatch",
   );
 }
@@ -202,6 +204,7 @@ function recordSelection(policy, candidate, pr) {
         sha: candidate.sha,
         tree: candidate.tree,
         sourceCiRun: candidate.ciRun,
+        decisionHash: candidate.decisionHash ?? null,
       },
       null,
       2,
@@ -294,6 +297,10 @@ export function resolveCandidate(policy, tag, tree) {
     ),
   };
   assertCandidate(policy, candidate, tree ?? sourceTree);
+  const selected = resolveDecision(sha, true);
+  candidate.decisionHash = selected?.hash ?? null;
+  candidate.decisionPredecessor =
+    selected?.manifest.predecessor.production ?? null;
   git("merge-base", "--is-ancestor", sha, "origin/development");
   candidate.ciRun = verifyCi(policy, sha);
   return candidate;
@@ -325,6 +332,11 @@ export function admitPromotion(policy, pr, mergeSha) {
     tag,
     git("rev-parse", `${mergeSha}^{tree}`),
   );
+  if (candidate.decisionPredecessor)
+    requireThat(
+      git("rev-parse", `${pr.head.sha}^1`) === candidate.decisionPredecessor,
+      "Selected promotion predecessor drift",
+    );
   authorizePromotion(policy, pr, candidate);
   requireThat(
     git("rev-parse", `${pr.head.sha}^{tree}`) === candidate.tree,
@@ -414,10 +426,21 @@ function openPromotion(policy, tag, target) {
       git("rev-parse", `${existing[0].head.sha}^{tree}`) === candidate.tree,
       "Frozen ref drift",
     );
+    if (candidate.decisionPredecessor)
+      requireThat(
+        git("rev-parse", `${existing[0].head.sha}^1`) ===
+          candidate.decisionPredecessor,
+        "Selected promotion predecessor drift",
+      );
     console.log(existing[0].html_url);
     recordSelection(policy, candidate, existing[0]);
     return;
   }
+  if (candidate.decisionPredecessor)
+    requireThat(
+      base === candidate.decisionPredecessor,
+      "Selected production predecessor changed; review a new source decision",
+    );
   const commit = api(`repos/${policy.repository}/git/commits`, {
     message: `chore(release): freeze ${tag} for ${target}\n\nSource: ${candidate.sha}\nTree: ${candidate.tree}`,
     tree: candidate.tree,

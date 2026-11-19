@@ -1,7 +1,7 @@
 export const positioning = {
-  title: "Grove | Private notes. Lasting context.",
+  title: "Grove | Your AI notebook",
   description:
-    "A private notebook for your ideas, plans and journal. Search by meaning, ask source-linked questions and carry context into your AI tools. Start free.",
+    "An AI notebook for study and thoughtful work. Keep notes, PDFs and short recordings together, ask source-linked questions and listen back. Start free.",
   shareText: "Keep your notes in one place. Find them again with Grove.",
   imageAlt:
     "Grove. Your notes, in one place. Write, organize and find them again.",

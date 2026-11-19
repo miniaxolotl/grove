@@ -1,5 +1,5 @@
 .page {
-  --pricing-field: #e8efdf;
+  --pricing-field: #e9eee7;
   color: var(--brand-ink);
   background: var(--brand-paper);
   font-variant-numeric: tabular-nums;
@@ -9,7 +9,9 @@
   padding-block: clamp(20px, 3vw, 40px);
 }
 .inner {
-  width: min(1184px, calc(100% - 40px));
+  width: 100%;
+  max-width: 1280px;
+  padding-inline: clamp(20px, 3.34vw, 48px);
   margin-inline: auto;
 }
 .page h1,
@@ -17,11 +19,11 @@
 .page strong {
   font-family: inherit;
   line-height: 1.1;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.025em;
 }
 .page h1 {
   margin: 0;
-  font-size: clamp(32px, 3vw, 44px);
+  font-size: clamp(34px, 4.2vw, 56px);
 }
 .page h2 {
   margin: 0;
@@ -40,6 +42,7 @@
   gap: clamp(32px, 6vw, 88px);
 }
 .offers {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: clamp(18px, 2vw, 28px);
 }
 .offers h2 {
@@ -70,7 +73,7 @@
 .rate strong,
 .rates strong {
   font-size: clamp(30px, 3vw, 42px);
-  font-weight: 550;
+  font-weight: 600;
 }
 .page a:is(:global(.button-primary), :global(.text-link)) {
   display: inline-flex;
@@ -110,7 +113,7 @@
   background: var(--pricing-field);
 }
 .table :is(th, td) {
-  padding: 9px 10px;
+  padding: 12px 14px;
   text-align: right;
 }
 .table th:first-child {
@@ -146,18 +149,5 @@
   .table :is(th, td) {
     padding: 9px 5px;
     font-size: 14px;
-  }
-}
-@media (prefers-color-scheme: dark) {
-  .page {
-    --brand-paper: #172019;
-    --brand-ink: #edf2e9;
-    --brand-accent: #c7df9e;
-    --pricing-field: #253429;
-    --brand-surface: #1e2a21;
-  }
-  .page :global(.button-primary) {
-    background: var(--brand-accent);
-    color: var(--brand-paper);
   }
 }

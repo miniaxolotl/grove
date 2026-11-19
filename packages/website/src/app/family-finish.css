@@ -1,11 +1,72 @@
 /* Public chrome only. Page composition belongs in composition.css. */
 .marketing-site {
+  --font-interface: var(--font-public-sans), Arial, sans-serif;
+  --brand-paper: #f7f8f5;
+  --brand-surface: #ffffff;
   --site-control: 44px;
   --site-radius: 4px;
+  background: var(--brand-paper);
+  color: var(--brand-ink);
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-interface);
+}
+.marketing-site :is(h1, h2, h3) {
+  text-wrap: balance;
+}
+.marketing-site :is(p, dd, li) {
+  text-wrap: pretty;
+}
+.marketing-site :is(a, button, summary, input, textarea, select):focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 4px;
+}
+.marketing-site .site-header .header-navigation > a[aria-current="page"] {
+  color: var(--brand-ink);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+.marketing-site :is(.hero-summary, .feature-row dd, .faq-answer) {
+  line-height: 1.65;
+}
+.marketing-site .product-redesign .section-title {
+  letter-spacing: -0.025em;
+  line-height: 1.18;
 }
 .marketing-site .page-container {
   max-width: 1280px;
   padding-inline: clamp(20px, 3.34vw, 48px);
+}
+.marketing-site .legal-heading h1 {
+  font-size: clamp(34px, 4.2vw, 56px);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.marketing-site .legal-heading > span,
+.marketing-site .legal-contents > p,
+.marketing-site .legal-contents a > span,
+.marketing-site .legal-body h2 > span {
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: normal;
+  color: var(--brand-muted);
+}
+.marketing-site :is(.legal-back, .legal-related a, .legal-contents a) {
+  min-height: 44px;
+  font-size: 14px;
+}
+.marketing-site .legal-body :is(p, li) {
+  color: var(--brand-ink);
+  font-size: 16px;
+  line-height: 1.75;
+}
+.marketing-site .legal-body > section + section {
+  border-top: 0;
+  padding-top: 16px;
+}
+.marketing-site .legal-contact {
+  background: var(--brand-surface);
+  border: 0;
+  border-radius: 4px;
 }
 .marketing-site .site-header .header-inner {
   height: 80px;
@@ -35,9 +96,21 @@
   min-height: var(--site-control);
   font-size: 14px;
 }
+@media (max-width: 359px) {
+  .marketing-site .site-header .header-actions > .navigation-account {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px;
+  }
+}
 .marketing-site .site-footer {
   background: var(--brand-paper);
   padding-block: 40px 20px;
+}
+.marketing-site .site-footer > .page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
 }
 .marketing-site .product-redesign .faq-item {
   background: transparent;
@@ -73,6 +146,7 @@
   gap: 8px;
 }
 .marketing-site .site-footer .footer-bottom {
+  margin-top: auto;
   align-items: flex-start;
   gap: 16px 32px;
 }
@@ -87,10 +161,10 @@
 .marketing-site .site-footer .footer-brand .site-brand {
   max-width: 100%;
 }
-.marketing-site .site-footer .footer-brand .site-brand img {
-  width: 280px;
-  max-width: 100%;
-  height: auto;
+.marketing-site .site-footer .footer-brand .site-brand :is(img, svg) {
+  width: auto;
+  max-width: 280px;
+  height: 52px;
 }
 .marketing-site .site-footer .footer-brand > p {
   max-width: 30ch;
@@ -104,6 +178,10 @@
 }
 .marketing-site .site-footer .bramble-family small {
   display: none;
+}
+.marketing-site .site-footer .bramble-family strong {
+  font-size: 14px;
+  font-weight: 600;
 }
 .marketing-site .site-footer .bramble-family nav {
   display: flex;
@@ -136,6 +214,9 @@
   .marketing-site .site-footer {
     padding-top: 32px;
   }
+  .marketing-site .site-footer > .page-container {
+    min-height: 648px;
+  }
   .marketing-site .site-footer .footer-main {
     grid-template-columns: 1fr 1fr;
     gap: 24px;
@@ -143,8 +224,9 @@
   .marketing-site .site-footer .footer-brand {
     grid-column: 1 / -1;
   }
-  .marketing-site .site-footer .footer-brand .site-brand img {
-    width: 220px;
+  .marketing-site .site-footer .footer-brand .site-brand :is(img, svg) {
+    max-width: 220px;
+    height: 40px;
   }
   .marketing-site .site-footer .footer-utilities {
     gap: 0 20px;

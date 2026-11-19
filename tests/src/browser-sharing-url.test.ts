@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { resolveShareUrl } from "../../packages/browser-extension/src/sharing.ts";
 
 const token = `gsh_${"A".repeat(43)}`;
-const siteOrigin = "https://usegrove.cloud";
+const siteOrigin = "https://grovenote.app";
 const now = Date.parse("2026-11-07T00:00:00.000Z");
 
 function state(url: string | undefined, expiresAt?: string | null) {

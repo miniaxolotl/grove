@@ -9,6 +9,7 @@ import {
   useState,
   type Dispatch,
   type SetStateAction,
+  type RefObject,
 } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
@@ -62,6 +63,7 @@ const sources = [
 ];
 
 export function LibraryFilterBar({
+  input,
   value,
   onChange,
   projects,
@@ -69,6 +71,7 @@ export function LibraryFilterBar({
   fixedProject,
   archive = false,
 }: {
+  input: RefObject<HTMLInputElement | null>;
   value: LibraryFilters;
   onChange: Dispatch<SetStateAction<LibraryFilters>>;
   projects: Project[];
@@ -81,7 +84,6 @@ export function LibraryFilterBar({
   const [tag, setTag] = useState(value.tag);
   const [expanded, setExpanded] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const input = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const done = useRef<HTMLButtonElement>(null);
@@ -182,7 +184,7 @@ export function LibraryFilterBar({
     };
     document.addEventListener("keydown", shortcut);
     return () => document.removeEventListener("keydown", shortcut);
-  }, []);
+  }, [input]);
   return (
     <div className="library-filter-bar">
       <form

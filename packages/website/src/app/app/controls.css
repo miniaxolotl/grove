@@ -164,6 +164,6 @@
 }
 .connection-grant:target {
   outline: 2px solid var(--color-leaf);
-  outline-offset: 3px;
+  outline-offset: -2px;
   scroll-margin-top: 2rem;
 }

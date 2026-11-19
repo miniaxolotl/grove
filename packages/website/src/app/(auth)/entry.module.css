@@ -1,6 +1,8 @@
 .page {
-  --entry-ground: var(--brand-paper);
-  --entry-surface: var(--brand-surface);
+  --font-interface: var(--font-public-sans), Arial, sans-serif;
+  font-family: var(--font-interface);
+  --entry-ground: #f7f8f5;
+  --entry-surface: #ffffff;
   --entry-ink: var(--brand-ink);
   --entry-muted: var(--brand-muted);
   --entry-line: var(--brand-line);
@@ -10,6 +12,7 @@
   padding: clamp(16px, 4vw, 48px) 16px;
   background: var(--entry-ground);
   color: var(--entry-ink);
+  color-scheme: light;
 }
 .column {
   width: min(100%, 26rem);
@@ -44,10 +47,25 @@
   /* The hosted form uses its configured Grove paper palette in either scheme. */
   color-scheme: light;
 }
+.entry :global(.cl-cardBox) {
+  box-shadow: none;
+  border: 1px solid var(--entry-line);
+  border-radius: 8px;
+}
+.entry :global(.cl-card) {
+  box-shadow: none;
+  border-radius: 8px;
+}
+.entry :global(.cl-formButtonPrimary),
+.entry :global(.cl-formFieldInput),
+.entry :global(.cl-socialButtonsBlockButton) {
+  min-height: 44px;
+  border-radius: 4px;
+}
 .notice {
   padding: clamp(24px, 6vw, 36px);
   border: 1px solid var(--entry-line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--entry-surface);
 }
 .notice h1 {
@@ -73,14 +91,5 @@
 @media (max-width: 600px) {
   .page {
     align-content: start;
-  }
-}
-@media (prefers-color-scheme: dark) {
-  .page {
-    --entry-ground: #191c1a;
-    --entry-surface: #222624;
-    --entry-ink: #edf2e8;
-    --entry-muted: #b5c3b4;
-    --entry-line: #354437;
   }
 }

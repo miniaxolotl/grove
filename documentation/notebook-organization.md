@@ -5,6 +5,20 @@ interface from the approved [organization plan](https://github.com/miniaxolotl/g
 Emulated/browser checks are not a claim
 that the owner's reported physical-phone gesture failures are repaired.
 
+## Find a notebook in a picker
+
+In Ask Grove, open **Look in notebook** and type any part of a notebook name
+or its path. For example, `stud` finds both **Field studies** and **Field
+studies / Interviews**. The same filter is available in workspace search,
+note and file filters, note properties, move destinations and import pickers.
+Each picker keeps its own choices, such as **All notes**, **Unfiled** or
+**Top level**.
+
+Use the arrow keys to browse matches and Enter to choose one. Filtering or
+browsing does not change the current scope. Escape or **Back**
+returns to the control with the previous selection; an enclosing dialog stays
+open. See the [Ask Grove example](design/screenshots/dropdown-contrast/ask-notebook-filter.png).
+
 ## Organize in the website
 
 - Open **Organize** in the sidebar’s Notebooks heading. On a phone, first expand

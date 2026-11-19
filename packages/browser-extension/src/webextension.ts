@@ -190,9 +190,9 @@ declare const __GROVE_EXTENSION_CONFIG__: ExtensionConfig;
 export const extensionConfig: ExtensionConfig =
   typeof __GROVE_EXTENSION_CONFIG__ === "undefined"
     ? {
-        apiOrigin: "https://api.usegrove.cloud",
-        siteOrigin: "https://usegrove.cloud",
-        issuer: "https://clerk.usegrove.cloud",
+        apiOrigin: "https://api.grovenote.app",
+        siteOrigin: "https://grovenote.app",
+        issuer: "https://clerk.grovenote.app",
         target: "chrome",
       }
     : __GROVE_EXTENSION_CONFIG__;

@@ -22,7 +22,7 @@ const publicPaths = new Set([
   "/writing",
 ]);
 
-const origin = "https://usegrove.cloud";
+const origin = "https://grovenote.app";
 function publicDocument(raw: string): boolean {
   return publicCampaignDocument(raw, origin, publicPaths);
 }

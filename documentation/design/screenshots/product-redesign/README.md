@@ -78,7 +78,7 @@ not billing activation, provider evaluation or production deployment.
 
 The [Install section](extension-install-options.png) shows all three store links,
 the Chrome availability label and the separate unsigned ZIP. The [Connections
-section](extension-connections-390.png) shows the same links in Settings.
+section](extension-connections-390.png) shows the same links in the older Settings layout. See the [current Connections gallery](../connections-search/README.md) for the updated setup actions.
 Captured from the local website build and synthetic signed-in fixture based on
 `40815f99`, cropped to the extension sections: Chromium at 1280 × 800 with an
 Edge desktop identity and at 390 × 844 with a mobile identity. The captures

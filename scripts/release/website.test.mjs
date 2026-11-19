@@ -151,7 +151,10 @@ test("website publishes only after build and current-ref checks, then verifies e
 
 test("website-only delivery requires exact scope and live backend verification before deployment", () => {
   const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
-  assert.match(workflow, /website:\n\s+needs: \[candidate, website-scope, deploy\]/);
+  assert.match(
+    workflow,
+    /website:\n\s+needs: \[candidate, website-scope, publish, deploy\]/,
+  );
   const website = workflow.split("\n  website:\n")[1];
   assert.doesNotMatch(website, /always\(\)|continue-on-error/);
   assert.match(website, /ref: \$\{\{ needs.candidate.outputs.sha \}\}/);
@@ -164,7 +167,7 @@ test("website-only delivery requires exact scope and live backend verification b
   // check. A retry must verify the live site before it accepts the receipt.
   assert.match(
     website,
-    /if: steps\.receipts\.outputs\.alreadyDelivered == 'true'\s+run: \|\s+node scripts\/release\/website\.mjs preflight\s+test "\$\(curl [^\n]+https:\/\/usegrove\.cloud\/\)" = 200[\s\S]*upload-artifact/,
+    /if: steps\.receipts\.outputs\.alreadyDelivered == 'true'\s+run: \|\s+node scripts\/release\/website\.mjs preflight\s+test "\$\(curl [^\n]+https:\/\/grovenote\.app\/\)" = 200[\s\S]*upload-artifact/,
   );
   assert.ok(
     workflow.indexOf("node scripts/release/website.mjs preflight") <

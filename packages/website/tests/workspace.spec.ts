@@ -153,6 +153,60 @@ for (const width of [1440, 390, 320]) {
   });
 }
 
+test("library search keeps its filters and focus when a slow read is cancelled and resumed", async ({
+  page,
+}, info) => {
+  await fixture(page);
+  const hold = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
+  let requests = 0;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    if (route.request().postDataJSON()?.query !== "keyboard access")
+      return route.fallback();
+    if (++requests === 1) {
+      started.resolve();
+      await hold.promise;
+      return route.fulfill({
+        json: { success: true, data: { items: [], nextCursor: null } },
+      });
+    }
+    return route.fallback();
+  });
+  await page.goto(`${base}/app`);
+  const input = page.getByRole("textbox", {
+    name: "Search notes",
+    exact: true,
+  });
+  await expect(page.locator(".memory-row")).toHaveCount(2);
+  await page.keyboard.press("/");
+  await expect(input).toBeFocused();
+  await input.fill("keyboard access");
+  await started.promise;
+  await expect(
+    page.getByText("Searching notes…", { exact: true }),
+  ).toBeVisible();
+  const aborted = page.waitForEvent("requestfailed", {
+    predicate: (r) =>
+      r.url().endsWith("/memories/search") &&
+      r.postDataJSON()?.query === "keyboard access",
+  });
+  await page.getByRole("button", { name: "Cancel search" }).press("Enter");
+  await aborted;
+  hold.resolve();
+  await expect(
+    page.getByText("Search cancelled", { exact: true }),
+  ).toBeVisible();
+  await expect(input).toHaveValue("keyboard access");
+  await page.getByRole("button", { name: "Search again" }).press("Enter");
+  await expect(input).toBeFocused();
+  await expect(page.locator(".memory-row")).toHaveCount(1);
+  await expect(page.locator(".memory-row")).toContainText("Launch checklist");
+  expect(requests).toBe(2);
+  await page.screenshot({
+    path: info.outputPath("search-library-results.png"),
+  });
+});
+
 test("search quality defaults to relevance and preserves an explicit date sort", async ({
   page,
 }) => {
@@ -895,16 +949,31 @@ test("global search and command dialogs keep their inputs anchored through loadi
       (await dialog.locator(".app-search").boundingBox())!.height,
     ).toBeLessThanOrEqual(56);
     // Each viewport needs a cold query; a repeated phrase reuses the fresh cache.
-    await input.fill(`Something missing at ${width}px`);
+    const phrase = width === 1440 ? "Quarterly planning" : "Garden layout";
+    await input.fill(phrase);
     await started.promise;
     await expect(dialog.getByRole("status")).toHaveText("Searching…");
+    await page.screenshot({
+      path: info.outputPath(`search-loading-${width}.png`),
+    });
     expect(await dialog.boundingBox()).toEqual(before);
     expect(await input.boundingBox()).toEqual(inputBefore);
+    await dialog.getByRole("button", { name: "Cancel search" }).click();
+    await expect(dialog.getByRole("status")).toHaveText("Search cancelled");
+    await page.screenshot({
+      path: info.outputPath(`search-cancelled-${width}.png`),
+    });
+    await expect(input).toHaveValue(phrase);
+    await dialog.getByRole("button", { name: "Search again" }).click();
     release.resolve();
     await expect(
-      dialog.getByText("No notes found. Try another phrase or notebook."),
+      dialog.getByText("No matching notes", { exact: true }),
     ).toBeVisible();
     expect(await dialog.boundingBox()).toEqual(before);
+    await expect(input).toBeFocused();
+    await dialog.screenshot({
+      path: info.outputPath(`search-empty-${width}.png`),
+    });
     await dialog
       .getByRole("button", { name: "Clear search your grove" })
       .click();
@@ -3428,6 +3497,7 @@ test("note search shares the palette shell through notebook filtering, errors an
   const retry = dialog.getByRole("button", { name: "Try again", exact: true });
   await expect(retry).toBeVisible();
   const bounds = await dialog.boundingBox();
+  await page.screenshot({ path: info.outputPath("search-error-mobile.png") });
   failed = false;
   await retry.focus();
   await retry.press("Enter");
@@ -3440,10 +3510,81 @@ test("note search shares the palette shell through notebook filtering, errors an
   });
   expect(await dialog.boundingBox()).toEqual(bounds);
   await page.screenshot({ path: info.outputPath("note-search-mobile.png") });
-  await result.focus();
+  await expect(input).toBeFocused();
+  await input.press("ArrowDown");
+  await expect(result).toBeFocused();
   await result.press("Enter");
   await expect(dialog).toHaveCount(0);
   await expect(page).toHaveURL(`${base}/app/memories/${handoff.id}`);
+});
+
+test("recent notes distinguish an unavailable list from an empty notebook", async ({
+  page,
+}) => {
+  await fixture(page);
+  const hold = Promise.withResolvers<void>();
+  let fail = true;
+  await page.route("**/api/grove/memories/search", async (route) => {
+    if (route.request().postDataJSON()?.limit !== 8) return route.fallback();
+    if (fail) {
+      await hold.promise;
+      return route.fulfill({
+        status: 400,
+        json: {
+          success: false,
+          error: {
+            code: "unavailable",
+            message: "Recent notes are unavailable.",
+          },
+        },
+      });
+    }
+    return route.fulfill({
+      json: { success: true, data: { items: [], nextCursor: null } },
+    });
+  });
+  await page.goto(`${base}/app`);
+  await page.getByRole("button", { name: "Search anything" }).click();
+  const dialog = page.getByRole("dialog", { name: "Search your Grove" });
+  await expect(dialog.getByRole("status")).toHaveText("Loading recent notes…");
+  hold.resolve();
+  await expect(
+    dialog.getByRole("heading", { name: "Recent notes couldn’t load" }),
+  ).toBeVisible();
+  fail = false;
+  await dialog.getByRole("button", { name: "Try again" }).press("Enter");
+  await expect(dialog.getByRole("status")).toHaveText("No recent notes");
+  await expect(dialog.getByRole("textbox")).toBeFocused();
+});
+
+test("an offline palette search can be cancelled before reconnecting", async ({
+  page,
+  context,
+}) => {
+  await fixture(page);
+  let lookups = 0;
+  await page.route("**/api/grove/ask", (route) => {
+    lookups++;
+    return route.fulfill({
+      json: { success: true, data: { sources: [note], statements: [] } },
+    });
+  });
+  await page.goto(`${base}/app`);
+  await page.getByRole("button", { name: "Search anything" }).click();
+  const dialog = page.getByRole("dialog", { name: "Search your Grove" });
+  await expect(dialog.locator(".quick-search-result")).toHaveCount(2);
+  await context.setOffline(true);
+  await dialog.getByRole("textbox").fill("review");
+  await expect(dialog.getByRole("status")).toHaveText(
+    "Waiting for a connection…",
+  );
+  await dialog.getByRole("button", { name: "Cancel search" }).press("Enter");
+  await context.setOffline(false);
+  await expect(dialog.getByRole("status")).toHaveText("Search cancelled");
+  expect(lookups).toBe(0);
+  await dialog.getByRole("button", { name: "Search again" }).press("Enter");
+  await expect(dialog.getByRole("status")).toHaveText("1 matching note");
+  expect(lookups).toBe(1);
 });
 
 test("commands and shortcut help work from notes, preserve focus, and create in the current notebook", async ({
@@ -5977,11 +6118,16 @@ for (const width of [1440, 390, 320]) {
     }, info) => {
       await fixture(page, [note]);
       const release = Promise.withResolvers<void>();
+      const firstSearch = Promise.withResolvers<void>();
+      let waitingRequests = 0;
       let fail = true;
       await page.route("**/api/grove/ask", async (route) => {
         const { query } = askSchema.parse(route.request().postDataJSON());
-        if (query === "waiting") await release.promise;
-        if (query === "retry" && fail) {
+        if (query === "feedback" && ++waitingRequests === 1) {
+          firstSearch.resolve();
+          await release.promise;
+        }
+        if (query === "review" && fail) {
           await route.fulfill({
             status: 503,
             json: {
@@ -6000,7 +6146,7 @@ for (const width of [1440, 390, 320]) {
             data: {
               status: "search",
               searchMode: "hybrid",
-              sources: query === "missing" ? [] : [note],
+              sources: query === "meeting agenda" ? [] : [note],
               answer: null,
             },
           },
@@ -6022,23 +6168,31 @@ for (const width of [1440, 390, 320]) {
         .boundingBox())!;
       expect(Math.abs(modes.height - scope.height)).toBeLessThanOrEqual(1);
       const field = await input.boundingBox();
-      await input.fill("waiting");
+      await input.fill("feedback");
       await expect(status).toHaveText("Searching…");
+      await firstSearch.promise;
       await page.screenshot({
         path: info.outputPath(`search-pending-${width}.png`),
         fullPage: true,
       });
+      await page.getByRole("button", { name: "Cancel search" }).press("Enter");
+      await expect(status).toHaveText("Search cancelled");
+      release.resolve();
+      await expect(input).toHaveValue("feedback");
+      await page.getByRole("button", { name: "Search again" }).press("Enter");
+      await expect(status).toHaveText("1 note found");
+      expect(waitingRequests).toBe(2);
+      await expect(input).toBeFocused();
       await page
         .getByRole("button", { name: "Clear search saved notes" })
         .click();
       await expect(input).toBeFocused();
-      release.resolve();
       await expect(status).toHaveText("Search by words or meaning.");
       await expect(page.locator(".ask-source-list")).toHaveCount(0);
-      await input.fill("missing");
+      await input.fill("meeting agenda");
       await expect(status).toHaveText("0 notes found");
       await expect(page.locator(".ask-search-empty")).toBeVisible();
-      await input.fill("retry");
+      await input.fill("review");
       await expect(page.locator(".ask-search-results")).toContainText(
         "Search is temporarily unavailable.",
       );
@@ -6426,19 +6580,72 @@ test("workspace search includes personal notes and dialogs light-dismiss only on
     await page.getByRole("button", { name: "Close dialog" }).click();
   } else await page.mouse.click(2, 2);
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page
-    .getByRole("navigation", { name: "Workspace" })
-    .getByRole("link", { name: "Ask Grove", exact: true })
-    .click();
+});
+
+test("palette to Ask keeps scoped drafts separate from scratch and conversation drafts", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const draft = page.getByLabel("Ask about your notes");
+  const scope = page.getByRole("combobox", { name: "Look in notebook" });
+  const send = page.getByRole("button", { name: "Send question" });
+  async function fromPalette(scope: string, phrase: string) {
+    await page.keyboard.press("Control+k");
+    const dialog = page.getByRole("dialog", { name: "Search your Grove" });
+    await chooseOption(
+      dialog.getByRole("combobox", { name: "Search in notebook" }),
+      scope,
+    );
+    await dialog.getByLabel("Search your Grove", { exact: true }).fill(phrase);
+    await dialog.getByRole("button", { name: "Ask Grove about this" }).click();
+    await expect(draft).toHaveValue(phrase);
+  }
+  await page.goto(`${base}/app/ask`);
+  await draft.fill("Unsent global question");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  await page.keyboard.press("Control+k");
-  await dialog
-    .getByLabel("Search your Grove", { exact: true })
-    .fill("Summarize my review note");
-  await dialog.getByRole("link", { name: "Ask Grove about this" }).click();
-  await expect(page.getByLabel("Ask about your notes")).toHaveValue(
+  await fromPalette(project.id, "Summarize my review note");
+  await expect(scope).toHaveText(project.name);
+  await expect(page.getByLabel("Include unfiled notes")).not.toBeChecked();
+  expect(state.chats.size).toBe(0);
+  await send.click();
+  await expect(page.locator(".ask-statement")).toContainText("working example");
+  const [notebookChat] = state.chats.values();
+  expect(notebookChat.scope).toEqual({
+    projectId: project.id,
+    includePersonal: false,
+  });
+  await draft.fill("Unsent notebook follow-up");
+  await fromPalette("personal", "Find my unfiled plans");
+  await expect(scope).toHaveText("Unfiled");
+  await expect(page.locator(".ask-question")).toHaveCount(0);
+  expect(state.chats.size).toBe(1);
+  expect(notebookChat.turns).toHaveLength(1);
+  await draft.fill("Find my unfiled plans for Friday");
+  await page.goBack();
+  await expect(draft).toHaveValue("Unsent notebook follow-up");
+  await expect(page.locator(".ask-question")).toContainText(
     "Summarize my review note",
   );
+  await page.goBack();
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(draft).toHaveValue("Unsent global question");
+  await expect(scope).toHaveText("All notes");
+  await page.goForward();
+  await page.goForward();
+  await expect(draft).toHaveValue("Find my unfiled plans for Friday");
+  await send.click();
+  await expect(page.locator(".ask-statement")).toContainText("working example");
+  expect([...state.chats.values()].at(-1)?.scope).toEqual({
+    projectId: null,
+    includePersonal: false,
+  });
+  await fromPalette("all", "Review all my notes");
+  await expect(scope).toHaveText("All notes");
+  expect(state.chats.size).toBe(2);
+  expect(decodeURIComponent(page.url())).not.toContain("Review all my notes");
+  await page.reload();
+  await expect(page.getByText("This search draft is no longer available.")).toBeVisible();
+  await expect(draft).toHaveCount(0);
 });
 
 test("mobile notebook browsing keeps creation and dated writing in the selected notebook", async ({

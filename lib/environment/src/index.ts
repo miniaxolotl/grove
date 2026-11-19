@@ -283,8 +283,20 @@ const serverSchema = z.object({
     .max(86400)
     .default(900),
   RESEND_API_KEY: z.string().startsWith("re_").optional(),
-  EMAIL_FROM: z.string().email().default("notifications@mail.usegrove.cloud"),
+  EMAIL_EXPORT_READY_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  EMAIL_FROM: z.string().email().default("notifications@grovenote.app"),
   CURSOR_SECRET: z.string().min(32),
+  EMAIL_DELETION_RECEIPT_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  DELETION_RECEIPT_KEY: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/i)
+    .optional(),
   WRITING_STAGING_KEY: z
     .string()
     .regex(/^[0-9a-f]{64}$/i)
@@ -296,6 +308,20 @@ const serverSchema = z.object({
     .optional(),
 });
 export const serverEnvironmentSchema = serverSchema.superRefine((env, ctx) => {
+  if (
+    env.DELETION_RECEIPT_KEY &&
+    [
+      env.CURSOR_SECRET,
+      env.SHARE_LINK_KEY,
+      env.MODEL_SETTINGS_KEY,
+      env.WRITING_STAGING_KEY,
+    ].some((k) => k?.toLowerCase() === env.DELETION_RECEIPT_KEY!.toLowerCase())
+  )
+    ctx.addIssue({
+      code: "custom",
+      path: ["DELETION_RECEIPT_KEY"],
+      message: "Use a dedicated deletion receipt key",
+    });
   if (env.WRITING_STAGING_KEY && !env.WRITING_PROVIDER_NOTICE)
     ctx.addIssue({
       code: "custom",

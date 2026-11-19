@@ -6,7 +6,7 @@ path**, not a public-directory listing. Your chat plan and workspace policy must
 allow custom MCP connections; an organization administrator may need to add it.
 
 ```text
-https://api.usegrove.cloud/mcp
+https://api.grovenote.app/mcp
 ```
 
 For self-hosted Grove, use your own publicly reachable HTTPS API URL plus `/mcp`,
@@ -132,7 +132,7 @@ labels are not authenticated host identities.
 | Provider unavailable                       | Retry later; an outage is not an approved/connected state.                                                                               |
 
 Never paste access tokens, client secrets or private notes into support reports.
-Use the [support page](https://usegrove.cloud/support) with a sanitized error,
+Use the [support page](https://grovenote.app/support) with a sanitized error,
 host/date and request ID if available.
 
 ## Verification and release status

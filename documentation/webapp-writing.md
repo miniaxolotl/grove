@@ -46,7 +46,7 @@ immediately and stays on this device:
 
 ## Privacy and limits
 
-- Guests can use the [web writing checker](https://usegrove.cloud/writing)
+- Guests can use the [web writing checker](https://grovenote.app/writing)
   without an account. **Check writing** pairs each explanation with the word or
   phrase it refers to. For a spacing issue, it names the gap and shows the
   text that follows it. Text is checked locally and

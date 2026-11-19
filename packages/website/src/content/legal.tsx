@@ -12,7 +12,7 @@ export const privacy: LegalDocument = {
         <>
           <p>
             Grove is a developer tool operated by Bramble Labs Inc. This policy
-            covers usegrove.cloud, our hosted Grove service, and related
+            covers grovenote.app, our hosted Grove service, and related
             support. Contact <a href={contact.href}>{contact.email}</a> for
             privacy questions or requests.
           </p>
@@ -46,7 +46,11 @@ export const privacy: LegalDocument = {
               temporary machine suggestions and cached generated audio.
             </li>
             <li>
-              <strong>Writing checks:</strong> spelling and grammar run locally by default. If you sign in and enable Enhanced grammar in the note editor, Grove sends the paragraph being checked to its private LanguageTool service. You can turn this off in Writing settings. Guest and extension checks stay on your device.
+              <strong>Writing checks:</strong> spelling and grammar run locally
+              by default. If you sign in and enable Enhanced grammar in the note
+              editor, Grove sends the paragraph being checked to its private
+              LanguageTool service. You can turn this off in Writing settings.
+              Guest and extension checks stay on your device.
             </li>
             <li>
               <strong>Search information:</strong> recall queries and the memory
@@ -135,6 +139,15 @@ export const privacy: LegalDocument = {
             classification, and generate titles, tags and source-linked
             summaries and Ask Grove replies from selected memories. You can
             control these features independently in Settings.
+          </p>
+          <p>
+            When Grove sends an account notice, Resend receives your email
+            address and the message. If account deletion receipts are enabled,
+            Grove briefly stores an encrypted copy of your verified primary
+            address to acknowledge the request after access ends. It stops
+            trying after 23 hours and clears the copy on acceptance, final
+            failure or expiry cleanup. Backup copies may remain until the
+            backups expire. A receipt is not confirmation of physical erasure.
           </p>
           <p>
             When you enable Web search or Research in Ask Grove’s Tools menu,

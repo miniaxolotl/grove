@@ -123,7 +123,7 @@ import { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
 import { runTask } from "./task-runner.ts";
 import type { QueueLane } from "@lib/shared/jobs";
 export { cleanupHandlers, scheduleCleanup } from "./cleanup.ts";
-export { Tasks } from "./tasks.ts";
+export { Tasks, resolveExportReady } from "./tasks.ts";
 export { Files } from "./files.ts";
 export { DocumentImports, documentImportHandlers } from "./document-imports.ts";
 export {
@@ -1267,7 +1267,11 @@ export class MemoryService {
       return this.present(trx, row);
     });
   }
-  async listNoteMedia(principal: Principal, memoryId: string, version?: number) {
+  async listNoteMedia(
+    principal: Principal,
+    memoryId: string,
+    version?: number,
+  ) {
     const { MediaAttachments } = await import("./media.ts");
     return new MediaAttachments(this).listForNote(principal, memoryId, version);
   }
@@ -1285,13 +1289,18 @@ export class MemoryService {
       version,
     );
   }
-  async readMediaTranscript(principal: Principal, memoryId: string, id: string) {
+  async readMediaTranscript(
+    principal: Principal,
+    memoryId: string,
+    id: string,
+  ) {
     const { MediaAttachments } = await import("./media.ts");
     const attachments = new MediaAttachments(this);
     const meta = await attachments.describeForNote(principal, memoryId, id);
     if (!meta.mime.startsWith("audio/")) throw missing();
     const saved = await attachments.transcript(principal, memoryId, id);
-    const text = typeof saved.text === "string" ? saved.text.slice(0, 6000) : "";
+    const text =
+      typeof saved.text === "string" ? saved.text.slice(0, 6000) : "";
     return { text, version: saved.version, mediaId: id, memoryId };
   }
 
@@ -3087,12 +3096,31 @@ export class MemoryService {
       ),
     }));
   }
-  async deleteAccount(principal: Principal) {
+  async deleteAccount(
+    principal: Principal,
+    receipt?: { id: string; snapshot: Buffer },
+  ) {
     return this.access(principal, "admin", async ({ trx, account }) => {
-      await this.beforeAccountDeletion?.(trx, account.id);
       await trx("accounts")
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });
+      // Commit the deletion authority and durable billing intent atomically.
+      // This hook must not perform remote I/O or wait for provider completion.
+      await this.beforeAccountDeletion?.(trx, account.id);
+      // A receipt insert failure must not abort deletion; isolate it in a savepoint.
+      if (receipt && principal.type === "session") {
+        try {
+          await trx.transaction(async (savepoint) => {
+            await savepoint.raw("SET LOCAL lock_timeout='200ms'");
+            await savepoint("deletion_receipts").insert({
+              ...receipt,
+              accountId: account.id,
+            });
+          });
+        } catch {
+          console.info(JSON.stringify({ code: "receipt_intent_unavailable" }));
+        }
+      }
       // Every authenticated/public read and worker publication checks account
       // status. Per-record revocation is handled by bounded cleanup checkpoints.
       return { status: "deleting" };

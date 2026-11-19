@@ -4,11 +4,20 @@ Use Node 22+ for terminal clients; hosted chats need no local runtime.
 Server/development baseline is Node 24. See
 [delivery evidence](delivery.md) for tested host versions and provider gates.
 
-Grove Cloud is at [usegrove.cloud](https://usegrove.cloud), with API origin
-`https://api.usegrove.cloud`. Grove Open Source is the self-hosted edition.
-The [setup page](https://usegrove.cloud/install) has separate links to AI tool
+Grove Cloud is at [grovenote.app](https://grovenote.app), with API origin
+`https://api.grovenote.app`. Grove Open Source is the self-hosted edition.
+The [setup page](https://grovenote.app/install) has separate links to AI tool
 instructions and the browser extension guide. Neither is required to use the web
 notebook.
+
+Cloud client setup uses `https://api.grovenote.app`; its approval website is
+`https://grovenote.app` and its OAuth issuer is `https://clerk.grovenote.app`.
+The CLI bundled in the OpenCode, Claude Code and Codex packages must carry the
+same defaults. Verify the packed executables, not only the source or website:
+already-published versions do not change when a domain PR is merged. Publish
+bundled consumers through the coordinated release process and preserve explicit
+self-hosted origins. Reconnect through the supported setup flow when an existing
+grant is bound to the old resource; do not copy old tokens to a new origin.
 
 Connection names are prefilled and can be edited during setup or later under
 **Settings → Connections → Edit scope**. Choose **Hide** to move an old entry
@@ -109,7 +118,7 @@ For a named, scoped headless key created in Connections:
 
 ```sh
 # Supply the key via stdin from your credential manager, not a chat or argument.
-grove login --client claude --url https://api.usegrove.cloud --key-stdin
+grove login --client claude --url https://api.grovenote.app --key-stdin
 ```
 
 Services may set `GROVE_API_URL` and `GROVE_API_KEY` together. Credentials are bound
@@ -196,7 +205,7 @@ is a local/team marketplace package, not a submitted public-directory plugin.
 
 ## Other MCP clients
 
-Use remote Streamable HTTP `https://api.usegrove.cloud/mcp` with OAuth or an API key,
+Use remote Streamable HTTP `https://api.grovenote.app/mcp` with OAuth or an API key,
 or configure the local command:
 
 ```json

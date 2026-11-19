@@ -11,7 +11,7 @@ const env = {
     "postgresql://grove_jobs:private-worker@db.example/grove?sslmode=verify-full",
 };
 
-function fixture(fail = false) {
+function fixture(fail = false, missing = null) {
   const calls = [];
   return {
     calls,
@@ -19,7 +19,13 @@ function fixture(fail = false) {
       calls.push(["connect", new URL(url).username, options]);
       return {
         async transaction(run) {
-          return run({ raw: async (sql) => calls.push(["sql", sql]) });
+          return run({
+            raw: async (sql) => {
+              calls.push(["sql", sql]);
+              if (missing && sql.includes(missing))
+                throw new Error("private-worker missing schema");
+            },
+          });
         },
         async destroy() {
           calls.push(["close"]);
@@ -38,12 +44,25 @@ test("preflight probes both least-privilege roles inside read-only transactions 
   await preflightDatabases(env, dependencies);
   assert.deepEqual(
     dependencies.calls.map(([kind]) => kind),
-    ["connect", "sql", "probe", "close", "connect", "sql", "probe", "close"],
+    [
+      "connect",
+      "sql",
+      "probe",
+      "close",
+      "connect",
+      "sql",
+      "probe",
+      "sql",
+      "sql",
+      "sql",
+      "close",
+    ],
   );
   assert.equal(dependencies.calls[0][1], "grove_api");
   assert.equal(dependencies.calls[4][1], "grove_jobs");
   for (const [kind, value, options] of dependencies.calls) {
-    if (kind === "sql") assert.equal(value, "SET TRANSACTION READ ONLY");
+    if (kind === "sql")
+      assert.match(value, /^(SET TRANSACTION READ ONLY|SELECT )/);
     if (kind === "connect")
       assert.deepEqual(options, {
         ssl: true,
@@ -52,6 +71,37 @@ test("preflight probes both least-privilege roles inside read-only transactions 
         statementTimeoutMs: 10000,
       });
   }
+});
+
+test("worker preflight rejects missing email and receipt schema before publication without executing mail functions", async () => {
+  for (const missing of [
+    "fingerprint",
+    "deletion_receipts",
+    "grove_claim_receipt",
+  ]) {
+    const dependencies = fixture(false, missing);
+    await assert.rejects(
+      preflightDatabases(env, dependencies),
+      /worker schema preflight failed/,
+    );
+    assert.equal(dependencies.calls.at(-1)[0], "close");
+  }
+  const dependencies = fixture();
+  await preflightDatabases(env, dependencies);
+  const sql = dependencies.calls
+    .filter(([kind]) => kind === "sql")
+    .map(([, value]) => value)
+    .join("\n");
+  assert.match(
+    sql,
+    /SELECT fingerprint, export_task_id, export_preparation_id FROM transactional_emails LIMIT 0/,
+  );
+  assert.match(sql, /SELECT .* FROM deletion_receipts LIMIT 0/);
+  assert.match(sql, /'public.grove_claim_receipt\(uuid\)'::regprocedure/);
+  assert.doesNotMatch(
+    sql,
+    /SELECT (public\.)?grove_(dispatch|claim|sweep|mark)/,
+  );
 });
 
 test("missing, unsafe, or different database targets fail before connecting without leaking URLs", async () => {
