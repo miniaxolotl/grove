@@ -27,7 +27,10 @@ export function successfulReceipt(name, identity, evidence) {
       /^[a-f0-9]{40}$/.test(identity.productionSha) &&
       /^dpl_[A-Za-z0-9]+$/.test(identity.deploymentId) &&
       /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(identity.deploymentUrl) &&
-      identity.alias === "https://usegrove.cloud"
+      // Historical receipts remain immutable; new receipts use the new apex.
+      ["https://usegrove.cloud", "https://grovenote.app"].includes(
+        identity.alias,
+      )
     );
   if (name === "downloads")
     return assets.every((key) => digest.test(identity.assets?.[key]));

@@ -14,7 +14,7 @@ if (!["render", "send"].includes(command) || !target)
   throw Error(
     "Usage: node scripts/testing/email-previews.mjs render DIRECTORY | send REVIEW_ADDRESS",
   );
-const siteUrl = process.env.SITE_URL || "https://usegrove.cloud";
+const siteUrl = process.env.SITE_URL || "https://grovenote.app";
 const events = [
   { kind: "welcome" },
   { kind: "connection_approved" },

@@ -2,7 +2,7 @@
 
 Grove marketing and the Clerk-authenticated memory library, in private workspace package `website`.
 
-Primary URL: <https://usegrove.cloud>. A private notebook and connected-agent memory
+Primary URL: <https://grovenote.app>. A private notebook and connected-agent memory
 tool by Bramble Labs Inc. Grove uses Space Grotesk and JetBrains Mono with forest,
 paper and pale green. [The design kit](design-kit/README.md) includes approved assets,
 tokens, licences and a visual specimen at `/brand-kit/index.html`. Notebook signup
@@ -36,7 +36,7 @@ private routes show a setup state and no memory data.
 
 ## Production
 
-Set `SITE_URL=https://usegrove.cloud`, `GROVE_API_URL=https://api.usegrove.cloud`,
+Set `SITE_URL=https://grovenote.app`, `GROVE_API_URL=https://api.grovenote.app`,
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` in Vercel's production
 environment. Production builds follow the `production` branch; previews use
 separate environment settings. Redeploy after changing public Clerk keys.

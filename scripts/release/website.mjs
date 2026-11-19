@@ -6,7 +6,7 @@ import console from "node:console";
 import { pathToFileURL, URL } from "node:url";
 import { assertCurrentRef, workflowContext } from "../ci/current-ref.mjs";
 
-const origin = "https://usegrove.cloud";
+const origin = "https://grovenote.app";
 function configuration(env) {
   for (const key of ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"])
     assert(env[key]?.trim(), `${key} is required`);

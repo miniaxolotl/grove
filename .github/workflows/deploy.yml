@@ -237,7 +237,7 @@ jobs:
           CHECKER_DIGEST: ${{ needs.publish.outputs.checker }}
         run: node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --wait
       - name: Verify production API readiness
-        run: curl --fail --retry 5 --max-time 30 https://api.usegrove.cloud/health/ready
+        run: curl --fail --retry 5 --max-time 30 https://api.grovenote.app/health/ready
 
   website-scope:
     if: needs.candidate.outputs.mode == 'website-only'
@@ -285,7 +285,7 @@ jobs:
           GROVE_WORKER_DATABASE_URL: ${{ secrets.GROVE_WORKER_DATABASE_URL }}
         run: |
           node --import tsx scripts/release/database-preflight.mjs
-          curl --fail --retry 3 --max-time 30 https://api.usegrove.cloud/health/ready
+          curl --fail --retry 3 --max-time 30 https://api.grovenote.app/health/ready
       - name: Build and deploy the admitted website after backend readiness
         if: needs.candidate.outputs.mode == 'coordinated' || steps.receipts.outputs.alreadyDelivered == 'false'
         run: node scripts/release/website.mjs deploy
@@ -293,7 +293,7 @@ jobs:
         if: steps.receipts.outputs.alreadyDelivered == 'true'
         run: |
           node scripts/release/website.mjs preflight
-          test "$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' https://usegrove.cloud/)" = 200
+          test "$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' https://grovenote.app/)" = 200
           node scripts/ci/current-ref.mjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

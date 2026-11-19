@@ -65,9 +65,9 @@ function httpsOrigin(value) {
 // Initial provisioning only. Migration-owner credentials are deliberately absent.
 export function createAppSpec(env) {
   const spec = structuredClone(template);
-  const apiOrigin = env.API_ORIGIN ?? "https://api.usegrove.cloud";
-  const siteUrl = env.SITE_URL ?? "https://usegrove.cloud";
-  const issuer = env.CLERK_ISSUER ?? "https://clerk.usegrove.cloud";
+  const apiOrigin = env.API_ORIGIN ?? "https://api.grovenote.app";
+  const siteUrl = env.SITE_URL ?? "https://grovenote.app";
+  const issuer = env.CLERK_ISSUER ?? "https://clerk.grovenote.app";
   spec.domains[0].domain = httpsOrigin(apiOrigin).hostname;
   httpsOrigin(siteUrl);
   httpsOrigin(issuer);

@@ -62,7 +62,7 @@ The root layout mounts Web Analytics and Speed Insights only for
 footer-preference and storage-failure vetoes as website telemetry. Enabling the
 Vercel features or installing the packages is not deployed initialization evidence.
 
-SDKs initialize only in an initially public `https://usegrove.cloud` document on
+SDKs initialize only in an initially public `https://grovenote.app` document on
 the component's enumerated marketing paths. Authenticated `/app`, shared-reader,
 sign-in/up, approval/welcome and unknown paths are excluded. Fragments, arbitrary
 query parameters and invalid/duplicate campaign tags also prevent initialization.
@@ -111,7 +111,7 @@ Follow [protected deployment](deploy.md), not a moving development head.
 
 ## Search Console
 
-Maintain the existing `sc-domain:usegrove.cloud` ownership TXT record in DNS;
+Keep the `sc-domain:usegrove.cloud` verification record; verify the new `sc-domain:grovenote.app` property separately;
 the October 21 verification and five-page sitemap observation are historical.
 Current public routes come from `packages/website/src/app/sitemap.ts`. Verify
 actual sitemap processing in Search Console: **Sitemaps** shows processing errors,
@@ -138,6 +138,6 @@ live traffic changes require separate approval.
 
 Tag a public landing link with `utm_source`, `utm_medium` and `utm_campaign`; use `utm_content` for creative and `utm_term` for a public keyword code. Use ASCII labels beginning with a letter, up to 64 characters. Never put an address, account identifier or free-text search in a campaign tag.
 
-In Vercel Web Analytics select the production site `usegrove.cloud` and break pageviews down by campaign and source. In PostHog filter `$pageview` and the relevant CTA event to the website surface and production environment, then break down by event `utm_campaign`. Treat an outbound click as a referral, not a confirmed install. Consent, blockers and project boundaries affect coverage.
+In Vercel Web Analytics select the production site `grovenote.app` and break pageviews down by campaign and source. In PostHog filter `$pageview` and the relevant CTA event to the website surface and production environment, then break down by event `utm_campaign`. Treat an outbound click as a referral, not a confirmed install. Consent, blockers and project boundaries affect coverage.
 
 For a missing view, check the deployed release, analytics consent and whether the landing path is a public route. Inspect the status of the Vercel insights request and PostHog capture request separately. For exceptions, start with the Sentry release and first in-app frame, then compare Vercel logs for that deployment and UTC timestamp. Do not paste full request URLs or payloads into incident reports.

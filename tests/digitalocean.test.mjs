@@ -75,7 +75,7 @@ const env = {
   MIGRATION_DATABASE_URL:
     "postgresql://grove_owner:owner-password@db.example/grove",
   CLERK_SECRET_KEY: "sk_live_test_fixture",
-  CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from("clerk.usegrove.cloud$").toString("base64")}`,
+  CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from("clerk.grovenote.app$").toString("base64")}`,
   CLERK_WEBHOOK_SIGNING_SECRET: "whsec_test_fixture",
   CURSOR_SECRET: "test-cursor-secret".repeat(3),
   SHARE_LINK_KEY: "ab".repeat(32),
@@ -112,6 +112,13 @@ test("rollout pre-write readback rejects changed configuration and deployment id
 test("initial spec isolates runtime secrets and never deploys the migration owner", () => {
   const spec = createAppSpec(env);
   const json = JSON.stringify(spec);
+  assert.equal(spec.domains[0].domain, "api.grovenote.app");
+  for (const component of [...spec.services, ...spec.workers]) {
+    assert.equal(
+      component.envs.find(({ key }) => key === "SITE_URL").value,
+      "https://grovenote.app",
+    );
+  }
   assert(!json.includes("owner-password"));
   assert(!json.includes("MIGRATION_DATABASE_URL"));
   for (const [component, url] of [

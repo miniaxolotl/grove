@@ -6,7 +6,6 @@ import { publicCampaignDocument } from "@/lib/campaign-url";
 import { registrationDocumentReady } from "@/lib/registration-document";
 
 const containerId = "GTM-M5WKD5LZ";
-const hosts = new Set(["usegrove.cloud", "www.usegrove.cloud"]);
 const paths = new Set(["/", "/privacy", "/terms", "/install", "/self-host"]);
 const registrationPaths = new Set([...paths, "/welcome"]);
 let started = false;
@@ -14,7 +13,7 @@ let started = false;
 function publicLocation(url: URL, registrationComplete = false) {
   return (
     url.protocol === "https:" &&
-    hosts.has(url.hostname) &&
+    url.origin === "https://grovenote.app" &&
     (paths.has(url.pathname) ||
       (registrationComplete && url.pathname === "/welcome" && !url.hash)) &&
     publicCampaignDocument(

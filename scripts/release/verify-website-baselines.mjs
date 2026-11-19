@@ -67,7 +67,7 @@ for (const [target, { identity }] of Object.entries(receipts).filter(([name]) =>
 }
 const site = receipts.website;
 const live = await json(
-  `https://usegrove.cloud/release.json?baseline=${env.GITHUB_SHA}`,
+  `https://grovenote.app/release.json?baseline=${env.GITHUB_SHA}`,
 );
 const alreadyDelivered =
   live.sourceSha === env.RELEASE_SOURCE_SHA &&
@@ -90,7 +90,7 @@ assert.deepEqual(
 );
 assert(env.VERCEL_TOKEN && env.VERCEL_ORG_ID && env.VERCEL_PROJECT_ID);
 const deployment = await json(
-  `https://api.vercel.com/v13/deployments/usegrove.cloud?teamId=${env.VERCEL_ORG_ID}`,
+  `https://api.vercel.com/v13/deployments/grovenote.app?teamId=${env.VERCEL_ORG_ID}`,
   env.VERCEL_TOKEN,
 );
 assert.match(deployment.id, /^dpl_[a-zA-Z0-9]+$/);
