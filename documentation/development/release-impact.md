@@ -1,6 +1,14 @@
 # Preview release impact
 
-The local pilot answers **what would change for each destination?** It prints JSON. Release Please, frozen promotion, `CI Gate` and protected production Deploy still own all version and delivery decisions. No workflow consumes this report.
+The comparison answers **what would change for each destination?** It prints JSON. Source Release consumes the website-only decision through `website-impact.yml`; the other target proposals remain advisory. Release Please, frozen promotion, `CI Gate` and protected production Deploy own version and delivery decisions.
+
+The website-only route checks the ledger's exact reviewed release-tool fingerprints
+before dependency fetch or inventory builds. A mismatch holds the release and names
+the input that needs review. It never refreshes fingerprints or destination receipts
+automatically. Passing this cheap preflight is not approval: full snapshots still
+check unknown inputs and per-target changes. Source Release must remain held when
+the destination ledger or selected scope does not describe the current candidate.
+The historical coordinated v1.11.28 repair is not authorization for a new candidate.
 
 Use reviewed Git commits, Node 24, pnpm 10.33 and GNU tar in a disposable build environment without provider credentials. The snapshot runs the revision’s install/build code; a temporary directory is not a sandbox. Warm the pnpm store for each lockfile with `ONNXRUNTIME_NODE_INSTALL_CUDA=skip pnpm fetch --frozen-lockfile`. If `/tmp` uses another filesystem, point `TMPDIR` at an existing scratch directory on the warm store’s filesystem. Use the same toolchain and build configuration on both sides.
 

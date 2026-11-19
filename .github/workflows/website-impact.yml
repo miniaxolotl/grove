@@ -41,6 +41,7 @@ jobs:
           EXPECTED_SOURCE: ${{ inputs.source }}
           npm_config_store_dir: ${{ runner.temp }}/grove-impact-store
         run: |
+          node scripts/release/reviewed-inputs.mjs "$EXPECTED_SOURCE"
           bash scripts/release/hydrate-impact.sh "$EXPECTED_SOURCE"
           pnpm install --offline --frozen-lockfile
           node scripts/release/select-website.mjs
