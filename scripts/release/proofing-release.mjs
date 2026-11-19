@@ -1,4 +1,4 @@
-// One coordinated release: the reviewed recovery merge (includes #282, #286 and #287) and its patch-version stamp.
+// Admit only the checker publisher repair on the immutable v1.11.27 source and its patch stamp.
 // Future candidates go through normal website-impact admission.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -7,15 +7,15 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const read = (ref, path) => JSON.parse(git("show", `${ref}:${path}`));
-const baseline = "947a4e62c5c84a4c34ef540a0dacfa7ebe06b187";
-export const version = "1.11.27";
+const baseline = "6566c2dca78e7fde9c79357f8d07c5ad6f4cc7d5";
+export const version = "1.11.28";
 export function route(source, pr, released = false, io = { git, read }) {
   assert.match(source, /^[0-9a-f]{40}$/);
   const merged = pr.merge_commit_sha;
   if (
     !pr.merged ||
     pr.base?.ref !== "development" ||
-    pr.number !== 289 ||
+    pr.number !== 293 ||
     !/^[a-f0-9]{40}$/.test(merged)
   )
     return "website-only";
@@ -23,7 +23,7 @@ export function route(source, pr, released = false, io = { git, read }) {
   if (io.git("rev-parse", `${merged}^1`) !== baseline) return "website-only";
   const stamp = io.read(source, "package.json").version;
   if (source === merged)
-    return !released && stamp === "1.11.26" ? "coordinated" : "website-only";
+    return !released && stamp === "1.11.27" ? "coordinated" : "website-only";
   if (stamp !== version || io.git("rev-parse", `${source}^1`) !== merged)
     return "website-only";
   const config = io.read(merged, "release-please-config.json").packages["."];
@@ -63,7 +63,7 @@ if (
 ) {
   const source = process.argv[2];
   const pr = JSON.parse(
-    execFileSync("gh", ["api", "repos/miniaxolotl/grove/pulls/289"], {
+    execFileSync("gh", ["api", "repos/miniaxolotl/grove/pulls/293"], {
       encoding: "utf8",
     }),
   );
