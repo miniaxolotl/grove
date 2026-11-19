@@ -14,6 +14,12 @@ if the lookup failed. **Clear** returns to browsing. While a refined phrase
 loads, global search and Ask Grove's Search tab keep the previous matches from
 the same scope visible and dimmed; changing scope or clearing the phrase drops them.
 
+**Ask Grove about this** opens a separate, unsent draft with the search phrase
+and the selected scope: All notes, Unfiled, or just the chosen notebook. Review
+or edit it before sending. Browser Back and Forward restore these drafts and
+any previous Ask session in the same tab. Unsent drafts stay in workspace
+memory; reloading or closing the tab clears them. The phrase is never in the URL.
+
 ## Matching and relevance
 
 Relevance orders full-query title matches, title prefixes, body matches, body
@@ -121,6 +127,8 @@ global sorting and query budgets. `search-migration.test.ts` checks populated
 retention and invoker-only prerequisites. Browser `search quality` cases in
 `workspace.spec.ts` and `playwright.search-webkit.config.ts` cover passages/title
 marks, stale refresh, explicit sorting and accessible 1440/390/320px layouts.
+The `palette to Ask` workspace case checks draft recovery, explicit send and the
+notebook or Unfiled scope used to create each conversation.
 
 `pnpm exec tsx tests/src/performance/search-quality.ts` uses disposable role URLs
 from [testing](development/testing.md), creates/removes its own `_test` database
