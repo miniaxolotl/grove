@@ -15,7 +15,7 @@
 }
 .heading h1 {
   margin: 0 0 24px;
-  font-size: clamp(40px, 5.5vw, 72px);
+  font-size: clamp(34px, 4.2vw, 56px);
   font-weight: 500;
   line-height: 1.1;
   letter-spacing: -0.04em;
@@ -90,7 +90,6 @@
 }
 .content section + section {
   padding-top: 28px;
-  border-top: 1px solid var(--color-line);
 }
 .content h2 {
   margin: 0 0 16px;
@@ -101,9 +100,9 @@
 }
 .content p,
 .content li {
-  color: var(--color-muted);
+  color: var(--brand-ink);
   font-size: 16px;
-  line-height: 1.85;
+  line-height: 1.75;
 }
 .content p + p {
   margin-top: 16px;

@@ -6,6 +6,17 @@ import { GroveMark } from "@/components/brand";
 
 const notes = [
   {
+    id: "study",
+    notebook: "Seminar notes",
+    title: "Learning by recall",
+    text: "Recall the idea before checking your notes. Explain it in your own words, then revisit the parts you missed.",
+    detail:
+      "Bring one question to the next seminar. Keep the reading beside your notes.",
+    question: "What should I do before the seminar?",
+    answer:
+      "Try recalling the ideas, check what you missed, and bring one question. Keep the reading beside your notes.",
+  },
+  {
     id: "weekend",
     notebook: "The long weekend",
     title: "A slower Sunday",

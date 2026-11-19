@@ -54,13 +54,13 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   const page = await context.newPage();
   await page.goto(baseURL!);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Private notes, easy to find",
+    "Your AI notebook",
   );
   await expect(
     page.getByRole("link", { name: "Start your notebook" }).first(),
   ).toHaveAttribute("href", "/sign-up");
   await expect(
-    page.getByRole("heading", { name: "A slower Sunday", exact: true }),
+    page.getByRole("heading", { name: "Learning by recall", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("link", { name: "Explore an example", exact: true })
@@ -107,8 +107,12 @@ test("serves the notebook story, signup links, and FAQ without JavaScript", asyn
   await expect(
     page.getByRole("link", { name: "Create a free account" }),
   ).toHaveAttribute("href", "/sign-up");
-  await expect(page.getByRole("article", { name: "Pro", exact: true })).toContainText("Pro purchases and trials are unavailable here");
-  await expect(page.getByRole("link", { name: "View billing options" })).toHaveCount(0);
+  await expect(
+    page.getByRole("article", { name: "Pro", exact: true }),
+  ).toContainText("Pro purchases and trials are unavailable here");
+  await expect(
+    page.getByRole("link", { name: "View billing options" }),
+  ).toHaveCount(0);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
     `${siteURL}/pricing`,
@@ -410,7 +414,7 @@ test("social metadata, crawler routes, and generated images are usable", async (
   );
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
     "content",
-    "Grove | Private notes. Lasting context.",
+    "Grove | Your AI notebook",
   );
   const schema = JSON.parse(
     (await page.locator('script[type="application/ld+json"]').textContent())!,
@@ -422,7 +426,7 @@ test("social metadata, crawler routes, and generated images are usable", async (
   expect(application.installUrl).toBe(`${siteURL}/sign-up`);
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     "content",
-    /private notebook/,
+    "An AI notebook for study and thoughtful work. Keep notes, PDFs and short recordings together, ask source-linked questions and listen back. Start free.",
   );
 
   const image = await request.get("/opengraph-image");

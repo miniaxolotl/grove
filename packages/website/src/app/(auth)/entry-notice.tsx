@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { GroveMark } from "@/components/brand";
 import styles from "./entry.module.css";
 
@@ -15,11 +14,6 @@ export function EntryNotice({ signUp = false, loading = false }) {
             : `${task} is unavailable right now. Please try again later.`}
         </p>
       </section>
-      <nav aria-label="Account resources" className={styles.resources}>
-        <Link href="/support">Support</Link>
-        <Link href="/privacy">Privacy</Link>
-        <Link href="/terms">Terms</Link>
-      </nav>
     </>
   );
 }
