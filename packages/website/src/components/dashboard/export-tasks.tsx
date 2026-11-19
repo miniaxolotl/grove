@@ -1,12 +1,113 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Download, LoaderCircle, RotateCcw, X } from "lucide-react";
 import type { Task } from "@lib/shared/jobs";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { Button, IconButton } from "./ui/button";
+
+export function AccountExports() {
+  return (
+    <Suspense fallback={<p role="status">Loading exports…</p>}>
+      <AccountExportView />
+    </Suspense>
+  );
+}
+
+function AccountExportView() {
+  const id = useSearchParams().get("export");
+  return id === null ? <ExportTasks /> : <LinkedExport key={id} id={id} />;
+}
+
+function LinkedExport({ id }: { id: string }) {
+  const cache = useWorkspaceCache();
+  const valid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id);
+  const query = useQuery({
+    ...cache.resource<Task>(`/tasks/${valid ? id : "invalid"}`),
+    enabled: valid,
+    retry: false,
+    staleTime: 0,
+    refetchInterval: ({ state }) => {
+      if (state.error || !state.data) return false;
+      if (active(state.data)) return 2000;
+      return state.data.downloadable && state.data.expiresAt
+        ? Math.max(1000, Date.parse(state.data.expiresAt) - Date.now())
+        : false;
+    },
+  });
+  const task =
+    query.data?.kind === "export" && query.data.id === id ? query.data : null;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const inFlight = useRef(false);
+  async function retry() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await cache.api(`/tasks/${id}/retry`, {});
+      await query.refetch();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="export-tasks" aria-label="Requested export">
+      <h2 className="font-editorial font-semibold">Your requested export</h2>
+      {!valid || query.isError || (!query.isPending && !task) ? (
+        <p className="mt-2 text-sm" role="status">
+          This export is unavailable.
+        </p>
+      ) : !task ? (
+        <p className="mt-2 text-sm" role="status">
+          Loading export…
+        </p>
+      ) : (
+        <>
+          <p className="mt-2 text-sm" role="status">
+            {status(task)}
+          </p>
+          {task.downloadable ? (
+            <a
+              className="app-button secondary mt-3"
+              href={`/api/grove/tasks/${id}/download`}
+              download
+            >
+              Download export
+            </a>
+          ) : !active(task) ? (
+            <Button
+              variant="secondary"
+              className="mt-3"
+              disabled={busy}
+              onClick={() => void retry()}
+            >
+              Prepare a fresh export
+            </Button>
+          ) : null}
+        </>
+      )}
+      {error && (
+        <p className="app-error" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="mt-3 text-sm">
+        <Link className="text-button" href="/app/settings/data">
+          View all exports
+        </Link>
+      </p>
+    </section>
+  );
+}
 
 const active = (task: Task) =>
   task.status === "pending" || task.status === "running";

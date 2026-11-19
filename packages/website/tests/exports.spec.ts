@@ -20,6 +20,101 @@ const initial = (): Task => ({
   downloadable: false,
 });
 
+test("export email opens the exact older task without preparing or downloading it", async ({
+  page,
+}) => {
+  const id = initial().id;
+  let task: Task = {
+    ...initial(),
+    status: "succeeded",
+    downloadable: true,
+    expiresAt: new Date(Date.now() + 600_000).toISOString(),
+  };
+  const effects: string[] = [];
+  await page.route("**/api/grove/**", async (route) => {
+    const url = route.request().url();
+    const path = fixturePath(url);
+    if (path.endsWith(`/tasks/${id}/retry`)) {
+      effects.push("retry");
+      task = { ...initial(), status: "pending" };
+    } else if (path.endsWith("/download") || path.endsWith("/exports"))
+      effects.push(path);
+    return route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(
+          url,
+          path.endsWith(`/tasks/${id}`)
+            ? task
+            : path.endsWith("/tasks")
+              ? []
+              : path.endsWith("/me")
+                ? { accountId: "export-owner" }
+                : [],
+        ),
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/data?export=${id}`);
+  const view = page.getByRole("region", { name: "Requested export" });
+  await expect(view.getByText("Ready", { exact: true })).toBeVisible();
+  await expect(
+    view.getByRole("link", { name: "Download export" }),
+  ).toHaveAttribute("href", `/api/grove/tasks/${id}/download`);
+  task = {
+    ...task,
+    status: "failed",
+    error: "export_expired",
+    downloadable: false,
+  };
+  await page.reload();
+  await expect(view.getByText("Expired", { exact: true })).toBeVisible();
+  await expect(view.getByRole("link", { name: "Download export" })).toHaveCount(
+    0,
+  );
+  expect(effects).toEqual([]);
+  await view.getByRole("button", { name: "Prepare a fresh export" }).click();
+  await expect(view.getByText("Queued", { exact: true })).toBeVisible();
+  expect(effects).toEqual(["retry"]);
+});
+
+test("another account opening an export link gets a neutral unavailable state", async ({
+  page,
+}) => {
+  const id = initial().id;
+  let lookups = 0;
+  await page.route("**/api/grove/**", async (route) => {
+    const url = route.request().url();
+    if (fixturePath(url).endsWith(`/tasks/${id}`)) {
+      lookups++;
+      return route.fulfill({
+        status: 404,
+        json: {
+          success: false,
+          error: { code: "not_found", message: "Job not found" },
+        },
+      });
+    }
+    return route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(
+          url,
+          fixturePath(url).endsWith("/me") ? { accountId: "other-owner" } : [],
+        ),
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/data?export=${id}`);
+  const view = page.getByRole("region", { name: "Requested export" });
+  await expect(view.getByText("This export is unavailable.")).toBeVisible();
+  expect(lookups).toBe(1);
+  await expect(view.getByRole("link", { name: "Download export" })).toHaveCount(
+    0,
+  );
+  await expect(view.getByRole("button")).toHaveCount(0);
+});
+
 test("account export retries the same request and progresses to an authenticated download", async ({
   page,
 }, testInfo) => {
