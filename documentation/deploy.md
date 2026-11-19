@@ -82,7 +82,12 @@ providers/dimensions never silently fall back. See [models](models.md).
 
 ## Release and rollout
 
-1. Merge feature PRs into protected `development`. Merge the Release Please PR,
+1. Merge feature PRs into protected `development`. For website-only admission,
+   CI fetches the candidate and each distinct receipt ancestor's frozen pnpm
+   dependencies into one store, then builds fresh archives with offline installs.
+   Missing inputs, unreviewed fingerprints or changed service artifacts block
+   this route. An earlier coordinated exception cannot authorize a new source.
+   Merge the Release Please PR,
    then wait for its immutable source tag and independent full-source CI.
 2. Dispatch **Select Release Candidate** on development with that exact tag. It
    opens frozen `promote/production/vX.Y.Z`; later development commits are excluded.
