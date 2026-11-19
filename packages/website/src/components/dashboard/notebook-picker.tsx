@@ -180,6 +180,19 @@ export function NotebookPicker({
         closedby="any"
         className="app-select-content notebook-picker"
         onKeyDown={navigate}
+        onClick={(event) => {
+          // Light dismiss for browsers without `closedby`: a backdrop click
+          // targets the dialog itself, outside its painted box.
+          if (event.target !== event.currentTarget) return;
+          const box = event.currentTarget.getBoundingClientRect();
+          if (
+            event.clientX < box.left ||
+            event.clientX > box.right ||
+            event.clientY < box.top ||
+            event.clientY > box.bottom
+          )
+            setQuery(null);
+        }}
         onCancel={(event) => {
           event.preventDefault();
           event.stopPropagation();
