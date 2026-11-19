@@ -1,3 +1,4 @@
+import { version as proofingReleaseVersion } from "./release/proofing-release.mjs";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import console from "node:console";
@@ -353,7 +354,7 @@ async function main() {
         !values.create &&
         (values.wait || values.propose) &&
         process.env.GITHUB_ACTIONS === "true" &&
-        process.env.RELEASE_TAG === "v1.11.26",
+        process.env.RELEASE_TAG === `v${proofingReleaseVersion}`,
       "Invalid coordinated checker rollout",
     );
     assertCurrentRef(workflowContext());
