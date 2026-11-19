@@ -188,6 +188,29 @@ and ACTIVE deployments before recovery. For a coordinated rollout require API an
 worker on the main digest and the private checker on its own digest, then check
 readiness and the selected website's live manifest. A healthy older API can return 200.
 
+### Expected-state provider fence
+
+Selected hosted delivery can pass `--expected-app-state <sha256>` to
+`scripts/deploy-digitalocean.mjs`. Its exported `appStateFingerprint(app)` returns
+64 lowercase hex characters: SHA-256 of canonical JSON containing the app ID,
+complete desired spec, and active/pending/in-progress generation IDs and phases.
+Object keys are sorted recursively; array order is preserved. Missing generations
+and null generations are equivalent. Specs and encrypted settings stay in memory;
+do not log them or treat the fingerprint as authorization.
+
+With this flag, the first app GET and the final pre-PUT GET must match that
+fingerprint. Both reads also require an ACTIVE generation, no pending/in-progress
+generation, identical desired and active specs, and only the existing `api` service
+and `worker`. Extra services, jobs, static sites, functions and databases are held;
+creation and checker options are rejected. Drift fails closed and requires a new
+authorized preflight, not a blind retry. An already-ACTIVE exact spec/image is a
+no-op before proposal or PUT, including with `--wait`.
+
+Without the flag, existing provisioning and rollout behavior is unchanged. This
+client-side read fence is not an atomic provider compare-and-swap and does not
+remove the need for serialized authorized writers or post-write verification.
+It neither diagnoses nor repairs the historical proposal-success/HTTP-400 rejection.
+
 ### Coordinated Vercel delivery
 
 The GitHub production environment requires `VERCEL_TOKEN` (a Vercel access token
