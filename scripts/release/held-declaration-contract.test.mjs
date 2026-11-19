@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -27,7 +28,19 @@ function fixture(t) {
     );
   };
   for (const directory of ["scripts/release", "scripts/ci"])
-    cpSync(resolve(root, directory), join(cwd, directory), { recursive: true });
+    cpSync(resolve(root, directory), join(cwd, directory), {
+      recursive: true,
+      filter: (path) =>
+        ![decisionPath, "scripts/release/decision.json"].some(
+          (decision) => path === resolve(root, decision),
+        ),
+    });
+  for (const path of [decisionPath, "scripts/release/decision.json"])
+    assert.equal(
+      existsSync(join(cwd, path)),
+      false,
+      "Synthetic baseline must not inherit host authorization",
+    );
   for (const path of [
     ".github/workflows/deploy.yml",
     "package.json",
@@ -41,6 +54,25 @@ function fixture(t) {
   ).packages["."];
   for (const { path } of config["extra-files"])
     write(path, readFileSync(resolve(root, path), "utf8"));
+  const setVersion = (version) => {
+    for (const [path, keys] of [
+      ["package.json", ["version"]],
+      [".release-please-manifest.json", ["."]],
+      ...config["extra-files"].map(({ path, jsonpath }) => [
+        path,
+        jsonpath.slice(2).replace("[0]", ".0").split("."),
+      ]),
+    ]) {
+      const value = JSON.parse(readFileSync(join(cwd, path)));
+      let cursor = value;
+      for (const key of keys.slice(0, -1)) cursor = cursor[key];
+      cursor[keys.at(-1)] = version;
+      write(path, value);
+    }
+  };
+  // These synthetic histories always exercise 1.11.29 -> 1.11.30, even when
+  // the real hosting checkout is already stamped at a later product version.
+  setVersion("1.11.29");
   write("CHANGELOG.md", "# Fixture changelog\n");
   write("fixture.txt", cwd);
   const env = {
@@ -97,20 +129,7 @@ function fixture(t) {
     previousDigest: `sha256:${"a".repeat(64)}`,
   };
   const stamp = () => {
-    for (const [path, keys] of [
-      ["package.json", ["version"]],
-      [".release-please-manifest.json", ["."]],
-      ...config["extra-files"].map(({ path, jsonpath }) => [
-        path,
-        jsonpath.slice(2).replace("[0]", ".0").split("."),
-      ]),
-    ]) {
-      const value = JSON.parse(readFileSync(join(cwd, path)));
-      let cursor = value;
-      for (const key of keys.slice(0, -1)) cursor = cursor[key];
-      cursor[keys.at(-1)] = "1.11.30";
-      write(path, value);
-    }
+    setVersion("1.11.30");
     write(
       "CHANGELOG.md",
       "# Fixture changelog\n\n## 1.11.30\n\nFixture stamp.\n",
