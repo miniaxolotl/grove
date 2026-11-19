@@ -101,6 +101,8 @@ export function Connections({ origin }: { origin: string }) {
     );
   }
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<Connection | null>(null);
+  const [revokeError, setRevokeError] = useState("");
   const revokeLock = useRef(false);
   const reload = () => {
     setError("");
@@ -110,15 +112,17 @@ export function Connections({ origin }: { origin: string }) {
   async function revoke(id: string) {
     if (revokeLock.current) return;
     revokeLock.current = true;
+    setRevokeError("");
     setRevoking(id);
     try {
       await api(`/connections/${id}`, undefined, "DELETE");
+      setRevokeTarget(null);
       setError("");
       setNotice(
         "Connection revoked. Future Grove requests are denied; text already delivered to a chat cannot be retracted.",
       );
     } catch (e) {
-      setError(errorMessage(e));
+      setRevokeError(errorMessage(e));
     } finally {
       revokeLock.current = false;
       setRevoking(null);
@@ -228,6 +232,43 @@ export function Connections({ origin }: { origin: string }) {
             </details>
           )}
         </>
+      )}
+      {revokeTarget && (
+        <Dialog
+          title="Revoke connection?"
+          close={() => setRevokeTarget(null)}
+          busy={!!revoking}
+        >
+          <p className="text-sm leading-6">
+            <strong className="break-words">{revokeTarget.name}</strong> will
+            lose access to Grove.{" "}
+            {revokeTarget.clientId
+              ? "To reconnect, approve access and sign in again from the app."
+              : "This API key cannot be used again."}
+          </p>
+          {revokeError && (
+            <p role="alert" className="app-error">
+              {revokeError}
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Button
+              variant="secondary"
+              data-autofocus
+              disabled={!!revoking}
+              onClick={() => setRevokeTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              disabled={!!revoking}
+              onClick={() => void revoke(revokeTarget.id)}
+            >
+              {revoking ? "Revoking…" : "Revoke access"}
+            </Button>
+          </div>
+        </Dialog>
       )}
       {selected && (
         <Dialog
@@ -382,7 +423,11 @@ export function Connections({ origin }: { origin: string }) {
                 {!item.revokedAt && (
                   <button
                     className="app-button quiet-danger"
-                    onClick={() => revoke(item.id)}
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      setRevokeError("");
+                      setRevokeTarget(item);
+                    }}
                     disabled={revoking !== null}
                   >
                     {revoking === item.id ? "Revoking…" : "Revoke"}
