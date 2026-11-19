@@ -331,12 +331,21 @@ export function findDeployment(
 }
 
 export async function readProviderResponse(response, method, path) {
-  if (response.ok) return response.json();
+  if (response.ok)
+    return response.json().catch(() => {
+      throw new Error(
+        `DigitalOcean ${method} ${path} returned invalid JSON (HTTP ${response.status})`,
+      );
+    });
   // A provider message (or a JSON parse error) can contain submitted values.
   // Keep only known error codes and a UUID suitable for a private support lookup.
   const data = await response.json().catch(() => null);
   const code = [
     "invalid_argument",
+    "bad_request",
+    "conflict",
+    "server_error",
+    "service_unavailable",
     "unauthorized",
     "forbidden",
     "not_found",

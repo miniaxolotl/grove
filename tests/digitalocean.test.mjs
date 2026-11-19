@@ -23,6 +23,7 @@ test("provider errors preserve safe support correlation, never body text", async
       `invalid_argument, request ${id}`,
     ],
     ["<html>secret", id, `unknown, request ${id}`],
+    [JSON.stringify({ request_id: "secret" }), id, `unknown, request ${id}`],
     [
       JSON.stringify({ id: "secret", request_id: "secret" }),
       "secret",
@@ -43,6 +44,27 @@ test("provider errors preserve safe support correlation, never body text", async
 });
 
 const { structuredClone } = globalThis;
+test("successful provider responses never quote malformed private JSON", async () => {
+  await assert.rejects(
+    readProviderResponse(
+      new globalThis.Response("private app data"),
+      "GET",
+      "/apps/fixture",
+    ),
+    {
+      message:
+        "DigitalOcean GET /apps/fixture returned invalid JSON (HTTP 200)",
+    },
+  );
+  assert.deepEqual(
+    await readProviderResponse(
+      globalThis.Response.json({ app: {} }),
+      "GET",
+      "/apps/fixture",
+    ),
+    { app: {} },
+  );
+});
 const digest = `sha256:${"a".repeat(64)}`;
 const ltDigest = `sha256:${"c".repeat(64)}`;
 const env = {
