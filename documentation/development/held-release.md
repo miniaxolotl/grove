@@ -186,6 +186,11 @@ delivery. No active declaration, deployment, publication, migration or live send
 performed by these source changes. Checkout/portal/status transaction I/O remains
 a separate existing gap; the narrow reconciler does not claim to repair it.
 
+Workflow-matrix tests also verify exact tagged promotion wrappers: source tag,
+tree, ancestry and frozen/final merge parents must match before resolving the
+strict released-held source. This normalization is test-only, not publication
+admission or permission to inherit a declaration onto later source edits.
+
 Focused verification lives in `tests/src/lifecycle-{ingress,storage,handoff}.test.ts`
 and `tests/src/release-hold.test.ts`: real disposable PostgreSQL/broker, signed
 ingress, authenticated loopback provider faults, transaction-boundary assertions,
