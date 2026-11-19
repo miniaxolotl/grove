@@ -1,4 +1,5 @@
 import { test, expect } from "./telemetry-fixtures";
+import { newShareToken } from "./fixtures/share-token";
 import { sanitizeError, sanitizeSpan } from "../src/lib/diagnostics-policy";
 import { pagePath } from "../src/lib/analytics-policy";
 
@@ -302,7 +303,7 @@ test.describe("remote controls and private workspace", () => {
     request,
     telemetry,
   }) => {
-    const token = `gsh_${"E".repeat(43)}`;
+    const token = newShareToken();
     await request.post(
       `http://127.0.0.1:${process.env.SHARING_TEST_PORT || 4378}/_fixture/${token}`,
       {

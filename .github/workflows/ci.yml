@@ -129,7 +129,10 @@ jobs:
           NEXT_PUBLIC_SENTRY_DSN: https://00000000000000000000000000000000@o0.ingest.us.sentry.io/1
       - run: node scripts/performance/website-bundles.mjs --check
       - run: pnpm --filter website exec playwright install --with-deps chromium
-      - run: pnpm test:website
+      - name: Run Chromium tests
+        run: |
+          workers=$(node -p 'Math.min(4, require("node:os").availableParallelism())')
+          pnpm --filter website test --workers="$workers"
       - if: ${{ github.event_name != 'pull_request' && github.ref_protected && steps.browser-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

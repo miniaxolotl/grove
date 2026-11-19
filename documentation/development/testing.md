@@ -80,6 +80,10 @@ pnpm --filter website exec playwright install chromium
 pnpm test:website
 ```
 
+The Chromium suite uses two workers locally. GitHub Actions uses up to four
+workers on the existing runner. To compare contention locally, use
+`pnpm --filter website exec playwright test --workers=4` against the same build.
+
 The telemetry identifiers above are synthetic; the suites intercept SDK traffic.
 Fixtures use actual components with synthetic HTTP responses, not production auth
 bypasses. Real API/parser/worker journeys are separate evidence. Expected error-path
