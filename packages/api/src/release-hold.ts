@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer, type RequestListener } from "node:http";
 
@@ -21,6 +22,22 @@ type BuildIdentity = {
   holdRequired?: boolean;
 };
 type Role = "api" | "worker";
+let approvedControl:
+  | Readonly<{ identity: HoldIdentity; approval: string; role: Role }>
+  | undefined;
+export const approvedReleaseControl = () => approvedControl;
+export const heldIdentityHash = (identity: HoldIdentity) =>
+  createHash("sha256")
+    .update(
+      JSON.stringify(
+        Object.fromEntries(
+          Object.keys(identity)
+            .sort()
+            .map((key) => [key, identity[key as keyof HoldIdentity]]),
+        ),
+      ),
+    )
+    .digest("hex");
 declare const __GROVE_HELD_RELEASE_BUILD__: boolean;
 type EntryDependencies = {
   identity: () => Promise<BuildIdentity>;
@@ -118,6 +135,7 @@ export async function releaseEntry(
       ),
   },
 ) {
+  approvedControl = undefined;
   const held = env.GROVE_RELEASE_HOLD !== undefined;
   const approved = env.GROVE_RELEASE_APPROVAL !== undefined;
   const reconcile = env.GROVE_RELEASE_RECONCILE !== undefined;
@@ -171,6 +189,11 @@ export async function releaseEntry(
       "Persisted release approval is required before runtime effects",
     );
     await dependencies.approve(identity, approvalHash!, role, env);
+    approvedControl = Object.freeze({
+      identity: Object.freeze(identity),
+      approval: approvalHash!,
+      role,
+    });
     return start();
   }
   return dependencies.listen(identity, role, env);
@@ -216,6 +239,7 @@ export async function serveHeldStatus(
   env: NodeJS.ProcessEnv,
   probe: () => Promise<void> = () => probeHeldDatabase(role, env),
   lifecycle?: RequestListener,
+  privateProof?: RequestListener,
 ) {
   let probing = false;
   const server = createServer(async (request, response) => {
@@ -225,6 +249,12 @@ export async function serveHeldStatus(
       response.writeHead(code);
       response.end(JSON.stringify(body));
     };
+    if (
+      privateProof &&
+      request.method === "GET" &&
+      request.url === "/_grove/release/lifecycle"
+    )
+      return privateProof(request, response);
     if (
       lifecycle &&
       role === "api" &&

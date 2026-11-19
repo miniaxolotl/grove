@@ -20,9 +20,9 @@ def fail():
 
 
 def run():
-    if len(sys.argv) != 6:
+    if len(sys.argv) != 8:
         fail()
-    app, deployment, component, instance, challenge = sys.argv[1:]
+    app, deployment, component, instance, challenge, mode, source = sys.argv[1:]
     uuid = r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}"
     if not all(re.fullmatch(uuid, value) for value in (app, deployment)):
         fail()
@@ -30,14 +30,17 @@ def run():
         fail()
     if not re.fullmatch(r"[a-f0-9]{64}", challenge):
         fail()
+    if mode not in ("held", "lifecycle", "runtime") or (mode != "held" and not re.fullmatch(r"[a-f0-9]{40}", source)):
+        fail()
     frame = "__GROVE_HELD_" + challenge + "__"
-    code = (
-        'fetch("http://127.0.0.1:"+(process.env.PORT||"26080")+"/_grove/release/held",'
-        '{headers:{"X-Grove-Release-Challenge":' + json.dumps(challenge) + '},signal:AbortSignal.timeout(8000)})'
-        '.then(async r=>{if(r.status!==200)process.exit(2);console.log('
-        + json.dumps(frame) + '+JSON.stringify(await r.json())+' + json.dumps(frame)
-        + ')}).catch(()=>process.exit(2))'
-    )
+    path = "/_grove/release/" + mode
+    code = '(async()=>{const headers={"X-Grove-Release-Challenge":' + json.dumps(challenge) + '};'
+    if mode != "held":
+        message = path + "\n" + challenge + "\n" + component + "\n" + source
+        code += 'headers["X-Grove-Release-Proof"]=(await import("node:crypto")).createHmac("sha256",process.env.CURSOR_SECRET).update(' + json.dumps(message) + ').digest("hex");'
+    code += ('const r=await fetch("http://127.0.0.1:"+(process.env.PORT||"26080")+' + json.dumps(path)
+        + ',{headers,signal:AbortSignal.timeout(8000)});if(r.status!==200)process.exit(2);console.log('
+        + json.dumps(frame) + '+JSON.stringify(await r.json())+' + json.dumps(frame) + ');})().catch(()=>process.exit(2))')
     command = "node -e " + shlex.quote(code) + "; exit\n"
     child, fd = pty.fork()
     if child == 0:
@@ -80,11 +83,35 @@ def run():
         if len(replies) != 1:
             fail()
         body = replies[0]
-        if set(body) != {"status", "role", "identity", "schema", "challenge"}:
+        fields = {"status", "role", "identity", "schema", "challenge"}
+        if mode != "held":
+            fields.update({"evidence", "approval" if mode == "runtime" else "receipt"})
+        if set(body) != fields:
             fail()
-        if body["status"] != "release_held" or body["role"] != component or body["schema"] != "verified" or body["challenge"] != challenge:
+        expected_status = "release_held" if mode == "held" else mode + "_verified"
+        if body["status"] != expected_status or body["role"] != component or body["schema"] != "verified" or body["challenge"] != challenge:
             fail()
         identity = body["identity"]
+        if mode != "held":
+            if identity["source"] != source or not re.fullmatch(r"[a-f0-9]{64}", body["approval" if mode == "runtime" else "receipt"]):
+                fail()
+            evidence = body["evidence"]
+            if set(evidence) != {"release", "receipt", "generation", "customers", "remoteVerified", "pending", "uncertain", "caughtUp", "authorityHash", "remoteHash", "control"}:
+                fail()
+            control = evidence["control"]
+            if set(control) != {"phase", "approvalHash", "publicHash"} or control["phase"] not in ("reconcile", "handoff", "released", "public"):
+                fail()
+            for key in ("approvalHash", "publicHash"):
+                if control[key] is not None and not re.fullmatch(r"[a-f0-9]{64}", control[key]):
+                    fail()
+            for key in ("release", "receipt", "authorityHash", "remoteHash"):
+                if not re.fullmatch(r"[a-f0-9]{64}", evidence[key]):
+                    fail()
+            if not re.fullmatch(r"[0-9]{1,19}", evidence["generation"]) or type(evidence["caughtUp"]) is not bool:
+                fail()
+            for key in ("customers", "remoteVerified", "pending", "uncertain"):
+                if type(evidence[key]) is not int or not 0 <= evidence[key] <= 9007199254740991:
+                    fail()
         if set(identity) != {"schema", "source", "production", "tag", "run", "attempt", "digest", "publication"}:
             fail()
         if type(identity["schema"]) is not int or identity["schema"] != 1:

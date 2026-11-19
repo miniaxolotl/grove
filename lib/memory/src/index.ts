@@ -3101,10 +3101,12 @@ export class MemoryService {
     receipt?: { id: string; snapshot: Buffer },
   ) {
     return this.access(principal, "admin", async ({ trx, account }) => {
-      await this.beforeAccountDeletion?.(trx, account.id);
       await trx("accounts")
         .where({ id: account.id })
         .update({ status: "deleting", deletedAt: trx.fn.now() });
+      // Commit the deletion authority and durable billing intent atomically.
+      // This hook must not perform remote I/O or wait for provider completion.
+      await this.beforeAccountDeletion?.(trx, account.id);
       // A receipt insert failure must not abort deletion; isolate it in a savepoint.
       if (receipt && principal.type === "session") {
         try {

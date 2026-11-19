@@ -10,6 +10,7 @@ import {
   validateHeldReceipt,
   receiptHash,
 } from "./held-state.mjs";
+import { pendingPublication } from "./held-delivery.mjs";
 const repo = "miniaxolotl/grove";
 function pages(endpoint, key) {
   const result = [];
@@ -35,6 +36,142 @@ const defaults = {
       timeout: 30000,
     }),
 };
+export const loadPublication = (
+  run,
+  attempt,
+  context,
+  io = defaults,
+  now = Date.now(),
+) => loadHeldReceipt(run, attempt, "published_held", context, io, now);
+export async function loadReceipt(
+  { run, attempt, phase, publication },
+  context,
+  io = defaults,
+  now = Date.now(),
+) {
+  const receipt = await loadHeldReceipt(run, attempt, phase, context, io, now);
+  let root = receipt;
+  while (root.parent) root = root.parent;
+  assert.equal(
+    receiptHash(root),
+    receiptHash(publication),
+    "Different publication custody",
+  );
+  return receipt;
+}
+async function artifactJson(artifact, runId, filename, io, now) {
+  assert(
+    artifact.expired === false &&
+      Date.parse(artifact.expires_at) > now &&
+      artifact.workflow_run?.id === runId,
+  );
+  assert(artifact.size_in_bytes > 0 && artifact.size_in_bytes <= 131072);
+  assert.match(artifact.digest, /^sha256:[a-f0-9]{64}$/);
+  const zip = await io.download(artifact.id);
+  assert(zip.length <= 131072);
+  assert.equal(
+    `sha256:${createHash("sha256").update(zip).digest("hex")}`,
+    artifact.digest,
+  );
+  const files = unzipSync(zip, {
+    filter: (entry) => {
+      assert(entry.originalSize <= 65536);
+      return true;
+    },
+  });
+  assert.deepEqual(Object.keys(files), [filename]);
+  return JSON.parse(strFromU8(files[filename]));
+}
+export async function loadPendingPublication(
+  runId,
+  attempt,
+  context,
+  decision,
+  io = defaults,
+  now = Date.now(),
+  depth = 0,
+) {
+  try {
+    assert(depth < 8);
+    for (const value of [runId, attempt])
+      assert(Number.isSafeInteger(value) && value > 0);
+    const run = await io.run(runId, attempt);
+    assert(
+      run.id === runId &&
+        run.run_attempt === attempt &&
+        run.head_sha === context.production &&
+        run.head_branch === "production" &&
+        run.path === ".github/workflows/deploy.yml" &&
+        ["push", "workflow_dispatch"].includes(run.event) &&
+        run.status === "completed" &&
+        run.actor?.login === "miniaxolotl" &&
+        run.triggering_actor?.login === "miniaxolotl" &&
+        run.head_repository?.full_name === repo,
+    );
+    const jobs = await io.jobs(runId, attempt);
+    for (const name of ["candidate", "publish"]) {
+      const matching = jobs.filter((job) => job.name === name);
+      assert.equal(matching.length, 1);
+      const job = matching[0];
+      assert(
+        job.run_id === runId &&
+          job.run_attempt === attempt &&
+          job.head_sha === context.production &&
+          job.status === "completed",
+      );
+      if (name === "candidate") assert.equal(job.conclusion, "success");
+      else
+        assert(
+          job.steps?.some(
+            (step) =>
+              step.name === "Preserve pending source-bound publication" &&
+              step.status === "completed" &&
+              step.conclusion === "success",
+          ),
+        );
+    }
+    const matches = (await io.artifacts(runId)).filter(
+      (artifact) => artifact.name === `held-pending-${attempt}`,
+    );
+    assert.equal(matches.length, 1);
+    const pending = await artifactJson(
+      matches[0],
+      runId,
+      "held-pending.json",
+      io,
+      now,
+    );
+    assert.deepEqual(
+      pending,
+      pendingPublication(
+        { ...context, run: runId, attempt, pendingParent: pending.previous },
+        decision,
+        pending.baseline,
+        Date.parse(pending.at),
+      ),
+    );
+    if (pending.previous) {
+      const prior = pending.previous;
+      assert(prior.run !== runId || prior.attempt < attempt);
+      const previous = await loadPendingPublication(
+        prior.run,
+        prior.attempt,
+        context,
+        decision,
+        io,
+        now,
+        depth + 1,
+      );
+      assert.equal(receiptHash(previous), prior.hash);
+      assert.deepEqual(previous.baseline, pending.baseline);
+    }
+    return pending;
+  } catch {
+    throw new Error(
+      "Held pending receipt unavailable or untrusted; retain hold and requalify read-only",
+    );
+  }
+}
 export async function loadHeldReceipt(
   runId,
   attempt,
@@ -45,7 +182,7 @@ export async function loadHeldReceipt(
   depth = 0,
 ) {
   try {
-    assert(depth < 6);
+    assert(depth < 8);
     assert(
       Number.isSafeInteger(runId) &&
         runId > 0 &&
@@ -57,6 +194,7 @@ export async function loadHeldReceipt(
       [
         "published_held",
         "held_verified",
+        "lifecycle_verified",
         "effects_approved",
         "runtime_verified",
         "public_verified",
@@ -87,7 +225,9 @@ export async function loadHeldReceipt(
         run.head_repository?.full_name === repo,
     );
     const jobs = await io.jobs(runId, attempt);
-    for (const name of published ? ["candidate", "publish"] : ["record"]) {
+    for (const name of published
+      ? ["candidate", "publish"]
+      : ["candidate", "record"]) {
       const matching = jobs.filter((job) => job.name === name);
       assert(
         matching.length === 1 &&
@@ -107,34 +247,37 @@ export async function loadHeldReceipt(
     );
     assert.equal(matches.length, 1);
     const artifact = matches[0];
-    assert(
-      artifact.expired === false &&
-        Date.parse(artifact.expires_at) > now &&
-        artifact.workflow_run?.id === runId,
+    const receipt = await artifactJson(
+      artifact,
+      runId,
+      "held-state.json",
+      io,
+      now,
     );
-    assert(artifact.size_in_bytes > 0 && artifact.size_in_bytes <= 131072);
-    assert.match(artifact.digest, /^sha256:[a-f0-9]{64}$/);
-    const zip = await io.download(artifact.id);
-    assert(zip.length <= 131072);
-    assert.equal(
-      `sha256:${createHash("sha256").update(zip).digest("hex")}`,
-      artifact.digest,
-    );
-    const files = unzipSync(zip, {
-      filter: (entry) => {
-        assert(entry.originalSize <= 65536);
-        return true;
-      },
-    });
-    assert.deepEqual(Object.keys(files), ["held-state.json"]);
-    const receipt = JSON.parse(strFromU8(files["held-state.json"]));
     assert.equal(receipt.phase, phase);
     assert(
       receipt.operator?.run === runId &&
         receipt.operator.attempt === attempt &&
         receipt.operator.actor === "miniaxolotl",
     );
-    if (published) return admitPublication(receipt, artifact, context, now);
+    if (published) {
+      if (context.heldDecision) {
+        assert.equal(
+          receipt.evidence.decisionHash,
+          receiptHash(context.heldDecision),
+        );
+        const pending = await loadPendingPublication(
+          runId,
+          attempt,
+          context,
+          context.heldDecision,
+          io,
+          now,
+        );
+        assert.equal(receipt.evidence.pendingHash, receiptHash(pending));
+      }
+      return admitPublication(receipt, artifact, context, now);
+    }
     const parent = receipt.parent;
     const loaded = await loadHeldReceipt(
       parent.operator.run,

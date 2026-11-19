@@ -25,6 +25,13 @@ import {
 import { queueLanes, type QueueLane, type TaskKind } from "@lib/shared/jobs";
 import { readMediaBytes } from "./media-input.ts";
 import { extractDocument } from "./document-extraction.ts";
+import {
+  createLifecycleStripe,
+  reconcileLifecycleBilling,
+  publishLifecycleWork,
+  ordinaryLifecycleBinding,
+} from "./lifecycle-billing.ts";
+import { markRuntimeInitialized } from "./lifecycle-proof.ts";
 
 const runtime = await createRuntime();
 const reporter = telemetry("worker");
@@ -131,6 +138,25 @@ const receiptMail =
     ? { ...mail, receiptKey: runtime.env.DELETION_RECEIPT_KEY }
     : null;
 let receiptFirst = false;
+const billingStripe = runtime.billing
+  ? createLifecycleStripe(runtime.env.STRIPE_SECRET_KEY!)
+  : null;
+let billingBusy = false;
+const runBilling = async (id: string | null = null) => {
+  if (!billingStripe || billingBusy || controller.signal.aborted) return false;
+  billingBusy = true;
+  try {
+    return await reconcileLifecycleBilling(
+      runtime.db,
+      billingStripe,
+      ordinaryLifecycleBinding,
+      id,
+      workStop.signal,
+    );
+  } finally {
+    billingBusy = false;
+  }
+};
 const route = createLaneExecutor({
   email: async (_lane, id) => {
     if (!mail) return false;
@@ -149,8 +175,9 @@ const route = createLaneExecutor({
       providerLimit: runtime.env.JOB_PROVIDER_CONCURRENCY,
       signal: workStop.signal,
     }),
-  task: (lane, id) =>
-    runTask(runtime.db, handlers, {
+  task: async (lane, id) => {
+    if (lane === "bulk" && (await runBilling(id ?? null))) return true;
+    return runTask(runtime.db, handlers, {
       id,
       lane,
       accountLimit:
@@ -159,7 +186,8 @@ const route = createLaneExecutor({
         ? { providerLimit: runtime.env.JOB_PROVIDER_CONCURRENCY }
         : {}),
       signal: workStop.signal,
-    }),
+    });
+  },
 });
 const execute = (lane: QueueLane, id?: string, kind?: JobEnvelope["kind"]) =>
   withTelemetry(reporter, () => route(lane, id, kind));
@@ -277,6 +305,26 @@ const consumers = queueLanes.flatMap((lane) =>
     }),
   ),
 );
+const billing = loop("billing_reconcile_retry", async () => {
+  if (!billingStripe || capacities.bulk === 0) return 1000;
+  await runtime.db.raw("SELECT grove_lifecycle_enroll(?,?)", [
+    ordinaryLifecycleBinding.release,
+    ordinaryLifecycleBinding.receipt,
+  ]);
+  await runtime.db.raw("SELECT grove_lifecycle_retention(?,?)", [
+    ordinaryLifecycleBinding.release,
+    ordinaryLifecycleBinding.receipt,
+  ]);
+  await publishLifecycleWork(
+    runtime.db,
+    broker,
+    ordinaryLifecycleBinding,
+    controller.signal,
+  );
+  // PostgreSQL remains authoritative even after an AMQP acceptance/ACK loss.
+  await pools.bulk.run(() => runBilling());
+  return 1000;
+});
 const models = loop("models_retry", async () => {
   await runtime.models.refresh();
   return 5000;
@@ -309,9 +357,11 @@ const receiptExpiry = loop("receipt_sweep_retry", async () => {
   );
   return Number(result.rows[0].cleared) >= 1000 ? 10 : 30000;
 });
+markRuntimeInitialized();
 try {
   await Promise.all([
     dispatch,
+    billing,
     ...consumers,
     models,
     maintenance,

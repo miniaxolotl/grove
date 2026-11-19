@@ -93,13 +93,12 @@ const reply = (status: number, code: string) =>
   );
 
 export function createLifecycleIngress(options: {
-  clerkSecret: string;
-  stripeSecret: string;
-  stripe: Stripe;
-  livemode: boolean;
+  clerkSecret?: string;
+  stripeSecret?: string;
+  stripe?: Stripe;
+  livemode?: boolean;
   accept: (event: LifecycleEvent) => Promise<unknown>;
 }) {
-  const clerk = new Webhook(options.clerkSecret);
   let inFlight = 0;
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
@@ -110,6 +109,11 @@ export function createLifecycleIngress(options: {
     )
       return reply(503, "release_held");
     if (inFlight >= 16) return reply(503, "lifecycle_busy");
+    if (
+      url.pathname === "/v1/webhooks/stripe" &&
+      (!options.stripe || !options.stripeSecret)
+    )
+      return reply(503, "billing_disabled");
     inFlight++;
     try {
       let event: LifecycleEvent;
@@ -125,7 +129,7 @@ export function createLifecycleIngress(options: {
         if (url.pathname === "/v1/webhooks/clerk") {
           const id = identifier.parse(header(request, "svix-id"));
           const payload = clerkEvent.parse(
-            clerk.verify(raw, {
+            new Webhook(options.clerkSecret ?? "").verify(raw, {
               "svix-id": id,
               "svix-timestamp": header(request, "svix-timestamp"),
               "svix-signature": header(request, "svix-signature"),
@@ -143,10 +147,10 @@ export function createLifecycleIngress(options: {
           };
         } else {
           const payload = stripeEvent.parse(
-            options.stripe.webhooks.constructEvent(
+            options.stripe!.webhooks.constructEvent(
               raw,
               header(request, "stripe-signature"),
-              options.stripeSecret,
+              options.stripeSecret!,
             ),
           );
           if (payload.livemode !== options.livemode)

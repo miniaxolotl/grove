@@ -15,8 +15,11 @@ import {
 
 const root = resolve(import.meta.dirname, "..");
 const dryRun = process.argv.includes("--dry-run");
+const verifyOnly = process.argv.includes("--verify-only");
+assert(!(dryRun && verifyOnly), "Choose preflight or verification, not both");
 if (
   !dryRun &&
+  !verifyOnly &&
   (process.env.GITHUB_ACTIONS !== "true" ||
     process.env.GITHUB_REF !== "refs/heads/production")
 ) {
@@ -29,6 +32,7 @@ const version = JSON.parse(
 ).version;
 const temporary = process.env.CI ? tmpdir() : "/tmp/opencode";
 const pending = [];
+const verified = [];
 // Even a direct invocation cannot turn an admitted hosted-only decision into
 // coordinated npm publication. Structural/source validation precedes any npm read.
 const head = execFileSync("git", ["rev-parse", "HEAD"], {
@@ -40,6 +44,11 @@ assert.equal(
   "Publisher checkout differs from admitted source",
 );
 const decision = resolveDecision(head, true);
+if (verifyOnly)
+  assert(
+    !decision,
+    "Complete coordinated publication verification cannot omit selected packages",
+  );
 if (process.env.RELEASE_DECISION_HASH)
   assert.equal(
     decision?.hash,
@@ -77,6 +86,12 @@ try {
       throw new Error(
         `${pkg.name}@${pkg.version} is already published with different contents. Merge a new version release before publishing.`,
       );
+    if (verifyOnly && !integrity)
+      throw new Error(
+        `${pkg.name}@${pkg.version} is not published; publication remains pending`,
+      );
+    if (integrity)
+      verified.push({ name: pkg.name, version: pkg.version, integrity });
     if (!integrity)
       pending.push({
         archive,
@@ -101,6 +116,15 @@ try {
       );
       await waitForPublication(pkg);
     }
+  }
+  if (verifyOnly) {
+    assert.equal(verified.length, 5);
+    process.stdout.write(
+      JSON.stringify({
+        schema: 1,
+        packages: verified.sort((a, b) => a.name.localeCompare(b.name)),
+      }) + "\n",
+    );
   }
 } finally {
   await rm(directory, { recursive: true, force: true });

@@ -3,8 +3,13 @@ import { createHash } from "node:crypto";
 import Stripe from "stripe";
 import { camelRows, type Knex } from "@lib/database";
 import { z } from "zod";
+import type { JobBroker } from "./broker.ts";
 
 type Binding = { release: string; receipt: string };
+export const ordinaryLifecycleBinding = {
+  release: "0".repeat(64),
+  receipt: "0".repeat(64),
+};
 type Claim = {
   taskId: string;
   accountId: string;
@@ -33,10 +38,12 @@ const subscription = z.object({
   ]),
   cancel_at_period_end: z.boolean(),
   items: z.object({
+    has_more: z.literal(false).optional(),
     data: z
       .array(
         z.object({
-          price: z.object({ id, product: id }),
+          price: z.object({ id, product: z.union([id, z.object({ id })]) }),
+          quantity: z.number().int().nonnegative().nullable().optional(),
           current_period_end: z.number().int().positive().max(253402300799),
         }),
       )
@@ -97,8 +104,9 @@ export function createLifecycleStripe(
 export async function reconcileLifecycleBilling(
   db: Knex,
   stripe: Stripe,
-  binding: Binding,
+  binding: Binding = ordinaryLifecycleBinding,
   wanted: string | null = null,
+  signal?: AbortSignal,
 ) {
   assert(
     qualifiedClients.has(stripe),
@@ -121,6 +129,7 @@ export async function reconcileLifecycleBilling(
   ];
   const deadline = Date.now() + 50000;
   const preflight = async () => {
+    signal?.throwIfAborted();
     assert(Date.now() < deadline, "Lifecycle task deadline");
     const result = await db.raw(
       "SELECT grove_lifecycle_valid(?,?,?,?,?) AS valid",
@@ -194,7 +203,7 @@ export async function reconcileLifecycleBilling(
         await preflight();
         const effects = camelRows<{
           operation: "cancel" | "expire";
-          remoteId: string;
+          remoteId: string | null;
           state: string;
         }>(
           await db.raw(
@@ -203,6 +212,9 @@ export async function reconcileLifecycleBilling(
           ),
         );
         for (const effect of effects) {
+          if (effect.state === "confirmed" && effect.remoteId === null)
+            continue;
+          assert(effect.remoteId, "Unresolved effect identity unavailable");
           const resolved =
             effect.operation === "cancel"
               ? subscriptions.some(
@@ -269,8 +281,16 @@ export async function reconcileLifecycleBilling(
         id: s.id,
         customer: s.customer,
         status: s.status,
-        price: s.items.data[0]!.price.id,
-        product: s.items.data[0]!.price.product,
+        price:
+          s.items.data.length === 1 && s.items.data[0]!.quantity === 1
+            ? s.items.data[0]!.price.id
+            : "unsupported",
+        product:
+          s.items.data.length === 1 && s.items.data[0]!.quantity === 1
+            ? typeof s.items.data[0]!.price.product === "string"
+              ? s.items.data[0]!.price.product
+              : s.items.data[0]!.price.product.id
+            : null,
         periodEnd: s.items.data[0]!.current_period_end,
         cancelAtPeriodEnd: s.cancel_at_period_end,
       }))
@@ -301,4 +321,34 @@ export async function reconcileLifecycleBilling(
     ]);
     return false;
   }
+}
+
+export async function publishLifecycleWork(
+  db: Knex,
+  broker: JobBroker | null | undefined,
+  binding = ordinaryLifecycleBinding,
+  signal?: AbortSignal,
+) {
+  if (!broker?.connected || signal?.aborted) return 0;
+  const { rows } = await db.raw("SELECT * FROM grove_lifecycle_dispatch(?,?)", [
+    binding.release,
+    binding.receipt,
+  ]);
+  let count = 0;
+  for (const row of rows) {
+    if (signal?.aborted) break;
+    let confirmed = false;
+    try {
+      await broker.publish({ kind: "task", id: row.id }, "bulk");
+      confirmed = true;
+      count++;
+    } finally {
+      await db.raw("SELECT grove_dispatch_finish('task',?,?,?)", [
+        row.id,
+        row.dispatch_id,
+        confirmed,
+      ]);
+    }
+  }
+  return count;
 }

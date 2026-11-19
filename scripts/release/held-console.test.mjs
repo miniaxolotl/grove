@@ -6,6 +6,10 @@ import test from "node:test";
 import process from "node:process";
 import * as transport from "./held-console.mjs";
 import { serveHeldStatus } from "../../packages/api/src/release-hold.ts";
+import {
+  createPrivateProof,
+  listenPrivateProof,
+} from "../../packages/api/src/lifecycle-proof.ts";
 
 test("actual PTY/CLI composition executes only the fixed nonce-bound loopback GET and returns sanitized held identity", async () => {
   const dir = mkdtempSync(join(tmpdir(), "grove-held-console-"));
@@ -80,6 +84,68 @@ lines.once('line',(line)=>{lines.close(); const child=spawn('/bin/sh',['-c',line
         return true;
       },
     );
+    await close();
+    const evidence = {
+      release: "1".repeat(64),
+      receipt: "2".repeat(64),
+      generation: "1",
+      customers: 1,
+      remoteVerified: 1,
+      pending: 0,
+      uncertain: 0,
+      caughtUp: true,
+      authorityHash: "3".repeat(64),
+      remoteHash: "4".repeat(64),
+      control: {
+        phase: "released",
+        approvalHash: "5".repeat(64),
+        publicHash: null,
+      },
+    };
+    const privateRuntime = await listenPrivateProof(
+      createPrivateProof({
+        mode: "runtime",
+        role: "worker",
+        identity,
+        approval: "5".repeat(64),
+        secret: "private-console-fixture-secret",
+        ready: async () => {},
+        evidence: async () => evidence,
+      }),
+      0,
+    );
+    try {
+      const scope = {
+        app: "11111111-1111-4111-8111-111111111111",
+        deployment: "22222222-2222-4222-8222-222222222222",
+        component: "worker",
+        instance: "worker-current",
+        challenge: "f".repeat(64),
+        mode: "runtime",
+        source: identity.source,
+      };
+      const result = await transport.probeConsole(scope, {
+        ...process.env,
+        PATH: `${dir}:${process.env.PATH}`,
+        PORT: String(privateRuntime.server.address().port),
+        CURSOR_SECRET: "private-console-fixture-secret",
+      });
+      assert.deepEqual(result, {
+        status: "runtime_verified",
+        role: "worker",
+        identity,
+        approval: "5".repeat(64),
+        schema: "verified",
+        challenge: scope.challenge,
+        evidence,
+      });
+      assert.doesNotMatch(
+        JSON.stringify(result),
+        /private-console-fixture-secret|CURSOR_SECRET/,
+      );
+    } finally {
+      await privateRuntime.close();
+    }
   } finally {
     await close();
     rmSync(dir, { recursive: true, force: true });

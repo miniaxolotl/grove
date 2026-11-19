@@ -47,8 +47,10 @@ export async function billingEntitlement(
   if (!config) return null;
   const account = await trx("accounts")
     .where({ id: accountId })
-    .first("clerkSubject");
+    .first("clerkSubject", "status", "deletedAt");
   if (!account) return null;
+  if (account.status !== "active" || account.deletedAt)
+    return { tier: "free", source: "free" };
   const grant = await trx("account_administration")
     .where({ accountId })
     .first("access");
@@ -532,7 +534,11 @@ export async function assertCapacity(
 export async function trialState(
   trx: Knex.Transaction,
   accountId: string,
-): Promise<{ eligible: boolean; consumedAt: string | null; resetAt: string | null }> {
+): Promise<{
+  eligible: boolean;
+  consumedAt: string | null;
+  resetAt: string | null;
+}> {
   const row = await trx("billing_trials").where({ accountId }).first();
   if (!row) return { eligible: true, consumedAt: null, resetAt: null };
   return {
@@ -570,7 +576,11 @@ export async function resetTrial(
     .update({ resetBy, resetAt: trx.fn.now() })
     .returning("accountId");
   if (!updated.length)
-    throw new GroveError("trial_not_consumed", "This account never used a trial", 404);
+    throw new GroveError(
+      "trial_not_consumed",
+      "This account never used a trial",
+      404,
+    );
   // Eligibility is restored by removing consumption; the audit trail stays in grove_admin_change.
   await trx("billing_trials").where({ accountId }).delete();
 }

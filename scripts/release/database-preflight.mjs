@@ -68,7 +68,7 @@ export async function preflightDatabases(env, dependencies) {
       }
     } catch {
       throw new Error(
-        `Production ${name} schema preflight failed. Verify connectivity and runtime grants, then have the migration owner apply the admitted source's pending forward migrations before retrying. Migrations 045–047 provide import destination, email fingerprints and deletion receipts. No migrations were run by this check.`,
+        `Production ${name} schema preflight failed. Verify connectivity and runtime grants, then have the migration owner apply the admitted source's pending forward migrations before retrying. Migrations 045–048 provide import destination, email fingerprints, deletion receipts and lifecycle reconciliation. No migrations were run by this check.`,
       );
     }
   }

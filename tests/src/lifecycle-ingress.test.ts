@@ -71,7 +71,8 @@ test("signed lifecycle ingress awaits durable commit and retains only minimized 
 function ingressFingerprint(raw: string) {
   return requireHash(raw);
 }
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
+import * as proofs from "../../packages/api/src/lifecycle-proof.ts";
 const requireHash = (raw: string) =>
   createHash("sha256").update(raw).digest("hex");
 
@@ -103,6 +104,66 @@ test("only exact signed routes are eligible; general API, query aliases and read
   replay.headers.set("svix-timestamp", "1");
   assert.equal((await run(replay)).status, 400);
   assert.equal(calls, 0);
+});
+
+test("private process proof needs console custody, source-bound nonce MAC and actual initialized readiness", async () => {
+  const create = (
+    proofs as unknown as {
+      createPrivateProof?: (
+        options: unknown,
+      ) => (request: Request) => Promise<Response>;
+    }
+  ).createPrivateProof;
+  assert.equal(typeof create, "function");
+  if (!create) return;
+  const identity = { schema: 1, source: "a".repeat(40) },
+    secret = "private-proof-fixture-key",
+    challenge = "b".repeat(64);
+  let initialized = false,
+    reads = 0;
+  const proof = create({
+    mode: "runtime",
+    role: "worker",
+    identity,
+    approval: "c".repeat(64),
+    secret,
+    ready: async () => {
+      if (!initialized) throw new Error("not initialized");
+    },
+    evidence: async () => {
+      reads++;
+      return { generation: "1", caughtUp: true };
+    },
+  });
+  const request = (nonce = challenge, mac?: string) =>
+    new Request("http://localhost/_grove/release/runtime", {
+      headers: {
+        "X-Grove-Release-Challenge": nonce,
+        ...(mac ? { "X-Grove-Release-Proof": mac } : {}),
+      },
+    });
+  const mac = createHmac("sha256", secret)
+    .update(`/_grove/release/runtime\n${challenge}\nworker\n${identity.source}`)
+    .digest("hex");
+  assert.equal((await proof(request())).status, 403);
+  assert.equal(reads, 0);
+  assert.equal((await proof(request(challenge, mac))).status, 503);
+  assert.equal(reads, 0);
+  initialized = true;
+  const response = await proof(request(challenge, mac));
+  assert.equal(response.status, 200);
+  assert.equal(reads, 1);
+  assert.deepEqual(await response.json(), {
+    status: "runtime_verified",
+    role: "worker",
+    identity,
+    approval: "c".repeat(64),
+    schema: "verified",
+    challenge,
+    evidence: { generation: "1", caughtUp: true },
+  });
+  assert.equal((await proof(request("d".repeat(64), mac))).status, 403);
+  assert.equal(reads, 1);
 });
 
 test("Stripe signature and mode are verified, tenant comes from customer mapping not supplied metadata", async () => {

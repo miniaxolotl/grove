@@ -20,7 +20,9 @@ An image built with `GROVE_HELD_RELEASE_BUILD=true` requires exactly one control
   initialize only the existing database, broker and narrow billing reconciler.
 - `GROVE_RELEASE_APPROVAL`: `{schema:1,identity,approval}`. A syntactically valid
   receipt hash does not release effects. Startup must atomically consume the exact
-  persisted owner-approved handoff before entering the ordinary runtime.
+  persisted owner-approved handoff before entering the ordinary runtime. This does
+  **not** open general API routes or readiness: a separate owner-only persisted
+  public approval must match the current generation and actual evidence.
 
 Controls are mutually exclusive and source/product-version checked on every
 restart. Missing controls fail closed in a held image. Product version is distinct
@@ -80,6 +82,88 @@ event invalidates handoff; an identical retry does not. Startup rechecks the
 evidence and generation atomically. That commit is the release point; subsequent
 ordinary work must continue to honor account deletion and durable reconciliation.
 
+Normal signed Clerk/Stripe routes use the same durable acceptance path after
+release. Account deletion commits authority before its billing work intent;
+cleanup waits for actual canonical cancellation/expiry readback. Ordinary workers
+continue these tasks on the existing bulk pool, broker and PostgreSQL fallback.
+Checkout, portal and interactive status synchronization are unchanged.
+
+Entitlement requires exactly one item with quantity 1. Expanded products are
+supported; multi-item, multi-quantity and missing-quantity snapshots store
+`unsupported`/null eligibility. Partial or malformed snapshots cannot complete
+reconciliation. Canonical reads upsert subscriptions and mark removed ones
+canceled, without deleting history or trial consumption/linkage. Disabled or
+deleted accounts cannot regain Pro from retained subscriptions.
+
+Evidence is refreshed durably when stale or its source/customer/authority changes.
+Failed tasks do not silently reset: authenticated owners can inspect
+`GET /v1/billing/reconciliation` and request scoped recovery with
+`POST /v1/billing/reconciliation/:id/retry`, body `{operationId:<UUID>}`.
+Recovery preserves failed evidence and uncertain effects and is operation-idempotent.
+Deleting accounts remain held for operator/worker recovery rather than regaining
+interactive access. Bounded retention redacts raw event IDs after 30 days and
+confirmed effect IDs only after completed work; replay/target hashes remain.
+Privacy cleanup redacts scoped staging IDs only after deletion and reconciliation.
+Neither path clears uncertain acceptance or billing history to make a check pass.
+
+## Publication and continuation
+
+No held release is selected by this change. An optional reviewed source-only
+`scripts/release/held-decision.json` selects `held-publication-only`, exact app,
+previous image digest and preceding source `anchor`. Its declaration commit may
+change only that file. The following coordinated Release Please stamp is verified
+with the shared stamp checker and patch-first release-intent policy; extra source
+edits, floating heads and mixed selected/held declarations are rejected.
+
+Protected Deploy persists `publication_pending` **before** image/package writes,
+then verifies every package integrity, both image registries and the actual held
+image metadata/entrypoints. Only then does it emit `published_held`. Ordinary
+deployment, generic delivery receipts and website jobs are excluded. Failed runs
+resume only through trusted, unexpired pre-write artifacts, exact run/attempt
+provenance and a bounded linked custody chain. Missing publication is not success;
+an uncertain prior provider request is never replay permission.
+
+The receipt chain is:
+`published_held → held_verified → lifecycle_verified → effects_approved → runtime_verified → public_verified → website_verified`.
+Protected **Held release continuation** records actual named-instance proofs for
+each stage. Its final stage uses the existing Vercel helper to pull configuration,
+write exact source identity, build afresh, deploy and verify the live identity;
+it cannot reuse a stale site artifact or call publication-only delivery complete.
+
+The local `scripts/release/held-operator-cli.mjs` composes the independently
+qualified operator's private-file, manifest, transaction and fsynced journal
+interfaces. It does not implement another backup, migration or secret store.
+Its default is help, not execution. `plan`, `execute` and readback-only `reconcile`
+require an explicit independent directory and private request. The retained
+`FROZEN_V11129_COMPOSITION_BLOCKED` manifest is rejected **before secret loading**;
+no command/approval flag overrides it. A new source requires independent
+`source-bound-held-release-v1` execution qualification, fresh backup/restore and
+custody under the owner's separate contract.
+
+Requests reference trusted publication/previous workflow run/attempt coordinates,
+a private journal directory, independent backup receipt/journal/ciphertext paths
+and an exact sanitized owner command. Retained ciphertext and the confirmed
+restore journal must match the command's custody hash, source and manifest;
+fixture receipts, torn journals and overdue original-custody reviews are rejected.
+Initial restore additionally reuses independent hosted observation and
+`validateCustody` before changing provider state. Commands bind
+source, publication, parent receipt, action, manifest, expected/proposed hashes,
+backup custody hash, UUID and at most five minutes of write validity. Expired
+commands permit only exact readback reconciliation, never another write.
+Restore/reconcile/lifecycle-ingress/
+effects/public-health proposals preserve unrelated provider configuration and fence
+the exact generation and instance inventory. Intent is fsynced before PUT/SQL;
+unknown acceptance stays uncertain and permits **readback only**, not another PUT.
+An already exact-active target is verified without a write. Database operations
+are short bounded owner transactions, with no remote I/O inside them.
+
+Private lifecycle/runtime proofs require a source/role/path/nonce-bound HMAC using
+the existing `CURSOR_SECRET`. The fixed console command computes it remotely;
+the secret never enters argv or returned evidence. Proofs include persisted phase,
+approval and public hashes. Runtime proofs additionally require real API readiness
+or initialized ordinary worker runtime. Operator command hashes are distinct from
+later workflow receipt hashes, avoiding circular approval identities.
+
 ## Rollout limits and verification
 
 The migration installs **no** release admission or approval row. Its new registry
@@ -88,16 +172,20 @@ actual runtime-role qualification. Prior migration/image proof is not inherited.
 Provider ingress must not be opened until the source-bound narrow API and worker
 have been privately verified under the explicit operator phase and backlog custody.
 
-Current composition gaps remain release blockers: ordinary billing webhook and
-deletion paths still use their previous synchronous implementation; normal-worker
-continuation, evidence refresh/retention and the publication/resume/approval/site
-workflow composition are not yet complete. Checkout, portal and status transaction
-I/O is a separately retained gap, not repaired by the narrow runtime. Do not release
-general effects or treat this source checkpoint as an admitted release.
+Live qualification remains separate: new immutable source/tag and registry freeze,
+populated 048 rehearsal, independently qualified operator manifest and original
+ciphertext/backup/restore custody, actual provider-console transport, signed
+backlog routing, explicit outage/effect/public approvals and actual fresh website
+delivery. No active declaration, deployment, publication, migration or live send is
+performed by these source changes. Checkout/portal/status transaction I/O remains
+a separate existing gap; the narrow reconciler does not claim to repair it.
 
 Focused verification lives in `tests/src/lifecycle-{ingress,storage,handoff}.test.ts`
 and `tests/src/release-hold.test.ts`: real disposable PostgreSQL/broker, signed
 ingress, authenticated loopback provider faults, transaction-boundary assertions,
 replay, stale leases, remapping/deletion races, uncertain acceptance, restart and
-handoff invalidation. These fixtures do not qualify live Stripe/Clerk, DigitalOcean
+handoff invalidation. `tests/src/held-operator.test.ts` checks the owner transition
+composition against real PostgreSQL; `scripts/release/held-*.test.mjs` cover
+publication custody, proposals, proofs, journal faults and workflow exclusions.
+These fixtures do not qualify live Stripe/Clerk, DigitalOcean
 console transport, production TLS credentials, outage duration or public readiness.

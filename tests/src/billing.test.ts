@@ -4,6 +4,10 @@ import { randomUUID } from "node:crypto";
 import { createHmac } from "node:crypto";
 import { createServer } from "node:http";
 import Stripe from "stripe";
+import {
+  createLifecycleStripe,
+  reconcileLifecycleBilling,
+} from "../../packages/api/src/lifecycle-billing.ts";
 import { InferenceError } from "@lib/ai";
 import {
   billingLimits,
@@ -49,7 +53,13 @@ async function lifecycle(t: TestContext) {
   const subscriptions: Stripe.Subscription[] = [];
   const sessions = new Map<string, Stripe.Checkout.Session>();
   const replays = new Map<string, Stripe.Checkout.Session>();
-  const state = { loseCheckout: false, failList: false, lists: 0, canceled: 0, lastCheckoutBody: null as URLSearchParams | null };
+  const state = {
+    loseCheckout: false,
+    failList: false,
+    lists: 0,
+    canceled: 0,
+    lastCheckoutBody: null as URLSearchParams | null,
+  };
   const remote = createServer(async (req, res) => {
     const chunks: Buffer[] = [];
     for await (const chunk of req) {
@@ -89,7 +99,9 @@ async function lifecycle(t: TestContext) {
       subscription.status = "canceled";
       state.canceled++;
       result = subscription;
-    } else if (path === "/v1/checkout/sessions") {
+    } else if (path === "/v1/checkout/sessions" && req.method === "GET")
+      result = { data: [...sessions.values()], has_more: false };
+    else if (path === "/v1/checkout/sessions") {
       const key = req.headers["idempotency-key"] as string;
       state.lastCheckoutBody = new URLSearchParams(
         Buffer.concat(chunks).toString("utf8"),
@@ -98,6 +110,7 @@ async function lifecycle(t: TestContext) {
         const id = `cs_${sessions.size + 1}`;
         const session = {
           id,
+          customer,
           status: "open",
           subscription: null,
           url: `https://checkout.stripe.com/c/pay/${id}`,
@@ -165,19 +178,56 @@ async function lifecycle(t: TestContext) {
         ],
       },
     }) as Stripe.Subscription;
-  const webhook = (id: string, type = "customer.subscription.updated") => {
-    const body = JSON.stringify({
-      id,
-      type,
-      data: { object: { customer, status: "active" } },
-    });
-    return billing.webhook(
+  const canonical = createLifecycleStripe("sk_test_fixture", (input, init) => {
+    const url = new URL(String(input));
+    url.protocol = "http:";
+    url.host = `127.0.0.1:${(remote.address() as { port: number }).port}`;
+    return fetch(url, init);
+  });
+  const reconcile = async () => {
+    const task = await admin("background_tasks")
+      .where({
+        accountId: principal.accountId,
+        kind: "billing_reconcile",
+        status: "pending",
+      })
+      .orderBy("created_at", "desc")
+      .first();
+    if (!task) return;
+    await admin("background_tasks")
+      .where({ id: task.id })
+      .update({ dueAt: admin.fn.now() });
+    assert.equal(
+      await reconcileLifecycleBilling(worker, canonical, undefined, task.id),
+      true,
+      "Durable canonical reconciliation must complete",
+    );
+  };
+  const bodies = new Map<string, string>();
+  const webhook = async (
+    id: string,
+    type = "customer.subscription.updated",
+  ) => {
+    if (!bodies.has(id))
+      bodies.set(
+        id,
+        JSON.stringify({
+          id,
+          type,
+          created: Math.floor(Date.now() / 1000),
+          livemode: false,
+          data: { object: { customer, status: "active" } },
+        }),
+      );
+    const body = bodies.get(id)!;
+    await billing.webhook(
       body,
       stripe.webhooks.generateTestHeaderString({
         payload: body,
         secret: options.webhookSecret,
       }),
     );
+    await reconcile();
   };
   return {
     principal,
@@ -188,6 +238,7 @@ async function lifecycle(t: TestContext) {
     state,
     subscription,
     webhook,
+    reconcile,
   };
 }
 
@@ -308,13 +359,14 @@ test("trial checkout is trial-scoped, single-use, fenced from open checkouts, an
     eligible: true,
   });
   const audit = await tenant(db, f.principal.accountId, (trx) =>
-    trx.raw("SELECT grove_admin_audit() AS result").then((r) => r.rows[0].result),
+    trx
+      .raw("SELECT grove_admin_audit() AS result")
+      .then((r) => r.rows[0].result),
   );
   assert.ok(
     audit.some(
       (entry: { kind: string; accountId: string }) =>
-        entry.kind === "change" &&
-        entry.accountId === resettable.accountId,
+        entry.kind === "change" && entry.accountId === resettable.accountId,
     ),
   );
   await assert.rejects(
@@ -327,7 +379,7 @@ test("trial checkout is trial-scoped, single-use, fenced from open checkouts, an
   );
 });
 
-test("webhook retries only commit successful canonical reconciliation and handle payment/cancellation states", async (t) => {
+test("webhook acceptance is durable before canonical reconciliation; retry preserves payment/cancellation semantics", async (t) => {
   const f = await lifecycle(t);
   memory.configureBillingQuotas(db, {
     enabled: async () => true,
@@ -337,9 +389,9 @@ test("webhook retries only commit successful canonical reconciliation and handle
   f.subscriptions.push(f.subscription("active"));
   f.state.failList = true;
   await assert.rejects(f.webhook("evt_retry"));
-  assert.equal(
+  assert(
     await admin("billing_events").where({ id: "evt_retry" }).first(),
-    undefined,
+    "Acceptance survives a remote outage without pretending work completed",
   );
   f.state.failList = false;
   await f.webhook("evt_retry", "invoice.paid");
@@ -391,6 +443,13 @@ test("non-owner worker cancellation expires checkout and stops renewal idempoten
     ),
     f.options,
   );
+  await admin("accounts")
+    .where({ id: f.principal.accountId })
+    .update({ status: "deleting" });
+  await assert.rejects(billing.cancelForDeletion(f.principal.accountId), {
+    code: "billing_reconciliation_pending",
+  });
+  await f.reconcile();
   await billing.cancelForDeletion(f.principal.accountId);
   await billing.cancelForDeletion(f.principal.accountId);
   assert.equal(f.state.canceled, 1);
@@ -416,6 +475,13 @@ test("deletion recovers a completed lost checkout without trying to expire it", 
     ),
     f.options,
   );
+  await admin("accounts")
+    .where({ id: f.principal.accountId })
+    .update({ status: "deleting" });
+  await assert.rejects(billing.cancelForDeletion(f.principal.accountId), {
+    code: "billing_reconciliation_pending",
+  });
+  await f.reconcile();
   await billing.cancelForDeletion(f.principal.accountId);
   assert.equal(f.state.canceled, 1);
   assert.equal(f.sessions.get("cs_1")!.status, "complete");
@@ -1157,14 +1223,15 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
     items: {
       data: [
         {
-          price: { id: "price_pro" },
+          price: { id: "price_pro", product: "prod_grove" },
           quantity: 1,
           current_period_end: Math.floor(Date.now() / 1000) + 86400,
         },
       ],
     },
   };
-  let subscribed = false;
+  let subscribed = false,
+    canceled = false;
   const remote = createServer(async (req, res) => {
     const chunks: Buffer[] = [];
     for await (const chunk of req) chunks.push(Buffer.from(chunk));
@@ -1191,34 +1258,47 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
       result = { id: "cus_http" };
     } else if (path === "/v1/subscriptions")
       result = {
-        data: subscribed
-          ? [
-              subscription,
-              {
-                ...subscription,
-                id: "sub_old_canceled",
-                status: "canceled",
-                items: {
-                  data: [
-                    {
-                      ...subscription.items.data[0],
-                      current_period_end:
-                        Math.floor(Date.now() / 1000) + 864000,
-                    },
-                  ],
+        data:
+          subscribed || canceled
+            ? [
+                { ...subscription, status: canceled ? "canceled" : "active" },
+                {
+                  ...subscription,
+                  id: "sub_old_canceled",
+                  status: "canceled",
+                  items: {
+                    data: [
+                      {
+                        ...subscription.items.data[0],
+                        current_period_end:
+                          Math.floor(Date.now() / 1000) + 864000,
+                      },
+                    ],
+                  },
                 },
-              },
-            ]
-          : [],
+              ]
+            : [],
         has_more: false,
       };
     else if (path === "/v1/subscriptions/sub_http" && req.method === "DELETE") {
       cancellations++;
       subscribed = false;
+      canceled = true;
       result = { ...subscription, status: "canceled" };
     } else if (path === "/v1/checkout/sessions/cs_http/expire") {
       checkoutOpen = false;
       result = { id: "cs_http", status: "expired" };
+    } else if (path === "/v1/checkout/sessions" && req.method === "GET") {
+      result = {
+        has_more: false,
+        data: [
+          {
+            id: "cs_http",
+            customer: "cus_http",
+            status: checkoutOpen ? "open" : "expired",
+          },
+        ],
+      };
     } else if (
       path === "/v1/checkout/sessions" ||
       path === "/v1/checkout/sessions/cs_http"
@@ -1262,6 +1342,33 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
       protocol: "http",
       maxNetworkRetries: 0,
     });
+    const canonical = createLifecycleStripe(
+      "sk_test_fixture",
+      (input, init) => {
+        const url = new URL(String(input));
+        url.protocol = "http:";
+        url.host = `127.0.0.1:${port}`;
+        return fetch(url, init);
+      },
+    );
+    const reconcile = async () => {
+      const task = await admin("background_tasks")
+        .where({
+          accountId: a.accountId,
+          kind: "billing_reconcile",
+          status: "pending",
+        })
+        .orderBy("created_at", "desc")
+        .first();
+      assert(task);
+      await admin("background_tasks")
+        .where({ id: task.id })
+        .update({ dueAt: admin.fn.now() });
+      assert.equal(
+        await reconcileLifecycleBilling(worker, canonical, undefined, task.id),
+        true,
+      );
+    };
     const service = new memory.MemoryService(
       db,
       "billing-fixture-cursor-secret-32-characters",
@@ -1296,6 +1403,8 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
     const event = JSON.stringify({
       id: "evt_http",
       type: "customer.subscription.updated",
+      created: Math.floor(Date.now() / 1000),
+      livemode: false,
       data: { object: { ...subscription, status: "canceled" } },
     });
     const timestamp = Math.floor(Date.now() / 1000);
@@ -1305,6 +1414,7 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
     });
     await billing.webhook(event, signature);
     await billing.webhook(event, signature);
+    await reconcile();
     assert.equal(
       (await admin("billing_events").where({ id: "evt_http" })).length,
       1,
@@ -1337,10 +1447,13 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
     });
     const response = await app.request("/v1/webhooks/stripe", {
       method: "POST",
-      headers: { "stripe-signature": signature },
+      headers: {
+        "stripe-signature": signature,
+        "content-type": "application/json",
+      },
       body: event,
     });
-    assert.equal(response.status, 200);
+    assert.equal(response.status, 202);
     const budgetApp = application.createApp({
       memories: service,
       billing,
@@ -1364,26 +1477,15 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
       (await exhausted.json()).error.message,
       /Billing|upgrade|subscription/i,
     );
-    assert.equal(
-      typeof billing.cancelForDeletion,
-      "function",
-      "account deletion must stop future renewal",
-    );
-    await billing.cancelForDeletion(a.accountId);
-    await billing.cancelForDeletion(a.accountId);
-    assert.equal(cancellations, 1);
+    // An independently ended subscription permits a new checkout; this is not
+    // permission to reactivate a deleted account later in the same fixture.
+    subscribed = false;
+    canceled = true;
+    checkoutOpen = false;
     await tenant(db, a.accountId, (trx) =>
       trx("billing_customers")
         .where({ accountId: a.accountId })
         .update({ checkoutId: null }),
-    );
-    checkoutOpen = true;
-    const beforeRecovery = checkoutCalls;
-    await billing.cancelForDeletion(a.accountId);
-    assert.equal(
-      checkoutCalls,
-      beforeRecovery + 1,
-      "deletion recovers a lost checkout response using the same operation",
     );
     enabled = true;
     await tenant(db, a.accountId, (trx) =>
@@ -1418,6 +1520,25 @@ test("Stripe Checkout is owner-only, flag-gated and retry-safe; signed events re
     await assert.rejects(racing.checkout(a, "month"), {
       code: "checkout_pending",
     });
+    subscribed = true;
+    canceled = false;
+    checkoutOpen = true;
+    const beforeRecovery = checkoutCalls;
+    await admin("accounts")
+      .where({ id: a.accountId })
+      .update({ status: "deleting" });
+    await assert.rejects(billing.cancelForDeletion(a.accountId), {
+      code: "billing_reconciliation_pending",
+    });
+    await reconcile();
+    await billing.cancelForDeletion(a.accountId);
+    assert.equal(cancellations, 1);
+    assert.equal(checkoutOpen, false);
+    assert.equal(
+      checkoutCalls,
+      beforeRecovery,
+      "Deletion uses canonical readback, never a new Checkout create",
+    );
   } finally {
     await new Promise<void>((resolve, reject) =>
       remote.close((error) => (error ? reject(error) : resolve())),

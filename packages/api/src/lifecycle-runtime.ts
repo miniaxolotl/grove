@@ -9,8 +9,14 @@ import { createLifecycleIngress } from "./lifecycle-ingress.ts";
 import {
   createLifecycleStripe,
   reconcileLifecycleBilling,
+  publishLifecycleWork,
 } from "./lifecycle-billing.ts";
 import { JobBroker } from "./broker.ts";
+import {
+  createPrivateProof,
+  listenPrivateProof,
+  runtimeInitialized,
+} from "./lifecycle-proof.ts";
 
 const releaseHash = (identity: HoldIdentity) =>
   createHash("sha256")
@@ -47,6 +53,9 @@ export async function approveLifecycleRuntime(
   env: NodeJS.ProcessEnv,
 ) {
   let db: Knex | undefined;
+  let privateRuntime:
+    | Awaited<ReturnType<typeof listenPrivateProof>>
+    | undefined;
   try {
     db = database(role, env);
     await probeDatabase(db);
@@ -55,12 +64,46 @@ export async function approveLifecycleRuntime(
       [releaseHash(identity), approval],
     );
     assert.equal(result.rows[0].admitted, true);
+    if (role === "worker") {
+      const database = db;
+      privateRuntime = await listenPrivateProof(
+        createPrivateProof({
+          mode: "runtime",
+          role,
+          identity,
+          approval,
+          secret: env.CURSOR_SECRET ?? "",
+          ready: async () => {
+            assert(runtimeInitialized(), "Worker not initialized");
+            await probeDatabase(database);
+          },
+          evidence: async () =>
+            (
+              await database.raw(
+                "SELECT grove_lifecycle_status_approved(?,?) AS evidence",
+                [releaseHash(identity), approval],
+              )
+            ).rows[0].evidence,
+        }),
+        Number(env.PORT ?? 26080),
+      );
+      const close = async () => {
+        await privateRuntime!.close();
+        await database.destroy();
+      };
+      process.once("SIGTERM", () => {
+        void close();
+      });
+      process.once("SIGINT", () => {
+        void close();
+      });
+    }
   } catch {
     throw new Error(
       "Persisted release approval unavailable; runtime effects remain stopped",
     );
   } finally {
-    await db?.destroy();
+    if (!privateRuntime) await db?.destroy();
   }
 }
 
@@ -99,6 +142,23 @@ export async function startLifecycleRuntime(
     assert.match(env.STRIPE_SECRET_KEY ?? "", /^(sk|rk)_(live|test)_/);
     const stripe =
       fixture.stripe ?? createLifecycleStripe(env.STRIPE_SECRET_KEY!);
+    const proof = getRequestListener(
+      createPrivateProof({
+        mode: "lifecycle",
+        role,
+        identity,
+        receipt,
+        secret: env.CURSOR_SECRET ?? "",
+        ready: bound,
+        evidence: async () =>
+          (
+            await db.raw("SELECT grove_lifecycle_proof(?,?) AS evidence", [
+              binding.release,
+              receipt,
+            ])
+          ).rows[0].evidence,
+      }),
+    );
     if (role === "api") {
       assert(env.CLERK_WEBHOOK_SIGNING_SECRET && env.STRIPE_WEBHOOK_SECRET);
       const ingress = createLifecycleIngress({
@@ -126,6 +186,7 @@ export async function startLifecycleRuntime(
         env,
         bound,
         getRequestListener((request) => ingress(request)),
+        proof,
       );
     } else {
       assert(env.AMQP_URL, "Existing broker configuration required");
@@ -147,7 +208,14 @@ export async function startLifecycleRuntime(
         false,
       );
       const queue = broker;
-      http = await serveHeldStatus(identity, role, env, bound);
+      http = await serveHeldStatus(
+        identity,
+        role,
+        env,
+        bound,
+        undefined,
+        proof,
+      );
       done = (async () => {
         while (!closing) {
           try {
@@ -157,29 +225,14 @@ export async function startLifecycleRuntime(
               binding.release,
               receipt,
             ]);
+            await db.raw("SELECT grove_lifecycle_retention(?,?)", [
+              binding.release,
+              receipt,
+            ]);
             await run();
             if (!queue.connected) await queue.connect().catch(() => {});
-            if (!closing && queue.connected) {
-              const { rows } = await db.raw(
-                "SELECT * FROM grove_lifecycle_dispatch(?,?)",
-                [binding.release, receipt],
-              );
-              for (const row of rows) {
-                if (closing) break;
-                let confirmed = false;
-                try {
-                  await queue.publish({ kind: "task", id: row.id }, "bulk");
-                  confirmed = true;
-                } catch {
-                  /* Durable redispatch below. */
-                }
-                await db.raw("SELECT grove_dispatch_finish('task',?,?,?)", [
-                  row.id,
-                  row.dispatch_id,
-                  confirmed,
-                ]);
-              }
-            }
+            if (!closing)
+              await publishLifecycleWork(db, queue, binding, abort.signal);
           } catch {
             /* Retain durable pending/failed/uncertain state, never fake completion. */
           }

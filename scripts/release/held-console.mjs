@@ -16,6 +16,8 @@ export async function probeConsole(scope, env = process.env) {
         scope.component,
         scope.instance,
         scope.challenge,
+        scope.mode ?? "held",
+        scope.source ?? "",
       ],
       {
         env,

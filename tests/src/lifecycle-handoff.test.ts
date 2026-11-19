@@ -7,9 +7,12 @@ import {
   reconcileLifecycleBilling,
 } from "../../packages/api/src/lifecycle-billing.ts";
 import { startLifecycleRuntime } from "../../packages/api/src/lifecycle-runtime.ts";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { Webhook } from "svix";
 import { setTimeout as delay } from "node:timers/promises";
+import { releaseEntry } from "../../packages/api/src/release-hold.ts";
+import { createApp } from "../../packages/api/src/app.ts";
+import { MemoryService } from "@lib/memory";
 
 const ownerUrl = process.env.TEST_MIGRATION_DATABASE_URL!;
 assert(new URL(ownerUrl).pathname.endsWith("_test"));
@@ -153,6 +156,28 @@ test("new event invalidates an earlier handoff and runtime approval across resta
   assert.equal(control.handoffEvidence, null);
   assert.equal(control.approvalHash, null);
 });
+test("operator effect approval atomically compares the actual selected evidence, not only its generation", async () => {
+  const expected = await status();
+  const original = await admin("lifecycle_billing_state")
+    .where({ accountId })
+    .first();
+  await admin("lifecycle_billing_state")
+    .where({ accountId })
+    .update({ remoteHash: "f".repeat(64) });
+  await assert.rejects(
+    admin.raw("SELECT grove_lifecycle_approve(?,?,?,?,?)", [
+      release,
+      receipt,
+      expected.generation,
+      approval,
+      JSON.stringify(expected),
+    ]),
+    /evidence fence/,
+  );
+  await admin("lifecycle_billing_state")
+    .where({ accountId })
+    .update({ remoteHash: original.remoteHash });
+});
 test("only exact persisted handoff becomes released, atomically before any general runtime initialization", async () => {
   const stripe = createLifecycleStripe("sk_test_handoff", async () =>
     Response.json({ has_more: false, data: [] }),
@@ -243,6 +268,7 @@ test("actual narrow API restart preserves durable authority and rejects every ge
     CLERK_WEBHOOK_SIGNING_SECRET: secret,
     STRIPE_WEBHOOK_SECRET: "whsec_restart",
     STRIPE_SECRET_KEY: "sk_test_restart",
+    CURSOR_SECRET: "source-bound-private-proof-fixture",
   };
   const start = startLifecycleRuntime;
   assert.equal(typeof start, "function");
@@ -282,6 +308,33 @@ test("actual narrow API restart preserves durable authority and rejects every ge
         (await admin("lifecycle_events").where({ eventId: key })).length,
         1,
       );
+      const challenge = "e".repeat(64),
+        path = "/_grove/release/lifecycle";
+      assert.equal(
+        (
+          await fetch(`${origin}${path}`, {
+            headers: { "X-Grove-Release-Challenge": challenge },
+          })
+        ).status,
+        403,
+      );
+      const mac = createHmac("sha256", env.CURSOR_SECRET)
+        .update(`${path}\n${challenge}\napi\n${identity.source}`)
+        .digest("hex");
+      const proof = await fetch(`${origin}${path}`, {
+        headers: {
+          "X-Grove-Release-Challenge": challenge,
+          "X-Grove-Release-Proof": mac,
+        },
+      });
+      assert.equal(proof.status, 200);
+      const readback = await proof.json();
+      assert.deepEqual(readback.evidence.control, {
+        phase: "reconcile",
+        approvalHash: null,
+        publicHash: null,
+      });
+      assert.equal(readback.receipt, receipt);
     } finally {
       await running.close();
     }
@@ -335,4 +388,142 @@ test("actual narrow API restart preserves durable authority and rejects every ge
   } finally {
     await running.close();
   }
+});
+
+test("effect approval does not open public API/readiness before an independently fenced ingress approval", async () => {
+  const control = await admin("lifecycle_release_control").first();
+  const evidence = (
+    await worker.raw("SELECT grove_lifecycle_status(?,?) AS evidence", [
+      control.releaseHash,
+      receipt,
+    ])
+  ).rows[0].evidence;
+  const approved = "9".repeat(64);
+  await admin.raw("SELECT grove_lifecycle_handoff(?,?,?,?)", [
+    control.releaseHash,
+    receipt,
+    evidence.generation,
+    approved,
+  ]);
+  const identity = {
+    schema: 1 as const,
+    source: "1".repeat(40),
+    production: "2".repeat(40),
+    tag: "v1.11.30",
+    run: 123,
+    attempt: 1,
+    digest: `sha256:${"3".repeat(64)}`,
+    publication: "4".repeat(64),
+  };
+  await releaseEntry(
+    "api",
+    async () => {},
+    {
+      GROVE_RELEASE_APPROVAL: JSON.stringify({
+        schema: 1,
+        identity,
+        approval: approved,
+      }),
+    },
+    {
+      required: true,
+      identity: async () => ({
+        revision: identity.source,
+        version: "1.11.30",
+        productVersion: "1.11.30",
+        component: "api",
+        enabled: true,
+        holdRequired: true,
+      }),
+      listen: async () => {},
+      approve: async () => {
+        assert.equal(
+          (
+            await api.raw(
+              "SELECT grove_lifecycle_release_approved(?,?) AS admitted",
+              [control.releaseHash, approved],
+            )
+          ).rows[0].admitted,
+          true,
+        );
+      },
+    },
+  );
+  const app = createApp({
+    memories: new MemoryService(api, "private-ingress-approval-secret"),
+    auth: {
+      principal: async () => {
+        throw new Error("Public admission must precede auth");
+      },
+    },
+    origin: "https://api.example.invalid",
+    siteUrl: "https://example.invalid",
+    issuer: "https://clerk.example.invalid",
+    webhookSecret: "fixture",
+    ready: async () => {},
+  });
+  assert.equal((await app.request("/health/ready")).status, 503);
+  assert.equal((await app.request("/v1/me")).status, 503);
+  const fresh = (
+    await worker.raw("SELECT grove_lifecycle_status(?,?) AS evidence", [
+      control.releaseHash,
+      receipt,
+    ])
+  ).rows[0].evidence;
+  await assert.rejects(
+    api.raw("SELECT grove_lifecycle_open_public(?,?,?,?,?)", [
+      control.releaseHash,
+      approved,
+      "8".repeat(64),
+      fresh.generation,
+      JSON.stringify(fresh),
+    ]),
+    /permission denied/,
+  );
+  await admin.raw("SELECT grove_lifecycle_open_public(?,?,?,?,?)", [
+    control.releaseHash,
+    approved,
+    "8".repeat(64),
+    fresh.generation,
+    JSON.stringify(fresh),
+  ]);
+  assert.equal((await app.request("/health/ready")).status, 200);
+});
+
+test("stale evidence refresh is durably queued once, without clearing uncertainty or resetting failures", async () => {
+  const control = await admin("lifecycle_release_control").first();
+  await admin("lifecycle_billing_state")
+    .where({ accountId })
+    .update({ observedAt: new Date(Date.now() - 11 * 60000) });
+  const binding = [control.releaseHash, receipt];
+  const old = await admin("lifecycle_billing_state")
+    .where({ accountId })
+    .first();
+  assert.equal(
+    (await worker.raw("SELECT grove_lifecycle_enroll(?,?) AS count", binding))
+      .rows[0].count,
+    1,
+  );
+  assert.equal(
+    (await worker.raw("SELECT grove_lifecycle_enroll(?,?) AS count", binding))
+      .rows[0].count,
+    0,
+  );
+  const current = await admin("lifecycle_billing_state")
+    .where({ accountId })
+    .first();
+  assert.equal(BigInt(current.generation), BigInt(old.generation) + 1n);
+  const task = await admin("background_tasks")
+    .where({ accountId, kind: "billing_reconcile", status: "pending" })
+    .first();
+  assert(task);
+  await admin("background_tasks")
+    .where({ id: task.id })
+    .update({ status: "failed", attempts: 5 });
+  assert.equal(
+    (await worker.raw("SELECT grove_lifecycle_enroll(?,?) AS count", binding))
+      .rows[0].count,
+    0,
+    "Failure needs explicit scoped recovery, not timer resets",
+  );
 });

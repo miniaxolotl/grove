@@ -8,6 +8,7 @@ const hash = /^[a-f0-9]{64}$/;
 const phases = [
   "published_held",
   "held_verified",
+  "lifecycle_verified",
   "effects_approved",
   "runtime_verified",
   "public_verified",
@@ -46,6 +47,7 @@ function operator(context) {
   assert.match(context.apiVersion, /^\d+\.\d+\.\d+$/);
   return { run: context.run, attempt: context.attempt, actor: context.actor };
 }
+export const validateHeldContext = operator;
 function fresh(at, now) {
   const timestamp = Date.parse(at);
   assert(
@@ -77,7 +79,28 @@ function assertReceipt(receipt, publication) {
     assert.equal(receipt.previous, null);
     assert.equal(receipt.parent, null);
     if (receipt.evidence.baseline) {
-      exact(receipt.evidence, ["baseline"]);
+      exact(
+        receipt.evidence,
+        receipt.evidence.decisionHash
+          ? [
+              "baseline",
+              "decisionHash",
+              "pendingHash",
+              "verification",
+              "publicReleased",
+            ]
+          : ["baseline"],
+      );
+      if (receipt.evidence.decisionHash) {
+        for (const value of [
+          receipt.evidence.decisionHash,
+          receipt.evidence.pendingHash,
+          receipt.evidence.verification?.packages,
+          receipt.evidence.verification?.images,
+        ])
+          assert.match(value, hash);
+        assert.equal(receipt.evidence.publicReleased, false);
+      }
       assertBaseline(receipt.evidence.baseline);
     } else assert.deepEqual(receipt.evidence, {});
     assert.equal(receiptHash(receipt), receiptHash(publication));
@@ -180,6 +203,7 @@ function assertBaseline(baseline) {
     ),
   );
 }
+export const validateHeldBaseline = assertBaseline;
 export function admitPublication(p, artifact, context, now) {
   operator(context);
   assert.equal(p.phase, phases[0]);
@@ -211,6 +235,10 @@ export function admitPublication(p, artifact, context, now) {
   return p;
 }
 export function recordHeld(p, snapshot, context, now) {
+  validateSnapshot(snapshot, now);
+  return record(p, p, "held_verified", snapshot, context, now);
+}
+function validateSnapshot(snapshot, now) {
   exact(snapshot, [
     "fingerprint",
     "generation",
@@ -249,10 +277,56 @@ export function recordHeld(p, snapshot, context, now) {
     assert.match(proof.challenge, hash);
     assert.match(proof.response, hash);
   }
-  return record(p, p, "held_verified", snapshot, context, now);
+}
+export function validateLifecycleEvidence(evidence) {
+  exact(evidence, [
+    "release",
+    "receipt",
+    "generation",
+    "customers",
+    "remoteVerified",
+    "pending",
+    "uncertain",
+    "caughtUp",
+    "authorityHash",
+    "remoteHash",
+    "control",
+  ]);
+  for (const key of ["release", "receipt", "authorityHash", "remoteHash"])
+    assert.match(evidence[key], hash);
+  assert.match(evidence.generation, /^[0-9]{1,19}$/);
+  for (const key of ["customers", "remoteVerified", "pending", "uncertain"])
+    assert(Number.isSafeInteger(evidence[key]) && evidence[key] >= 0);
+  assert.equal(evidence.customers, evidence.remoteVerified);
+  assert.equal(evidence.pending, 0);
+  assert.equal(evidence.uncertain, 0);
+  assert.equal(evidence.caughtUp, true);
+  exact(evidence.control, ["phase", "approvalHash", "publicHash"]);
+  assert(
+    ["reconcile", "handoff", "released", "public"].includes(
+      evidence.control.phase,
+    ),
+  );
+  for (const key of ["approvalHash", "publicHash"])
+    if (evidence.control[key] !== null)
+      assert.match(evidence.control[key], hash);
+}
+export function recordLifecycle(p, held, snapshot, context, now) {
+  assert.equal(held.phase, "held_verified");
+  const { lifecycle, ingress, ...observation } = snapshot;
+  validateSnapshot(observation, now);
+  validateLifecycleEvidence(lifecycle);
+  assert.equal(ingress, true);
+  assert.equal(lifecycle.receipt, receiptHash(held));
+  assert.deepEqual(lifecycle.control, {
+    phase: "reconcile",
+    approvalHash: null,
+    publicHash: null,
+  });
+  return record(p, held, "lifecycle_verified", snapshot, context, now);
 }
 export function approve(p, held, reconciliation, context, now, qualify) {
-  assert.equal(held.phase, "held_verified");
+  assert.equal(held.phase, "lifecycle_verified");
   exact(reconciliation, [
     "held",
     "authority",
@@ -261,8 +335,13 @@ export function approve(p, held, reconciliation, context, now, qualify) {
     "uncertain",
     "reconciledAt",
     "approved",
+    "command",
   ]);
   assert.equal(reconciliation.held, receiptHash(held));
+  assert.match(reconciliation.command, hash);
+  validateLifecycleEvidence(held.evidence.lifecycle);
+  assert.equal(reconciliation.authority, held.evidence.lifecycle.authorityHash);
+  assert.equal(reconciliation.providers, held.evidence.lifecycle.remoteHash);
   for (const value of [reconciliation.authority, reconciliation.providers])
     assert.match(value, hash);
   assert.equal(reconciliation.pending, 0);
@@ -319,6 +398,53 @@ export function advance(p, parent, phase, context, now, evidence) {
     evidence && Object.keys(evidence).length,
     "Actual verification evidence required",
   );
+  if (phase === "runtime_verified" || phase === "public_verified") {
+    const {
+      lifecycle,
+      ingress,
+      command,
+      public: publicEvidence,
+      ...snapshot
+    } = evidence;
+    validateSnapshot(snapshot, now);
+    validateLifecycleEvidence(lifecycle);
+    assert.equal(ingress, true);
+    const approval = phase === "runtime_verified" ? parent : parent.parent;
+    assert.equal(
+      lifecycle.control.approvalHash,
+      approval.evidence.reconciliation.command,
+    );
+    assert.equal(
+      lifecycle.control.phase,
+      phase === "runtime_verified" ? "released" : "public",
+    );
+    assert.equal(lifecycle.receipt, receiptHash(approval.parent.parent));
+    if (phase === "public_verified") {
+      assert.match(command, hash);
+      assert.equal(lifecycle.control.publicHash, command);
+      assert.deepEqual(publicEvidence, { status: "ready" });
+    } else {
+      assert.equal(command, undefined);
+      assert.equal(publicEvidence, undefined);
+      assert.equal(lifecycle.control.publicHash, null);
+    }
+  } else {
+    exact(evidence, [
+      "repository",
+      "version",
+      "sourceSha",
+      "productionSha",
+      "deploymentUrl",
+    ]);
+    assert.equal(evidence.repository, "miniaxolotl/grove");
+    assert.equal(evidence.sourceSha, p.release.source);
+    assert.equal(evidence.productionSha, p.release.production);
+    assert.equal(`v${evidence.version}`, p.release.tag);
+    assert.match(
+      evidence.deploymentUrl,
+      /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/,
+    );
+  }
   return record(p, parent, phase, evidence, context, now);
 }
 

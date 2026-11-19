@@ -98,7 +98,7 @@ test("expired, foreign-run, stale-production and content-conflicting publication
 });
 test("approval requires a fresh exact-generation held receipt and explicit completed lifecycle/provider reconciliation", () => {
   const p = publish();
-  const held = state.recordHeld?.(
+  const heldStart = state.recordHeld?.(
     p,
     {
       fingerprint: "1".repeat(64),
@@ -126,6 +126,29 @@ test("approval requires a fresh exact-generation held receipt and explicit compl
     context,
     now,
   );
+  const held = state.recordLifecycle(
+    p,
+    heldStart,
+    {
+      ...heldStart.evidence,
+      ingress: true,
+      lifecycle: {
+        release: "1".repeat(64),
+        receipt: state.receiptHash(heldStart),
+        generation: "1",
+        customers: 1,
+        remoteVerified: 1,
+        pending: 0,
+        uncertain: 0,
+        caughtUp: true,
+        authorityHash: "2".repeat(64),
+        remoteHash: "3".repeat(64),
+        control: { phase: "reconcile", approvalHash: null, publicHash: null },
+      },
+    },
+    context,
+    now,
+  );
   const reconciliation = {
     held: state.receiptHash?.(held),
     authority: "2".repeat(64),
@@ -134,6 +157,7 @@ test("approval requires a fresh exact-generation held receipt and explicit compl
     uncertain: 0,
     reconciledAt: new Date(now).toISOString(),
     approved: true,
+    command: "4".repeat(64),
   };
   const approved = state.approve?.(
     p,
@@ -211,6 +235,78 @@ test("receipts cannot jump held verification/approval/runtime/public stages or c
       p,
       { ...p, phase: "effects_approved", previous: "f".repeat(64) },
       "runtime_verified",
+      context,
+      now,
+    ),
+  );
+});
+
+test("lifecycle verification is mandatory before effect approval and retains persisted phase evidence", () => {
+  const p = publish();
+  const snapshot = {
+    fingerprint: "1".repeat(64),
+    generation: "narrow-generation",
+    instances: [
+      { component: "api", name: "api-1" },
+      { component: "worker", name: "worker-1" },
+    ],
+    proofs: [
+      {
+        component: "api",
+        name: "api-1",
+        challenge: "5".repeat(64),
+        response: "6".repeat(64),
+      },
+      {
+        component: "worker",
+        name: "worker-1",
+        challenge: "7".repeat(64),
+        response: "8".repeat(64),
+      },
+    ],
+    observedAt: new Date(now).toISOString(),
+  };
+  const h = state.recordHeld(p, snapshot, context, now);
+  const evidence = {
+    release: "1".repeat(64),
+    receipt: state.receiptHash(h),
+    generation: "3",
+    customers: 1,
+    remoteVerified: 1,
+    pending: 0,
+    uncertain: 0,
+    caughtUp: true,
+    authorityHash: "2".repeat(64),
+    remoteHash: "3".repeat(64),
+    control: { phase: "reconcile", approvalHash: null, publicHash: null },
+  };
+  const lifecycle = state.recordLifecycle?.(
+    p,
+    h,
+    { ...snapshot, ingress: true, lifecycle: evidence },
+    context,
+    now,
+  );
+  assert.equal(lifecycle?.phase, "lifecycle_verified");
+  assert.equal(lifecycle?.previous, state.receiptHash(h));
+  assert.throws(() =>
+    state.recordLifecycle?.(
+      p,
+      h,
+      {
+        ...snapshot,
+        ingress: true,
+        lifecycle: { ...evidence, caughtUp: false },
+      },
+      context,
+      now,
+    ),
+  );
+  assert.throws(() =>
+    state.recordLifecycle?.(
+      p,
+      h,
+      { ...snapshot, ingress: false, lifecycle: evidence },
       context,
       now,
     ),

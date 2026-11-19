@@ -6,6 +6,7 @@ import {
   receiptHash,
   recordHeld,
   approve,
+  recordLifecycle,
 } from "./held-state.mjs";
 
 const now = Date.parse("2026-11-19T10:00:00Z");
@@ -87,6 +88,34 @@ test("publication retains the observed old settings fingerprint/healthcheck with
   assert.doesNotMatch(
     JSON.stringify(p),
     /secret-fixture|PRIVATE|retained.example/,
+  );
+});
+
+test("publication baseline is a fresh settled archived two-component snapshot, never ordinary active-state admission", () => {
+  const { app, baseline } = fixture();
+  const decision = { app: app.id, previousDigest: previous };
+  assert.deepEqual(
+    held.captureArchivedBaseline?.(app, [], decision, fingerprint),
+    baseline,
+  );
+  assert.throws(() =>
+    held.captureArchivedBaseline?.(
+      {
+        ...app,
+        spec: { ...app.spec, maintenance: { archive: false, enabled: false } },
+      },
+      [],
+      decision,
+      fingerprint,
+    ),
+  );
+  assert.throws(() =>
+    held.captureArchivedBaseline?.(
+      app,
+      [{ component_name: "worker", instance_name: "still-running" }],
+      decision,
+      fingerprint,
+    ),
   );
 });
 test("compatible held restore changes only both images, startup latch, archive and API liveness check", () => {
@@ -175,17 +204,123 @@ test("held verification performs fresh named-instance probes and rejects identit
   assert.equal(probes, 2);
   assert.doesNotMatch(JSON.stringify(evidence), /secret-fixture|PRIVATE/);
   const heldReceipt = recordHeld(p, evidence, context, now);
-  const approval = approve(
+  assert.equal(typeof held.prepareReconcile, "function");
+  const narrowSpec = held.prepareReconcile?.(
+    running,
+    instances,
     p,
     heldReceipt,
+    now,
+    fingerprint,
+  );
+  assert.equal(narrowSpec.maintenance.enabled, true);
+  const narrow = {
+    ...running,
+    spec: narrowSpec,
+    active_deployment: {
+      id: "narrow-generation",
+      phase: "ACTIVE",
+      spec: narrowSpec,
+    },
+  };
+  const lifecycleEvidence = {
+    release: receiptHash(held.holdIdentity(p)),
+    receipt: receiptHash(heldReceipt),
+    generation: "2",
+    customers: 1,
+    remoteVerified: 1,
+    pending: 0,
+    uncertain: 0,
+    caughtUp: true,
+    authorityHash: "2".repeat(64),
+    remoteHash: "3".repeat(64),
+    control: { phase: "reconcile", approvalHash: null, publicHash: null },
+  };
+  const narrowIO = {
+    ...io,
+    getApp: async () => narrow,
+    probe: async (scope) => ({
+      status: "lifecycle_verified",
+      role: scope.component,
+      identity: held.holdIdentity(p),
+      receipt: receiptHash(heldReceipt),
+      schema: "verified",
+      challenge: scope.challenge,
+      evidence: lifecycleEvidence,
+    }),
+  };
+  const privateNarrow = await held.verifyLifecycle?.(
+    p,
+    heldReceipt,
+    narrowIO,
+    now,
+  );
+  assert.equal(privateNarrow?.ingress, false);
+  const ingressSpec = held.prepareLifecycleIngress?.(
+    narrow,
+    instances,
+    p,
+    heldReceipt,
+    privateNarrow,
+    now,
+    fingerprint,
+  );
+  narrow.spec = ingressSpec;
+  narrow.active_deployment = {
+    id: "ingress-generation",
+    phase: "ACTIVE",
+    spec: ingressSpec,
+  };
+  const lifecycleSnapshot = await held.verifyLifecycle?.(
+    p,
+    heldReceipt,
+    narrowIO,
+    now,
+  );
+  assert.equal(lifecycleSnapshot?.ingress, true);
+  const lifecycle = recordLifecycle(
+    p,
+    heldReceipt,
+    lifecycleSnapshot,
+    context,
+    now,
+  );
+  const handoff = await held.verifyHandoff(
+    p,
+    lifecycle,
+    "4".repeat(64),
     {
-      held: receiptHash(heldReceipt),
+      ...narrowIO,
+      probe: async (scope) => ({
+        ...(await narrowIO.probe(scope)),
+        evidence: {
+          ...lifecycleEvidence,
+          control: {
+            phase: "handoff",
+            approvalHash: "4".repeat(64),
+            publicHash: null,
+          },
+        },
+      }),
+    },
+    now,
+  );
+  assert.equal(handoff.lifecycle.control.phase, "handoff");
+  await assert.rejects(
+    held.verifyHandoff(p, lifecycle, "f".repeat(64), narrowIO, now),
+  );
+  const approval = approve(
+    p,
+    lifecycle,
+    {
+      held: receiptHash(lifecycle),
       authority: "2".repeat(64),
       providers: "3".repeat(64),
       pending: 0,
       uncertain: 0,
       reconciledAt: new Date(now).toISOString(),
       approved: true,
+      command: "4".repeat(64),
     },
     context,
     now,
@@ -199,7 +334,7 @@ test("held verification performs fresh named-instance probes and rejects identit
     }),
   );
   const active = held.prepareApproved?.(
-    running,
+    narrow,
     instances,
     p,
     approval,
@@ -207,7 +342,7 @@ test("held verification performs fresh named-instance probes and rejects identit
     fingerprint,
   );
   assert.equal(active?.maintenance.archive, false);
-  assert.equal(active?.maintenance.enabled, true);
+  assert.equal(active?.maintenance.enabled, false);
   for (const component of [active?.services[0], active?.workers[0]]) {
     assert(
       !component?.envs.some((entry) => entry.key === "GROVE_RELEASE_HOLD"),
@@ -218,11 +353,101 @@ test("held verification performs fresh named-instance probes and rejects identit
     assert.deepEqual(entry && JSON.parse(entry.value), {
       schema: 1,
       identity: held.holdIdentity?.(p),
-      approval: receiptHash(approval),
+      approval: "4".repeat(64),
     });
   }
-  assert.deepEqual(active.services[0].health_check, p.evidence.baseline.health);
+  assert.equal(
+    active.services[0].health_check.http_path,
+    "/health/live",
+    "Real readiness stays held until public approval",
+  );
+  assert.equal(
+    active.maintenance.enabled,
+    false,
+    "General routes remain source-gated while lifecycle ingress continues",
+  );
   assert.deepEqual(active.domains, app.spec.domains);
+  const approvedApp = {
+    ...running,
+    spec: active,
+    active_deployment: {
+      id: "approved-generation",
+      phase: "ACTIVE",
+      spec: active,
+    },
+  };
+  let publicHash = null;
+  const runtimeIO = {
+    ...io,
+    getApp: async () => approvedApp,
+    probe: async (scope) => ({
+      status: "runtime_verified",
+      role: scope.component,
+      identity: held.holdIdentity(p),
+      approval: "4".repeat(64),
+      schema: "verified",
+      challenge: scope.challenge,
+      evidence: {
+        ...lifecycleEvidence,
+        control: {
+          phase: publicHash ? "public" : "released",
+          approvalHash: "4".repeat(64),
+          publicHash,
+        },
+      },
+    }),
+  };
+  const runtime = await held.verifyRuntime?.(p, approval, runtimeIO, now);
+  assert.equal(runtime?.lifecycle.control.phase, "released");
+  publicHash = "5".repeat(64);
+  const publicPrivate = await held.verifyRuntime?.(
+    p,
+    approval,
+    runtimeIO,
+    now,
+    publicHash,
+  );
+  const publicSpec = held.preparePublic?.(
+    approvedApp,
+    instances,
+    p,
+    approval,
+    publicPrivate,
+    publicHash,
+    now,
+    fingerprint,
+  );
+  assert.deepEqual(
+    publicSpec?.services[0].health_check,
+    p.evidence.baseline.health,
+  );
+  approvedApp.spec = publicSpec;
+  approvedApp.active_deployment = {
+    id: "public-generation",
+    phase: "ACTIVE",
+    spec: publicSpec,
+  };
+  assert.equal(
+    (
+      await held.verifyPublic?.(
+        p,
+        approval,
+        publicHash,
+        { ...runtimeIO, ready: async () => ({ status: "ready" }) },
+        now,
+      )
+    )?.public.status,
+    "ready",
+  );
+  await assert.rejects(async () =>
+    held.verifyPublic?.(
+      p,
+      approval,
+      publicHash,
+      { ...runtimeIO, ready: async () => ({ status: "release_held" }) },
+      now,
+    ),
+  );
   assert.throws(() =>
     held.prepareApproved?.(
       running,
