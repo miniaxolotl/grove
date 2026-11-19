@@ -71,6 +71,35 @@
   color: var(--color-forest);
   background: var(--color-sage);
 }
+.palette-search button {
+  width: auto;
+  padding-inline: 8px;
+  font-size: 12px;
+}
+.search-feedback {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 12px;
+  text-align: center;
+}
+.search-feedback strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.search-feedback p,
+.search-feedback > svg {
+  color: var(--color-muted);
+}
+.search-feedback p {
+  font-size: 13px;
+}
+.search-feedback button {
+  margin-top: 4px;
+}
 .palette-heading > .app-icon svg {
   width: 17px;
   height: 17px;

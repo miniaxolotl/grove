@@ -5,6 +5,13 @@ connected-agent recall share lexical matching. It works without an AI provider;
 semantic retrieval remains an additional scoped lane. Existing AI allowances
 and keyword fallback are unchanged.
 
+With no phrase entered, global search shows recently updated notes in the selected
+notebook. Use the arrow keys to move between results and **Enter** to open a
+note. In global search, the library and Ask Grove's Search tab, **Cancel search**
+stops waiting for a lookup without clearing the phrase or filters. Choose **Search
+again** to resume, edit the phrase to start another search, or use **Try again**
+if the lookup failed. **Clear** returns to browsing.
+
 ## Matching and relevance
 
 Relevance orders full-query title matches, title prefixes, body matches, body

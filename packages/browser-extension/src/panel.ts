@@ -431,10 +431,6 @@ function show(next: string) {
   document
     .querySelectorAll<HTMLElement>("[data-view]")
     .forEach((el) => (el.hidden = el.dataset.view !== next));
-  document.querySelectorAll<HTMLElement>("[data-nav]").forEach((el) => {
-    if (el.dataset.nav === next) el.setAttribute("aria-current", "page");
-    else el.removeAttribute("aria-current");
-  });
   $("workspace").hidden =
     !preferences.enabled || !approved() || next === "settings";
   $("welcome").hidden = !preferences.enabled || !!state || next === "settings";
@@ -445,9 +441,15 @@ function show(next: string) {
   document
     .querySelectorAll<HTMLButtonElement>("[data-nav]")
     .forEach((button) => {
+      const dest = button.dataset.nav;
+      if (dest === next) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+      // The first view hosts sign-in and approval until Notes is available.
+      if (dest === "capture")
+        button.textContent = approved() ? "Notes" : "Home";
       button.disabled =
-        button.dataset.nav !== "settings" &&
-        (!preferences.enabled || !approved());
+        (dest !== "settings" && !preferences.enabled) ||
+        (dest === "search" && !approved());
     });
   $("recall-results").hidden = !recallView();
   if (recallView()) paintResults();

@@ -57,21 +57,27 @@ function Destination({
   onChange,
   disabled,
 }: {
-  value: ImportDestination;
+  value: ImportDestination | undefined;
   onChange: (value: ImportDestination) => void;
   disabled?: boolean;
 }) {
   const { projects } = useNotebooks();
-  const selected = value
-    ? "projectId" in value
-      ? value.projectId
-      : "new"
-    : "";
+  const selected =
+    value === undefined
+      ? "choose"
+      : value
+        ? "projectId" in value
+          ? value.projectId
+          : "new"
+        : "";
   return (
     <div className="import-destination">
       <NotebookSelect
         projects={projects}
         aria-label="Destination notebook"
+        placeholder={
+          value === undefined ? "Choose a destination…" : "Notebook unavailable"
+        }
         value={selected}
         disabled={disabled}
         leading={[
@@ -80,6 +86,7 @@ function Destination({
         ]}
         onValueChange={(id) => {
           const project = projects.find((p) => p.id === id);
+          if (id !== "new" && id !== "" && !project) return;
           onChange(
             id === "new"
               ? { name: "Imported notes", parentId: null }
@@ -257,14 +264,23 @@ export function ImportNotesPanel({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState("");
-  const [placement, setPlacement] = useState<ImportDestination>(() => {
-    const p = projects.find((p) => p.id === projectId);
-    return p ? { projectId: p.id, version: p.version ?? 1 } : null;
-  });
+  const [initialChoice, setInitialChoice] = useState<ImportDestination>();
+  const currentNotebook = projects.find((p) => p.id === projectId);
+  const initialDestination =
+    initialChoice !== undefined
+      ? initialChoice
+      : currentNotebook
+        ? {
+            projectId: currentNotebook.id,
+            version: currentNotebook.version ?? 1,
+          }
+        : undefined;
+  const [placement, setPlacement] = useState<ImportDestination>();
   const [reviewedVersion, setReviewedVersion] = useState<number>();
   const [dirtyNotes, setDirtyNotes] = useState<Set<string>>(() => new Set());
   const dialogBusy = useDialogBusy();
-  const dirty = dirtyNotes.size > 0;
+  const editingPlacement = placement !== undefined;
+  const dirty = dirtyNotes.size > 0 || editingPlacement;
   const onDirty = useCallback(
     (noteId: string, value: boolean) =>
       setDirtyNotes((current) => {
@@ -288,6 +304,7 @@ export function ImportNotesPanel({
   const controller = useRef<AbortController | null>(null);
   const upload = useRef<{
     id: string;
+    destination: ImportDestination;
     files: { id: string; file: File }[];
   } | null>(null);
   const confirm = useRef<{ id: string; expectedVersion: number } | null>(null);
@@ -316,6 +333,14 @@ export function ImportNotesPanel({
         : false,
   });
   const batch = query.data;
+  const uploadDestination = id ? batch?.initialDestination : initialDestination;
+  const canUpload =
+    uploadDestination !== undefined &&
+    !(
+      uploadDestination &&
+      "name" in uploadDestination &&
+      !uploadDestination.name.trim()
+    );
   const task = useQuery({
     ...cache.resource<Task>(`/tasks/${batch?.taskId ?? "pending"}`),
     enabled: !!batch?.taskId,
@@ -359,6 +384,8 @@ export function ImportNotesPanel({
     setReviewedVersion(undefined);
   }
   async function sendFiles(files: File[]) {
+    if (!canUpload || uploadDestination === undefined || inFlight.current)
+      return;
     if (
       files.length > 25 ||
       files.some(
@@ -375,6 +402,7 @@ export function ImportNotesPanel({
     }
     upload.current = {
       id: id || crypto.randomUUID(),
+      destination: uploadDestination,
       files: files.map((file) => ({ id: crypto.randomUUID(), file })),
     };
     await retryUpload();
@@ -386,7 +414,10 @@ export function ImportNotesPanel({
       controller.current = new AbortController();
       const signal = controller.current.signal;
       if (!id) {
-        await cache.api("/import-batches", { id: pending.id });
+        await cache.api("/import-batches", {
+          id: pending.id,
+          destination: pending.destination,
+        });
         setId(pending.id);
       }
       for (let index = 0; index < pending.files.length; index++) {
@@ -482,6 +513,14 @@ export function ImportNotesPanel({
       className="text-button"
       disabled={busy}
       onClick={() => {
+        if (editingPlacement) {
+          panel.current
+            ?.querySelector<HTMLButtonElement>(
+              ".import-placement [role=combobox]",
+            )
+            ?.focus();
+          return;
+        }
         const review = panel.current?.querySelector<HTMLDetailsElement>(
           "details[data-unsaved]",
         );
@@ -532,7 +571,12 @@ export function ImportNotesPanel({
                   (document.activeElement === trigger ||
                     document.activeElement === document.body)
                 )
-                  (chooseFiles.current ?? intro.current)?.focus({
+                  (chooseFiles.current?.disabled
+                    ? panel.current?.querySelector<HTMLButtonElement>(
+                        ".import-placement [role=combobox]",
+                      )
+                    : (chooseFiles.current ?? intro.current)
+                  )?.focus({
                     preventScroll: true,
                   });
               }}
@@ -554,21 +598,37 @@ export function ImportNotesPanel({
       )}
       {(!id || batch?.status === "uploading") && (
         <>
+          <section className="import-placement" aria-label="Import destination">
+            <h3>Where should these notes go?</h3>
+            <p className="import-small">
+              Choose an existing notebook, create a new one, or leave the notes
+              Unfiled. You can change individual notes during review.
+            </p>
+            <Destination
+              value={uploadDestination}
+              onChange={(value) => {
+                upload.current = null;
+                setInitialChoice(value);
+              }}
+              disabled={busy || !!id}
+            />
+          </section>
           <div
             className="import-drop"
             onDragOver={(event) => {
-              if (!busy) event.preventDefault();
+              event.preventDefault();
             }}
             onDrop={(event) => {
               event.preventDefault();
-              if (!busy) void sendFiles([...event.dataTransfer.files]);
+              if (!busy && canUpload)
+                void sendFiles([...event.dataTransfer.files]);
             }}
           >
             <Upload size={22} aria-hidden="true" />
             <p>Drop files here</p>
             <Button
               ref={chooseFiles}
-              disabled={busy}
+              disabled={busy || !canUpload}
               aria-describedby="import-file-limits"
               onClick={() => chooser.current?.click()}
             >
@@ -583,7 +643,7 @@ export function ImportNotesPanel({
               aria-label="Upload notes and PDFs"
               aria-describedby="import-file-limits"
               tabIndex={-1}
-              disabled={busy}
+              disabled={busy || !canUpload}
               onChange={(event) => {
                 const files = [...(event.target.files ?? [])];
                 if (files.length) void sendFiles(files);
@@ -607,7 +667,9 @@ export function ImportNotesPanel({
                 <button
                   key={entry.id}
                   className="text-button"
+                  disabled={busy}
                   onClick={() => {
+                    upload.current = null;
                     setId(entry.id);
                     setAfter(undefined);
                     setHistory([]);
@@ -752,18 +814,22 @@ export function ImportNotesPanel({
           {mutable && (
             <>
               <section className="import-placement">
-                <h3>Notebook for all notes</h3>
+                <h3>Change destination for all notes</h3>
                 <Destination
                   value={placement}
-                  onChange={setPlacement}
-                  disabled={busy}
+                  onChange={(value) => {
+                    setPlacement(value);
+                    setReviewedVersion(undefined);
+                  }}
+                  disabled={busy || dirtyNotes.size > 0}
                 />
                 <div className="import-actions">
                   <Button
                     variant="secondary"
                     disabled={
                       busy ||
-                      dirty ||
+                      !editingPlacement ||
+                      dirtyNotes.size > 0 ||
                       (!!placement &&
                         "name" in placement &&
                         !placement.name.trim())
@@ -779,11 +845,21 @@ export function ImportNotesPanel({
                           "PATCH",
                         );
                         await refresh();
+                        setPlacement(undefined);
                       })
                     }
                   >
                     Use for all notes
                   </Button>
+                  {editingPlacement && (
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => setPlacement(undefined)}
+                    >
+                      Discard destination change
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
                     disabled={busy || dirty}
@@ -825,7 +901,7 @@ export function ImportNotesPanel({
                     batch.files.find((f) => f.id === note.fileId)?.filename ??
                     "Imported note"
                   }
-                  busy={busy}
+                  busy={busy || editingPlacement}
                   save={edit}
                   onDirty={onDirty}
                 />
@@ -915,14 +991,16 @@ export function ImportNotesPanel({
                       event.target.checked ? batch.version : undefined,
                     )
                   }
-                  disabled={busy}
+                  disabled={busy || editingPlacement}
                 />
                 I’ve reviewed the notes, destinations and sharing.
               </label>
               {dirty && (
                 <div>
                   <p role="status">
-                    Save or discard your note edits before continuing.
+                    {editingPlacement
+                      ? "Apply or discard your destination change before continuing."
+                      : "Save or discard your note edits before continuing."}
                   </p>
                   {returnToEdit}
                 </div>

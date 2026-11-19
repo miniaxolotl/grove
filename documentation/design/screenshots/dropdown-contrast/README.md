@@ -1,5 +1,17 @@
 # Dropdown contrast baseline repair
 
+## Searchable notebook picker
+
+![Ask Grove filtering nested notebook paths while the scope still reads All notes](ask-notebook-filter.png)
+
+The 1120 × 760 Chromium fixture shows three full paths matching `STUD`, keyboard
+focus on Interviews, and an unsent question. The selected scope remains All notes.
+Captured from the local picker changes on `49022855` using the production CSS
+from Next build `IOoHgCaMCLTU48m2ncUo0` and synthetic notebooks. This is browser
+fixture evidence, not a live account or physical-keyboard test.
+
+## Earlier contrast baseline
+
 Source: integrated merge `f7ccaeb` (development `e13a58b` plus the isolated
 `controls.css` repair removing `select-in` opacity). Captures refreshed after
 integrating #82/#84/#85/#91, from the telemetry-enabled production

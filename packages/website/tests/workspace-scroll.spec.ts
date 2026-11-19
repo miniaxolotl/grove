@@ -22,6 +22,23 @@ async function paint(page: Page) {
 
 const edge = (list: Locator) => list.locator(".note-continuation-edge");
 
+test("blocked preference storage leaves notebook navigation usable", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      get() {
+        throw new DOMException("Storage blocked", "SecurityError");
+      },
+    });
+  });
+  await page.goto(`${base}/app/projects`);
+  await page.getByRole("button", { name: "Collapse notebooks" }).click();
+  await page.getByRole("button", { name: "Expand notebooks" }).click();
+  await expect(page.getByRole("link", { name: "Unfiled" })).toBeVisible();
+});
+
 for (const { label, path, width, height, status, projectId } of [
   {
     label: "Notes",

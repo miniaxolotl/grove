@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import type { Project } from "@/lib/dashboard-api";
 import { notebookOptions } from "@/lib/notebooks";
-import { Select, type SelectProps, type SelectOption } from "./ui/select";
+import type { SelectProps, SelectOption } from "./ui/select";
+import { NotebookPicker } from "./notebook-picker";
 import "./note-form.css";
 
 export function NotebookSelect({
@@ -15,7 +17,10 @@ export function NotebookSelect({
   showHierarchy?: boolean;
   leading?: readonly SelectOption[];
 }) {
-  const notebooks = notebookOptions(projects, exclude);
+  const notebooks = useMemo(
+    () => notebookOptions(projects, exclude),
+    [projects, exclude],
+  );
   const options = showHierarchy
     ? notebooks.map((item) => ({
         ...item,
@@ -29,5 +34,5 @@ export function NotebookSelect({
         ),
       }))
     : notebooks;
-  return <Select {...props} options={[...leading, ...options]} />;
+  return <NotebookPicker {...props} options={[...leading, ...options]} />;
 }

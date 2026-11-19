@@ -1,0 +1,46 @@
+.notebook-picker {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  text-align: left;
+}
+.notebook-picker[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.notebook-picker::backdrop {
+  background: transparent;
+}
+.notebook-picker-heading {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  margin: 3px;
+}
+.notebook-picker-heading .app-search {
+  flex: 1;
+  min-width: 0;
+}
+.notebook-picker-back {
+  padding: 6px;
+}
+.notebook-picker .app-select-viewport {
+  overflow-y: auto;
+}
+.notebook-picker .app-select-option {
+  width: 100%;
+  text-align: left;
+}
+.notebook-picker .app-select-option:is(:hover, :focus):enabled {
+  background: var(--color-sage);
+}
+.notebook-picker .app-select-option:focus-visible {
+  outline: 2px solid var(--color-leaf);
+  outline-offset: -2px;
+}
+.notebook-picker p[role="status"] {
+  padding: 8px 10px;
+  color: var(--color-muted);
+}

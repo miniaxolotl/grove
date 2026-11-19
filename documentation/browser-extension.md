@@ -5,9 +5,9 @@ or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ep
 The [Chrome Web Store item](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa)
 is not yet publicly available. For local setup, download the unsigned Chrome ZIP
 from the [install page](https://usegrove.cloud/install#browser-extension) or build from source.
-Install and Settings → Connections show all three official items. On a recognized
-desktop browser the matching link is marked **Your browser**; this does not change
-its availability or redirect you. Local packages are
+Install lists all three official items and marks a recognized desktop browser. In
+**Settings → Connections**, choose **Add to Firefox**, **Add to Edge**, or the
+**Chrome setup guide** for manual installation. Local packages are
 also available for Firefox and Edge. The
 [design](design/browser-extension.md) retains the release requirements and deferred scope.
 

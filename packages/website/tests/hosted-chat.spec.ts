@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { catalogResponse } from "./fixtures/notebook-catalog";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const pending = {
@@ -15,6 +16,204 @@ const pending = {
   createdAt: "2026-10-24T10:00:00Z",
   lastUsedAt: "2026-10-24T10:01:00Z",
 };
+
+test("review last use and explicitly approve every scope", async ({
+  page,
+}, info) => {
+  const writes: unknown[] = [];
+  const expiresAt = "2099-11-18T15:30:00Z";
+  const notebook = {
+    id: "00000000-0000-4000-a000-000000000085",
+    name: "Field research",
+  };
+  let reader = {
+    ...pending,
+    name: "Research assistant",
+    personal: false,
+    capabilities: ["memory:read"],
+    expiresAt,
+    projectIds: [notebook.id],
+  };
+  const key = {
+    ...pending,
+    id: "00000000-0000-4000-a000-000000000084",
+    name: "Notebook export",
+    clientId: null,
+    capabilities: ["memory:read"],
+    lastUsedAt: null,
+  };
+  await page.route("**/api/grove/**", (route) => {
+    const url = route.request().url();
+    if (
+      route.request().method() === "PATCH" &&
+      url.endsWith(`/connections/${reader.id}`)
+    ) {
+      const body = route.request().postDataJSON();
+      reader = { ...reader, ...body };
+      writes.push(body);
+      return route.fulfill({
+        json: { success: true, data: { connection: reader } },
+      });
+    }
+    return route.fulfill({
+      json: {
+        success: true,
+        data: url.endsWith("/connections")
+          ? [reader, key]
+          : catalogResponse(
+              url,
+              url.endsWith("/projects/catalog") ||
+                url.includes("/projects/catalog?")
+                ? [notebook]
+                : [],
+            ),
+      },
+    });
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`${base}/app/settings/connections`);
+  await expect(page.locator(".connection-grant time")).toHaveAttribute(
+    "datetime",
+    pending.lastUsedAt,
+  );
+  const row = page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("heading", { name: reader.name }) });
+  await expect(row.getByText(/Last used/)).toBeVisible();
+  await expect(page.getByText("Last use: never recorded")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: info.outputPath("setup.png") });
+  await row.locator("..").screenshot({ path: info.outputPath("last-use.png") });
+  await row.getByRole("button", { name: "Edit scope" }).press("Enter");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Read notes", { exact: true }).uncheck();
+  await expect(
+    dialog.getByRole("button", { name: "Approve access" }),
+  ).toBeDisabled();
+  const all = dialog.getByRole("button", { name: "Approve all scopes" });
+  await expect(all).toHaveAccessibleDescription(
+    /all current and future notebooks, plus AI writing tools and sharing links/,
+  );
+  await all.press("Space");
+  await expect(dialog).toBeHidden();
+  await expect(row).toContainText("All notebooks");
+  expect(writes).toEqual([
+    {
+      name: reader.name,
+      capabilities: ["memory:read", "memory:write", "memory:delete"],
+      personal: true,
+      allProjects: true,
+      projectIds: [],
+      writingEnabled: true,
+      sharingEnabled: true,
+      expectedState: pending.state,
+      expiresAt,
+    },
+  ]);
+});
+
+test.describe("phone setup", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  test("open agent and API key setup by touch and return to the same action", async ({
+    page,
+  }, info) => {
+    await page.route("**/api/grove/**", (route) =>
+      route.fulfill({
+        json: {
+          success: true,
+          data: catalogResponse(route.request().url(), []),
+        },
+      }),
+    );
+    await page.goto(`${base}/app/settings/connections`);
+    const setup = page.getByRole("region", { name: "Add a connection" });
+    await expect(setup).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await setup.screenshot({ path: info.outputPath("setup-mobile.png") });
+    for (const [name, title] of [
+      ["Connect an agent", "Connect an agent"],
+      ["Create API key", "Create a scoped API key"],
+    ]) {
+      const action = setup.getByRole("button", { name });
+      await action.tap();
+      const dialog = page.getByRole("dialog", { name: title });
+      if (name === "Connect an agent") {
+        const tab = dialog.getByRole("tab", { name: "ChatGPT", exact: true });
+        await tab.tap();
+        await expect(
+          dialog.getByRole("link", { name: /Open ChatGPT/ }),
+        ).toHaveAttribute("href", "https://chatgpt.com/plugins");
+      } else {
+        await expect(
+          dialog.getByRole("button", { name: "Create key" }),
+        ).toBeEnabled();
+        await expect(
+          dialog.getByRole("button", { name: "Approve all scopes" }),
+        ).toHaveCount(0);
+      }
+      expect(await dialog.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(
+        true,
+      );
+      await dialog.getByRole("button", { name: "Close dialog" }).tap();
+      await expect(dialog).toBeHidden();
+      await expect(action).toBeInViewport();
+    }
+  });
+});
+
+test("revoked keys cannot be reapproved and revoked OAuth requires deliberate reapproval", async ({
+  page,
+}) => {
+  const revoked = {
+    ...pending,
+    capabilities: ["memory:read"],
+    revokedAt: "2026-10-25T12:00:00Z",
+  };
+  const key = {
+    ...revoked,
+    id: "00000000-0000-4000-a000-000000000083",
+    clientId: null,
+    name: "Retired script",
+  };
+  const writes: unknown[] = [];
+  await page.route("**/api/grove/**", (route) => {
+    if (route.request().method() === "PATCH")
+      writes.push(route.request().postDataJSON());
+    return route.fulfill({
+      json: {
+        success: true,
+        data: route.request().url().endsWith("/connections")
+          ? [key, revoked]
+          : [],
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/connections`);
+  const keyRow = page
+    .getByRole("listitem")
+    .filter({ has: page.getByRole("heading", { name: key.name }) });
+  await expect(keyRow).toContainText("This key cannot be used again");
+  await expect(
+    keyRow.getByRole("button", { name: /approve|scope/i }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Review reapproval" }).press("Enter");
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("button", { name: "Approve all scopes" }),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "Reapprove selected access" }),
+  ).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "Review reapproval" }),
+  ).toBeFocused();
+  expect(writes).toEqual([]);
+});
 
 test("web chat setup uses OAuth URLs and Personal examples, never a terminal command", async ({
   page,
@@ -160,9 +359,7 @@ test("browser approval identifies the exact OAuth client, preserves narrowed cho
     .getByLabel("All current and future notebooks", { exact: true })
     .uncheck();
   await dialog.getByLabel("Save and update notes", { exact: true }).uncheck();
-  await dialog
-    .getByRole("button", { name: "Approve access", exact: true })
-    .click();
+  await dialog.getByLabel("Name", { exact: true }).press("Enter");
   await expect(dialog.getByRole("alert")).toContainText("Approval unavailable");
   await expect(
     dialog.getByLabel("Save and update notes", { exact: true }),
@@ -202,9 +399,6 @@ test("new API keys select every permission and scope while existing connections 
     }),
   );
   await page.goto(`${base}/app/settings/connections`);
-  await page
-    .getByText("Advanced: API keys & headless clients", { exact: true })
-    .click();
   await page
     .getByRole("button", { name: "Create API key", exact: true })
     .click();
@@ -252,6 +446,10 @@ test("Connections offers an explicit refresh for newly signed-in hosted clients"
   await page
     .getByRole("button", { name: "Refresh connections", exact: true })
     .click();
+  await expect(
+    page.getByRole("button", { name: "Approve", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Connection details", { exact: true }).press("Enter");
   await expect(
     page.getByText("synthetic_chatgpt_client", { exact: false }),
   ).toBeVisible();
@@ -342,18 +540,31 @@ test("stale approval preserves the review, blocks duplicate submissions and requ
   const dialog = page.getByRole("dialog", { name: "Connection access" });
   await dialog.getByLabel("Name", { exact: true }).fill("My retained review");
   await dialog.getByLabel("Save and update notes", { exact: true }).uncheck();
-  await dialog.locator("form").evaluate((form) => {
-    (form as HTMLFormElement).requestSubmit();
-    (form as HTMLFormElement).requestSubmit();
-  });
+  await dialog
+    .getByRole("button", { name: "Approve all scopes" })
+    .evaluate((button) => {
+      (button as HTMLButtonElement).click();
+      (button as HTMLButtonElement).click();
+    });
   await expect(
     dialog.getByRole("button", { name: "Saving…", exact: true }),
   ).toBeDisabled();
   await expect.poll(() => writes).toBe(1);
+  await expect(
+    dialog.getByRole("button", { name: "Approve all scopes" }),
+  ).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
   finish();
   await expect(dialog.getByRole("alert")).toContainText(
     "Connection access changed",
   );
+  await expect(
+    dialog.getByRole("button", { name: "Approve all scopes" }),
+  ).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "Approve access" }),
+  ).toBeDisabled();
   await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue(
     "My retained review",
   );

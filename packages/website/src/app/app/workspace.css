@@ -1054,8 +1054,17 @@ html:has(.grove-app) {
   padding: 12px 8px;
   border-radius: 5px;
 }
-.ask-history-open:hover {
-  background: color-mix(in srgb, var(--color-forest) 4%, transparent);
+.ask-history-row:focus-within {
+  background: var(--color-paper);
+}
+@media (hover: hover) {
+  .ask-history-row:hover {
+    background: var(--color-paper);
+  }
+  .ask-history-open:hover:not(:disabled) .ask-history-title strong {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
 }
 .ask-history-open:focus-visible,
 .ask-history-delete:focus-visible {
@@ -1114,9 +1123,10 @@ html:has(.grove-app) {
   border-color: transparent;
   background: transparent;
 }
-.ask-history-row > .ask-history-delete:hover {
-  color: var(--color-forest);
-  background: color-mix(in srgb, var(--color-forest) 4%, transparent);
+.ask-history-row > .ask-history-delete:is(:hover, :focus-visible):not(:disabled) {
+  color: #833323;
+  border-color: #e4c7bd;
+  background: #fff4f0;
 }
 .ask-history-empty {
   padding: 40px 12px;
@@ -1998,27 +2008,16 @@ html:has(.grove-app) {
     display: none;
   }
 }
-.connection-setup {
-  margin-bottom: 12px;
-}
-.connection-setup > summary {
-  cursor: pointer;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  min-height: 38px;
-  font-size: 13px;
-}
-.connection-setup > summary::after {
-  content: "+";
-  margin-left: auto;
-}
-.connection-setup[open] > summary::after {
-  content: "−";
-}
-.connection-setup .app-panel > div:first-child,
-.connection-setup .app-panel > p {
-  display: none;
+.connection-methods { border-block: 1px solid var(--color-line); }
+.connection-method { display: grid; grid-template-columns: 18px minmax(0,1fr) auto; align-items: center; gap: 12px; padding-block: 16px; }
+.connection-method + .connection-method { border-top: 1px solid var(--color-line); }
+.connection-method > svg { align-self: start; margin-top: 3px; }
+.connection-method h3 { font-size: 15px; font-weight: 600; }
+.connection-method h3 + p { margin-top: 2px; font-size: 13px; color: var(--color-muted); }
+.connection-method:first-child > div { grid-column: 2 / -1; }
+@media (max-width: 640px) {
+  .connection-method { grid-template-columns: 18px minmax(0,1fr); gap: 8px 12px; }
+  .connection-method > button { grid-column: 2; justify-self: start; }
 }
 .feature-availability > div {
   display: flex;

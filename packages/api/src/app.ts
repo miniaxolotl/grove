@@ -16,6 +16,7 @@ import {
 } from "@lib/shared/conversation-documents";
 import {
   importBatchCreateSchema,
+  importPrepareSchema,
   importDraftEditSchema,
   importBatchConfirmSchema,
   importPlacementSchema,
@@ -926,7 +927,7 @@ export function createApp(deps: AppDependencies) {
         data: await documentImports.prepare(
           c.get("principal"),
           uuidSchema.parse(c.req.param("id")),
-          (await body(c, importBatchCreateSchema)).id,
+          (await body(c, importPrepareSchema)).id,
         ),
       },
       202,
