@@ -9,7 +9,7 @@ source_sha=${1:?expected candidate SHA}
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 jq -er --arg candidate "$source_sha" '([$candidate] + [.targets[].source]) | unique[]' \
-  scripts/release/impact-receipts.json > "$tmp/sources"
+  "${2:-scripts/release/impact-receipts.json}" > "$tmp/sources"
 while IFS= read -r rev; do
   [[ $rev =~ ^[0-9a-f]{40}$ ]]
   git merge-base --is-ancestor "$rev" "$source_sha"

@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { resolveDecision } from "./selected-decision.mjs";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const read = (ref, path) => JSON.parse(git("show", `${ref}:${path}`));
 const baseline = "6566c2dca78e7fde9c79357f8d07c5ad6f4cc7d5";
@@ -89,21 +90,29 @@ if (
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   const source = process.argv[2];
-  const pull = (number) =>
-    JSON.parse(
-      execFileSync("gh", ["api", `repos/miniaxolotl/grove/pulls/${number}`], {
-        encoding: "utf8",
-      }),
+  const selected = resolveDecision(source, process.argv[3] === "released");
+  if (selected) {
+    appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `mode=selected\nchecker=false\nconfig=release-please-website.json\nservice=${selected.manifest.deliver.includes("service")}\nwebsite=${selected.manifest.deliver.includes("website")}\ndecision=${selected.hash}\n`,
     );
-  const released = process.argv[3] === "released";
-  const domain = routeDomain(source, pull(303), released);
-  const historical =
-    domain === "coordinated"
-      ? "website-only"
-      : route(source, pull(293), released);
-  const mode = domain === "coordinated" ? domain : historical;
-  appendFileSync(
-    process.env.GITHUB_OUTPUT,
-    `mode=${mode}\nchecker=${historical === "coordinated"}\nconfig=${mode === "coordinated" ? "release-please-config.json" : "release-please-website.json"}\n`,
-  );
+  } else {
+    const pull = (number) =>
+      JSON.parse(
+        execFileSync("gh", ["api", `repos/miniaxolotl/grove/pulls/${number}`], {
+          encoding: "utf8",
+        }),
+      );
+    const released = process.argv[3] === "released";
+    const domain = routeDomain(source, pull(303), released);
+    const historical =
+      domain === "coordinated"
+        ? "website-only"
+        : route(source, pull(293), released);
+    const mode = domain === "coordinated" ? domain : historical;
+    appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `mode=${mode}\nchecker=${historical === "coordinated"}\nconfig=${mode === "coordinated" ? "release-please-config.json" : "release-please-website.json"}\n`,
+    );
+  }
 }
