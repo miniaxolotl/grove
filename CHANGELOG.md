@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.11.29](https://github.com/miniaxolotl/grove/compare/v1.11.28...v1.11.29) (2026-11-19)
+
+
+### Features
+
+* **account:** acknowledge deletion with a bounded private receipt ([d946519](https://github.com/miniaxolotl/grove/commit/d946519804a17b27e6684689cd0fd349c646db62))
+* **email:** add export and deletion notifications ([178fce5](https://github.com/miniaxolotl/grove/commit/178fce5e0ee9dea9dc34dab21783fbf46856e6b7))
+* **email:** render consistent Grove letters and review previews ([c964c8a](https://github.com/miniaxolotl/grove/commit/c964c8add2fda14a4377094048f9260c68d4af89))
+* **exports:** notify owners when an export is ready ([707c063](https://github.com/miniaxolotl/grove/commit/707c063d0e317c7cba93c1816ef66a335d067de6))
+* **workspace:** streamline connections, notebook search and imports ([b09e361](https://github.com/miniaxolotl/grove/commit/b09e361950afe7f1b87bfbabd81775885383ed55))
+
+
+### Bug Fixes
+
+* **deploy:** retain safe correlation for rejected provider requests ([#299](https://github.com/miniaxolotl/grove/issues/299)) ([7dc464e](https://github.com/miniaxolotl/grove/commit/7dc464ece22b7213c508a06f7476a89a7bb9a85f))
+* **domain:** adopt grovenote.app across Grove ([ba78d85](https://github.com/miniaxolotl/grove/commit/ba78d851bfa5da0a9ce54efa9ac5d07ac9b2b52d))
+* **domain:** make grovenote.app the Grove origin ([73fe9e8](https://github.com/miniaxolotl/grove/commit/73fe9e83491ed4345905b1bfc6be3cf1993538c1))
+* **email:** fence changed payloads and respect provider backoff ([05c3f92](https://github.com/miniaxolotl/grove/commit/05c3f92f2ffd83dce294e34ccfc1131cbfcfebe9))
+* **release:** admit the coordinated domain patch ([c950864](https://github.com/miniaxolotl/grove/commit/c9508644528f2721bad3a93907b624c98b88d933))
+* **release:** hydrate frozen dependencies for every receipt ancestor ([#298](https://github.com/miniaxolotl/grove/issues/298)) ([9b28bcd](https://github.com/miniaxolotl/grove/commit/9b28bcdc6616bd3f06976b58d4e8b7e3eab27374))
+* **workspace:** preserve notebook context and confirm revocation ([#296](https://github.com/miniaxolotl/grove/issues/296)) ([d158f40](https://github.com/miniaxolotl/grove/commit/d158f4073802be05a784a3006016dc99a2c7caba))
+
 ## [1.11.28](https://github.com/miniaxolotl/grove/compare/v1.11.27...v1.11.28) (2026-11-19)
 
 
