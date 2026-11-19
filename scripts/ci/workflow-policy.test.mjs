@@ -17,6 +17,24 @@ const pins = {
   "docker/login-action": "dbcb813823bdd20940b903addbd779551569679f",
   "opentofu/setup-opentofu": "a1320f892987e89d278cc92dc5adc984fb93aca4",
 };
+test("release contract checks retain the history needed to validate source anchors", () => {
+  const workflow = readFileSync(
+    new URL("../../.github/workflows/ci.yml", import.meta.url),
+    "utf8",
+  );
+  const quality = workflow
+    .split("\n  contracts-quality:\n")[1]
+    .split(/\n {2}[\w-]+:\n/)[0];
+  assert.match(quality, /node --test scripts\/release\/\*\.test\.mjs/);
+  const checkout = quality
+    .split(/- uses: actions\/checkout@/)[1]
+    .split(/\n {6}- /)[0];
+  assert.match(
+    checkout,
+    /^ {10}fetch-depth: 0$/m,
+    "Held declarations and coordinated stamps require their actual Git parents and tags",
+  );
+});
 test("all workflows retain the family action pins and trusted checkout boundary", () => {
   const directory = new URL("../../.github/workflows/", import.meta.url);
   for (const file of readdirSync(directory).filter((name) =>
