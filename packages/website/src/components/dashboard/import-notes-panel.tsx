@@ -262,7 +262,7 @@ export function ImportNotesPanel({
   initialBatchId?: string;
 }) {
   const cache = useWorkspaceCache(),
-    { projects } = useNotebooks();
+    { projects, refreshing, error: catalogError, reload } = useNotebooks();
   const workspace = useWorkspaceSearch(),
     router = useRouter();
   const handoff = useRef<{ id: string; expectedVersion: number } | null>(null);
@@ -282,8 +282,9 @@ export function ImportNotesPanel({
             projectId: currentNotebook.id,
             version: currentNotebook.version ?? 1,
           }
-        : // Unfiled is a safe default: every note is reviewed before import.
-          null;
+        : projectId === undefined
+          ? null
+          : undefined;
   const [placement, setPlacement] = useState<ImportDestination>();
   const [reviewedVersion, setReviewedVersion] = useState<number>();
   const [dirtyNotes, setDirtyNotes] = useState<Set<string>>(() => new Set());
@@ -620,6 +621,22 @@ export function ImportNotesPanel({
               }}
               disabled={busy || !!id}
             />
+            {!id && initialDestination === undefined && (
+              <>
+                <p className="import-small" role="status">
+                  {refreshing
+                    ? "Loading this notebook. You can choose another destination now."
+                    : catalogError
+                      ? "Couldn’t load notebooks. Retry or choose another destination."
+                      : "This notebook is unavailable. Choose another destination or retry."}
+                </p>
+                {!refreshing && (
+                  <Button variant="secondary" onClick={reload}>
+                    Retry notebooks
+                  </Button>
+                )}
+              </>
+            )}
           </section>
           <div
             className="import-drop"

@@ -429,6 +429,106 @@ for (const width of [1440, 390, 320])
       });
   });
 
+for (const recovery of [
+  "choose Unfiled while loading",
+  "retry notebooks",
+  "choose Unfiled after failure",
+] as const)
+  test(`notebook-scoped import: ${recovery}`, async ({ page }) => {
+    const gate = Promise.withResolvers<void>();
+    let offline = recovery !== "choose Unfiled while loading";
+    const destinations: ImportDestination[] = [];
+    await page.route("**/api/grove/**", async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      let data: unknown = [];
+      if (path.endsWith("/projects/catalog")) {
+        await gate.promise;
+        if (offline)
+          return route.fulfill({
+            status: 503,
+            json: { success: false, error: { message: "Unavailable" } },
+          });
+        data = catalogResponse(request.url(), [
+          { id: notebook, name: "Research", version: 7 },
+        ]);
+      } else if (path.endsWith("/me")) data = { accountId: "scoped-import" };
+      else if (path.endsWith("/memories/search"))
+        data = { items: [], nextCursor: null };
+      else if (
+        path.endsWith("/import-batches") &&
+        request.method() === "POST"
+      ) {
+        destinations.push(request.postDataJSON().destination);
+        // The contract under test ends at batch creation.
+        return route.abort();
+      }
+      return route.fulfill({ json: { success: true, data } });
+    });
+    await page.goto(`${base}/app?notebook=${notebook}`);
+    await page.getByRole("button", { name: "More note actions" }).click();
+    await page
+      .getByRole("button", { name: "Import notes", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", {
+      name: "Import notes",
+      exact: true,
+    });
+    const picker = dialog.getByRole("combobox", {
+      name: "Destination notebook",
+    });
+    const choose = dialog.getByRole("button", { name: "Choose files" });
+    const input = dialog.getByLabel("Upload notes and PDFs");
+    await expect(choose).toBeDisabled();
+    await expect(input).toBeDisabled();
+    await expect(picker).toHaveText("Choose a destination…");
+    await dialog.getByText("Drop files here").evaluate((target) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File(["Hello"], "hello.txt"));
+      target.dispatchEvent(
+        new DragEvent("drop", { bubbles: true, dataTransfer }),
+      );
+    });
+    if (offline) {
+      gate.resolve();
+      const retry = dialog.getByRole("button", { name: "Retry notebooks" });
+      await expect(retry).toBeVisible({ timeout: 15_000 });
+      await expect(choose).toBeDisabled();
+      if (recovery === "retry notebooks") {
+        offline = false;
+        await retry.click();
+        await expect(picker).toHaveText("Research");
+      }
+    }
+    if (recovery !== "retry notebooks") {
+      await picker.click();
+      await page.getByRole("option", { name: "Unfiled" }).click();
+      await expect(choose).toBeEnabled();
+      if (!offline) {
+        gate.resolve();
+        await picker.click();
+        await expect(
+          page.getByRole("option", { name: "Research" }),
+        ).toBeVisible();
+        await page.keyboard.press("Escape");
+      }
+      await expect(picker).toHaveText("Unfiled");
+    }
+    expect(destinations).toEqual([]);
+    await input.setInputFiles({
+      name: "hello.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Hello"),
+    });
+    await expect
+      .poll(() => destinations)
+      .toEqual([
+        recovery === "retry notebooks"
+          ? { projectId: notebook, version: 7 }
+          : null,
+      ]);
+  });
+
 test("import status follows a queued, running and failed job and retries the same task", async ({
   page,
 }) => {
