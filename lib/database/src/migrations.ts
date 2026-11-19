@@ -1,4 +1,5 @@
 import type { Knex } from "knex";
+import { lifecycleReconciliation } from "./lifecycle-migration.ts";
 import { exportReadyEmail } from "./export-ready-migration.ts";
 import { importDestination } from "./import-destination-migration.ts";
 import { deletionReceipt } from "./deletion-receipt-migration.ts";
@@ -295,6 +296,7 @@ export const migrations = [
   importDestination,
   exportReadyEmail,
   deletionReceipt,
+  lifecycleReconciliation,
 ];
 
 export const migrationSource: Knex.MigrationSource<

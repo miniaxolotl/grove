@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createServer } from "node:http";
+import { createServer, type RequestListener } from "node:http";
 
 export type HoldIdentity = {
   schema: 1;
@@ -30,6 +30,18 @@ type EntryDependencies = {
     env: NodeJS.ProcessEnv,
   ) => Promise<unknown>;
   required?: boolean;
+  reconcile?: (
+    identity: HoldIdentity,
+    receipt: string,
+    role: Role,
+    env: NodeJS.ProcessEnv,
+  ) => Promise<unknown>;
+  approve?: (
+    identity: HoldIdentity,
+    approval: string,
+    role: Role,
+    env: NodeJS.ProcessEnv,
+  ) => Promise<unknown>;
 };
 
 export function parseHold(value: string, binary: BuildIdentity): HoldIdentity {
@@ -90,18 +102,35 @@ export async function releaseEntry(
       role: Role,
       env: NodeJS.ProcessEnv,
     ): Promise<unknown> => serveHeldStatus(identity, role, env),
+    reconcile: async (identity, receipt, role, env) =>
+      (await import("./lifecycle-runtime.ts")).startLifecycleRuntime(
+        identity,
+        receipt,
+        role,
+        env,
+      ),
+    approve: async (identity, approval, role, env) =>
+      (await import("./lifecycle-runtime.ts")).approveLifecycleRuntime(
+        identity,
+        approval,
+        role,
+        env,
+      ),
   },
 ) {
   const held = env.GROVE_RELEASE_HOLD !== undefined;
   const approved = env.GROVE_RELEASE_APPROVAL !== undefined;
-  if (!held && !approved && !dependencies.required) return start();
+  const reconcile = env.GROVE_RELEASE_RECONCILE !== undefined;
+  if (!held && !approved && !reconcile && !dependencies.required)
+    return start();
   let identity: HoldIdentity;
+  let receipt: string | undefined, approvalHash: string | undefined;
   try {
     const binary = await dependencies.identity();
     if (dependencies.required) assert.equal(binary.holdRequired, true);
     assert(
-      held !== approved,
-      "Exactly one held/approved release control is required",
+      Number(held) + Number(approved) + Number(reconcile) === 1,
+      "Exactly one held/reconcile/approved release control is required",
     );
     if (approved) {
       const approval = JSON.parse(env.GROVE_RELEASE_APPROVAL!);
@@ -111,14 +140,39 @@ export async function releaseEntry(
       );
       assert.equal(approval.schema, 1);
       assert.match(approval.approval, /^[a-f0-9]{64}$/);
+      approvalHash = approval.approval;
       identity = parseHold(JSON.stringify(approval.identity), binary);
+    } else if (reconcile) {
+      const phase = JSON.parse(env.GROVE_RELEASE_RECONCILE!);
+      assert.deepEqual(
+        Object.keys(phase).sort(),
+        ["schema", "identity", "receipt"].sort(),
+      );
+      assert.equal(phase.schema, 1);
+      assert.match(phase.receipt, /^[a-f0-9]{64}$/);
+      receipt = phase.receipt;
+      identity = parseHold(JSON.stringify(phase.identity), binary);
     } else identity = parseHold(env.GROVE_RELEASE_HOLD!, binary);
   } catch {
     throw new Error(
       "Invalid held release configuration; runtime effects remain stopped",
     );
   }
-  if (approved) return start();
+  if (reconcile) {
+    assert(
+      dependencies.reconcile,
+      "Qualified lifecycle runtime unavailable; retain hold",
+    );
+    return dependencies.reconcile(identity, receipt!, role, env);
+  }
+  if (approved) {
+    assert(
+      dependencies.approve,
+      "Persisted release approval is required before runtime effects",
+    );
+    await dependencies.approve(identity, approvalHash!, role, env);
+    return start();
+  }
   return dependencies.listen(identity, role, env);
 }
 
@@ -161,6 +215,7 @@ export async function serveHeldStatus(
   role: Role,
   env: NodeJS.ProcessEnv,
   probe: () => Promise<void> = () => probeHeldDatabase(role, env),
+  lifecycle?: RequestListener,
 ) {
   let probing = false;
   const server = createServer(async (request, response) => {
@@ -170,6 +225,13 @@ export async function serveHeldStatus(
       response.writeHead(code);
       response.end(JSON.stringify(body));
     };
+    if (
+      lifecycle &&
+      role === "api" &&
+      request.method === "POST" &&
+      ["/v1/webhooks/clerk", "/v1/webhooks/stripe"].includes(request.url ?? "")
+    )
+      return lifecycle(request, response);
     if (request.method !== "GET") return send(503, { status: "release_held" });
     if (request.url === "/health/live")
       return send(200, { status: "release_held", role });
@@ -208,10 +270,13 @@ export async function serveHeldStatus(
   });
   const close = () =>
     new Promise<void>((resolve) => {
+      process.removeListener("SIGTERM", stop);
+      process.removeListener("SIGINT", stop);
       server.close(() => resolve());
       server.closeIdleConnections();
     });
-  process.once("SIGTERM", () => void close());
-  process.once("SIGINT", () => void close());
+  const stop = () => void close();
+  process.once("SIGTERM", stop);
+  process.once("SIGINT", stop);
   return { server, close };
 }

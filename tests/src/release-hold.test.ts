@@ -77,6 +77,7 @@ test("a held-build cannot start effects by omitting its latch; only the exact ex
     required: true,
     identity: async () => binary,
     listen: async () => {},
+    approve: async () => {},
   };
   await assert.rejects(
     entry(
@@ -125,6 +126,97 @@ test("a held-build cannot start effects by omitting its latch; only the exact ex
       /held release configuration/i,
     );
   assert.equal(effects, 1);
+});
+
+test("a proposed lifecycle-only phase is mutually exclusive and never initializes the general runtime", async () => {
+  const calls: string[] = [];
+  const reconciliation = { schema: 1, identity, receipt: "8".repeat(64) };
+  const dependencies = {
+    required: true,
+    identity: async () => binary,
+    listen: async () => {
+      calls.push("held");
+    },
+    reconcile: async (value: unknown, receipt: string, role: string) => {
+      assert.deepEqual(value, identity);
+      assert.equal(receipt, reconciliation.receipt);
+      calls.push(`reconcile:${role}`);
+    },
+  };
+  for (const role of ["api", "worker"] as const)
+    await entry(
+      role,
+      async () => {
+        calls.push("general-effects");
+      },
+      { GROVE_RELEASE_RECONCILE: JSON.stringify(reconciliation) },
+      dependencies,
+    );
+  assert.deepEqual(calls, ["reconcile:api", "reconcile:worker"]);
+  for (const extra of [
+    { GROVE_RELEASE_HOLD: JSON.stringify(identity) },
+    {
+      GROVE_RELEASE_APPROVAL: JSON.stringify({
+        schema: 1,
+        identity,
+        approval: "9".repeat(64),
+      }),
+    },
+  ])
+    await assert.rejects(
+      entry(
+        "worker",
+        async () => {
+          calls.push("general-effects");
+        },
+        { ...extra, GROVE_RELEASE_RECONCILE: JSON.stringify(reconciliation) },
+        dependencies,
+      ),
+      /held release configuration/i,
+    );
+  await assert.rejects(
+    entry(
+      "worker",
+      async () => {
+        calls.push("general-effects");
+      },
+      {
+        GROVE_RELEASE_RECONCILE: JSON.stringify({
+          ...reconciliation,
+          identity: { ...identity, source: "e".repeat(40) },
+        }),
+      },
+      dependencies,
+    ),
+    /held release configuration/i,
+  );
+  assert.deepEqual(calls, ["reconcile:api", "reconcile:worker"]);
+});
+
+test("a syntactically valid approval hash is not durable release authority", async () => {
+  let effects = false;
+  await assert.rejects(
+    entry(
+      "worker",
+      async () => {
+        effects = true;
+      },
+      {
+        GROVE_RELEASE_APPROVAL: JSON.stringify({
+          schema: 1,
+          identity,
+          approval: "9".repeat(64),
+        }),
+      },
+      {
+        required: true,
+        identity: async () => binary,
+        listen: async () => {},
+      },
+    ),
+    /persisted release approval/i,
+  );
+  assert.equal(effects, false);
 });
 test("held API also blocks effectful runtime initialization; absence preserves normal startup", async () => {
   const calls: string[] = [];
