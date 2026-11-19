@@ -20,6 +20,9 @@ test("unreviewed release inputs stop before dependency fetch and inventory build
   const step = workflow.indexOf("node scripts/release/reviewed-inputs.mjs");
   assert.ok(step >= 0, "missing credential-free release-input preflight");
   assert.ok(step < workflow.indexOf("bash scripts/release/hydrate-impact.sh"));
+  assert.ok(
+    step < workflow.indexOf("pnpm install --offline --frozen-lockfile"),
+  );
   assert.ok(step < workflow.indexOf("node scripts/release/select-website.mjs"));
 });
 
@@ -75,6 +78,14 @@ test("raw fingerprints reject drift, deletion and executable changes without run
   chmodSync(file, 0o755);
   source = commit();
   assert.match(run().stderr, /Release held: unreviewed change/);
+  ledger.reviewedReleaseInputs[baseline][path][1] = fp("after\n").replace(
+    "0:",
+    "73:",
+  );
+  save();
+  assert.equal(run().status, 0, "explicit reviewed executable passes");
+  ledger.reviewedReleaseInputs[baseline][path][1] = fp("after\n");
+  save();
   chmodSync(file, 0o644);
   writeFileSync(file, "drift\n");
   source = commit();
