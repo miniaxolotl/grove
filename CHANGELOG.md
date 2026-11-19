@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.28](https://github.com/miniaxolotl/grove/compare/v1.11.27...v1.11.28) (2026-11-19)
+
+
+### Bug Fixes
+
+* **release:** pass explicit checker attestation values ([#293](https://github.com/miniaxolotl/grove/issues/293)) ([d3599b4](https://github.com/miniaxolotl/grove/commit/d3599b46e3ae458c8c752b14fc96bfa0affd3055))
+
 ## [1.11.27](https://github.com/miniaxolotl/grove/compare/v1.11.26...v1.11.27) (2026-11-19)
 
 
