@@ -129,6 +129,7 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       new TextDecoder().decode(files["manifest.json"]),
     );
     assert.equal(manifest.manifest_version, 3);
+    assert.equal(manifest.homepage_url, "https://grovenote.app");
     const { browserVersions } = JSON.parse(
       await readFile(
         join(root, "packages/browser-extension/package.json"),
@@ -270,6 +271,13 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
     ])
       assert.ok(files[required], required);
     const js = new TextDecoder().decode(files["background.js"]);
+    for (const origin of [
+      "https://api.grovenote.app",
+      "https://grovenote.app",
+      "https://clerk.grovenote.app",
+    ])
+      assert.ok(js.includes(origin), `${target}: missing ${origin}`);
+    assert.doesNotMatch(js, /https:\/\/(api|clerk)\.usegrove\.cloud/);
     assert.ok(!/node:|createRequire|process\.env|@sentry|posthog/.test(js));
     const panel = new TextDecoder().decode(files["panel.js"]);
     assert.ok(

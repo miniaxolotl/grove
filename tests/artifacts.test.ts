@@ -111,6 +111,21 @@ after(async () => {
   if (server) await new Promise<void>((done) => server.close(() => done()));
 });
 
+test("packed clients use the canonical Grove domain in their setup executable", async () => {
+  for (const [name, path] of paths) {
+    if (name === "api") continue;
+    const cli = await readFile(join(path, "dist/cli.js"), "utf8");
+    assert.ok(cli.includes("https://api.grovenote.app"), name);
+    assert.ok(!cli.includes("api.usegrove.cloud"), name);
+    if (name === "mcp") {
+      const pkg = JSON.parse(
+        await readFile(join(path, "package.json"), "utf8"),
+      );
+      assert.equal(pkg.homepage, "https://grovenote.app");
+    }
+  }
+});
+
 test("each packed marketplace artifact contains prebuilt executables and declared manifests", async () => {
   for (const [name, path] of paths) {
     const pkg = JSON.parse(await readFile(join(path, "package.json"), "utf8"));

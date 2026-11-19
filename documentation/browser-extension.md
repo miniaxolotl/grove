@@ -516,6 +516,14 @@ on installation and removes legacy optional-site registrations.
 
 ## Build and verification
 
+Cloud builds use `https://grovenote.app` for the website,
+`https://api.grovenote.app` for the API and `https://clerk.grovenote.app` for OAuth.
+Artifact checks inspect each Chrome/Edge/Firefox ZIP's homepage, permissions and
+compiled background configuration. Keep Firefox's existing `grove@usegrove.cloud`
+add-on ID: it is a stable installation identity, not a network endpoint. A merged
+default change does not update already-issued ZIPs or store installations; those
+still require the coordinated release and the browser/store's normal update flow.
+
 ```sh
 pnpm build:extension
 pnpm test:extension
