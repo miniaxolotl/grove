@@ -272,7 +272,7 @@ test("web chat setup uses OAuth URLs and Personal examples, never a terminal com
     const panel = page.getByRole("tabpanel", { name: choice, exact: true });
     await expect(
       panel.getByLabel("MCP server URL", { exact: true }),
-    ).toHaveValue("https://api.usegrove.cloud/mcp");
+    ).toHaveValue("https://api.grovenote.app/mcp");
     await expect(
       panel.getByRole("link", { name: new RegExp(`Open ${choice}`) }),
     ).toHaveAttribute("href", host);

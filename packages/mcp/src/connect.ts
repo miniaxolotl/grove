@@ -26,7 +26,7 @@ import {
 import { openBrowser } from "./browser.ts";
 import { telemetry } from "@lib/telemetry";
 
-export const cloudOrigin = "https://api.usegrove.cloud";
+export const cloudOrigin = "https://api.grovenote.app";
 export type LoginOptions = {
   freshClient?: boolean;
   afterLogin?: (me: ConnectionInfo) => Promise<string | undefined>;

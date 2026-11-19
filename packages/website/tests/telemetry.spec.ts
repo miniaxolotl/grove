@@ -46,7 +46,7 @@ test("private route identifiers, errors and span attributes never cross the boun
             frames: [
               {
                 filename:
-                  "https://usegrove.cloud/_next/static/chunks/app.js?PRIVATE",
+                  "https://grovenote.app/_next/static/chunks/app.js?PRIVATE",
                 lineno: 9,
                 colno: 2,
                 context_line: "PRIVATE",
@@ -60,7 +60,7 @@ test("private route identifiers, errors and span attributes never cross the boun
   });
   expect(JSON.stringify(event)).not.toContain("PRIVATE");
   expect(event.exception?.values?.[0].stacktrace?.frames?.[0]).toMatchObject({
-    filename: "https://usegrove.cloud/_next/static/chunks/app.js",
+    filename: "https://grovenote.app/_next/static/chunks/app.js",
     lineno: 9,
     colno: 2,
   });
@@ -114,7 +114,7 @@ test("real SDKs emit sanitized browser events, errors, streamed spans, logs and 
   expect(
     telemetry.events.find((event) => event.event === "$pageview")?.properties,
   ).toMatchObject({
-    $current_url: "https://usegrove.cloud/install",
+    $current_url: "https://grovenote.app/install",
     $referring_domain: "example.com",
   });
   expect(JSON.stringify(telemetry.events)).not.toContain("PRIVATE");

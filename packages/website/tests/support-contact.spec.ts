@@ -19,7 +19,7 @@ test("current public contacts use the Grove support mailbox", async ({
   }
   await page.goto("/privacy");
   await expect(
-    page.locator('main a[href="mailto:support@usegrove.cloud"]').first(),
+    page.locator('main a[href="mailto:support@grovenote.app"]').first(),
   ).toBeVisible();
 });
 
@@ -34,7 +34,7 @@ for (const route of ["support", "contact"]) {
       route === "support" ? "Support for Grove." : "Contact Grove.",
     );
     await expect(
-      page.locator('main a[href="mailto:support@usegrove.cloud"]').first(),
+      page.locator('main a[href="mailto:support@grovenote.app"]').first(),
     ).toBeVisible();
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
@@ -91,7 +91,7 @@ test("help stays public without JavaScript and account assistance opens support"
     for (const route of ["support", "contact"]) {
       expect((await plain.goto(`/${route}`))?.status()).toBe(200);
       await expect(
-        plain.locator('main a[href="mailto:support@usegrove.cloud"]').first(),
+        plain.locator('main a[href="mailto:support@grovenote.app"]').first(),
       ).toBeVisible();
     }
     await plain

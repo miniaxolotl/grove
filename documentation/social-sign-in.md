@@ -30,13 +30,14 @@ Do not create a second Grove account and expect its memories to be merged.
 
 ## Production configuration
 
-- Website: `https://usegrove.cloud`.
+- Target website: `https://grovenote.app` (see [domain cutover](deploy.md#domain-cutover)).
 - Clerk application: `app_3KtGcnwE2Yg0P34l9PVij7LnOTS`.
 - Production instance: `ins_3Ktp2ZQ986pL3Dmhk7tJkesRR6A`.
-- Clerk issuer: `https://clerk.usegrove.cloud`.
+- Last verified Clerk issuer: `https://clerk.usegrove.cloud`; migrate it on the
+  same production instance before enabling the new website origin.
 - Dedicated Google project: `grove-clerk-auth-2026` (`Grove Authentication`).
 
-All four production connection settings confirm the same exact callback:
+At the last verified registration, all four connection settings used this callback:
 `https://clerk.usegrove.cloud/v1/oauth_callback`. Development uses a separate
 Clerk instance, with all four shared development connections enabled.
 
@@ -76,12 +77,14 @@ verified Microsoft publisher before allowing their users to authorize the app.
 Apple's private-relay sender is `bounces+116872475@clkmail.usegrove.cloud`.
 Its Services ID and signing key are associated with Grove's own primary App ID.
 
-Google's authorized JavaScript origin is `https://usegrove.cloud`; its External
-audience is published **In production**. Branding links to the separately published
+Google's last verified JavaScript origin was `https://usegrove.cloud`; its External
+audience was published **In production**. Branding linked to the separately published
 homepage, [privacy policy](https://usegrove.cloud/privacy) and
 [terms](https://usegrove.cloud/terms). Current website source uses
-`support@usegrove.cloud` as the public support contact; publication follows the
-normal release process. Google's console contact is separate and recorded in the private inventory.
+`support@grovenote.app` as the public support contact; publication follows the
+normal release process. Update the provider origin and branding links to
+`https://grovenote.app` during the coordinated cutover; source changes do not
+update Google's console. Its contact is recorded in the private inventory.
 
 Google declares only `openid`, `https://www.googleapis.com/auth/userinfo.email`
 and `https://www.googleapis.com/auth/userinfo.profile`. The live authorization

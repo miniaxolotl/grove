@@ -25,9 +25,9 @@ function origin(value) {
 /** The internal core identifies its product; each installable ZIP has its own version. */
 export async function buildBrowserExtension({
   outdir = join(root, "packages/browser-extension/dist"),
-  apiOrigin = "https://api.usegrove.cloud",
-  siteOrigin = "https://usegrove.cloud",
-  issuer = "https://clerk.usegrove.cloud",
+  apiOrigin = "https://api.grovenote.app",
+  siteOrigin = "https://grovenote.app",
+  issuer = "https://clerk.grovenote.app",
 } = {}) {
   [apiOrigin, siteOrigin, issuer].forEach(origin);
   const result = await build({

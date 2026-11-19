@@ -12,7 +12,7 @@ export const privacy: LegalDocument = {
         <>
           <p>
             Grove is a developer tool operated by Bramble Labs Inc. This policy
-            covers usegrove.cloud, our hosted Grove service, and related
+            covers grovenote.app, our hosted Grove service, and related
             support. Contact <a href={contact.href}>{contact.email}</a> for
             privacy questions or requests.
           </p>

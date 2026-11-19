@@ -241,7 +241,7 @@ test("Cloud setup selects the right agent and keeps self-hosting on its own page
   await page.getByRole("tab", { name: "Other MCP clients" }).click();
   await expect(
     page.getByLabel("Streamable HTTP endpoint", { exact: true }),
-  ).toHaveText("https://api.usegrove.cloud/mcp");
+  ).toHaveText("https://api.grovenote.app/mcp");
   await page.getByRole("link", { name: "Install Grove Open Source" }).click();
   await expect(page).toHaveURL(/\/self-host$/);
   await expect(

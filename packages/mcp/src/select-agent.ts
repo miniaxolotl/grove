@@ -25,7 +25,7 @@ export async function selectAgent(
   if (!available.length)
     throw new GroveError(
       "client_missing",
-      "Install OpenCode, Claude Code or Codex, then run grove connect. Setup guide: https://usegrove.cloud/install",
+      "Install OpenCode, Claude Code or Codex, then run grove connect. Setup guide: https://grovenote.app/install",
     );
   if (available.length === 1) return available[0];
   if (!interactive)

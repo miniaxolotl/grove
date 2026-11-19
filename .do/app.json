@@ -4,7 +4,7 @@
   "disable_edge_cache": true,
   "domains": [
     {
-      "domain": "api.usegrove.cloud",
+      "domain": "api.grovenote.app",
       "type": "PRIMARY",
       "minimum_tls_version": "1.2"
     }
