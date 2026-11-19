@@ -7,7 +7,40 @@ import {
   updateImageSpec,
   assertUnchangedApp,
   assertActiveDeployment,
+  readProviderResponse,
 } from "../scripts/deploy-digitalocean.mjs";
+
+test("provider errors preserve safe support correlation, never body text", async () => {
+  const id = "7c9ab35e-d354-410a-8c67-24b445021713";
+  for (const [body, header, expected] of [
+    [
+      JSON.stringify({
+        id: "invalid_argument",
+        request_id: id,
+        message: "secret",
+      }),
+      null,
+      `invalid_argument, request ${id}`,
+    ],
+    ["<html>secret", id, `unknown, request ${id}`],
+    [
+      JSON.stringify({ id: "secret", request_id: "secret" }),
+      "secret",
+      "unknown",
+    ],
+  ]) {
+    const response = new globalThis.Response(body, {
+      status: 400,
+      headers: header ? { "x-request-id": header } : {},
+    });
+    await assert.rejects(
+      readProviderResponse(response, "PUT", "/apps/fixture"),
+      {
+        message: `DigitalOcean PUT /apps/fixture failed (HTTP 400, ${expected})`,
+      },
+    );
+  }
+});
 
 const { structuredClone } = globalThis;
 const digest = `sha256:${"a".repeat(64)}`;

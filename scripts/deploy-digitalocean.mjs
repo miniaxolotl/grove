@@ -330,6 +330,31 @@ export function findDeployment(
   );
 }
 
+export async function readProviderResponse(response, method, path) {
+  if (response.ok) return response.json();
+  // A provider message (or a JSON parse error) can contain submitted values.
+  // Keep only known error codes and a UUID suitable for a private support lookup.
+  const data = await response.json().catch(() => null);
+  const code = [
+    "invalid_argument",
+    "unauthorized",
+    "forbidden",
+    "not_found",
+    "unprocessable_entity",
+    "too_many_requests",
+  ].includes(data?.id)
+    ? data.id
+    : "unknown";
+  const id = [data?.request_id, response.headers.get("x-request-id")].find(
+    (v) =>
+      typeof v === "string" &&
+      /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(v),
+  );
+  throw new Error(
+    `DigitalOcean ${method} ${path} failed (HTTP ${response.status}, ${code}${id ? `, request ${id}` : ""})`,
+  );
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -386,13 +411,7 @@ async function main() {
       ...(body ? { body: JSON.stringify(body) } : {}),
       signal: AbortSignal.timeout(60000),
     });
-    const data = await response.json();
-    // Provider errors can echo submitted settings; never log request/response bodies.
-    assert(
-      response.ok,
-      `DigitalOcean ${method} ${path} failed (HTTP ${response.status}, ${data.id ?? "unknown"})`,
-    );
-    return data;
+    return readProviderResponse(response, method, path);
   }
 
   let spec;
