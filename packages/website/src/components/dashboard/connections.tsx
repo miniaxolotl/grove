@@ -180,12 +180,10 @@ export function Connections({ origin }: { origin: string }) {
           <AgentSetup origin={origin || undefined} />
         </Dialog>
       )}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="connection-list-heading">
         <div>
-          <h3 className="font-semibold">Your connections</h3>
-          <p className="text-xs leading-6 text-muted">
-            Hide to tidy this list. Revoke to stop access.
-          </p>
+          <h3>Your connections</h3>
+          <p>Revoke a connection to stop its access.</p>
         </div>
         <Button
           variant="secondary"
@@ -288,44 +286,76 @@ export function Connections({ origin }: { origin: string }) {
   function renderRows(rows: Connection[], hidden: boolean) {
     if (!rows.length) return null;
     return (
-      <ul className="space-y-3">
-        {rows.map((item) => (
-          <li
-            key={item.id}
-            id={`connection-${item.id}`}
-            className="app-panel connection-grant"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0">
-                <h4 className="break-words font-semibold">{item.name}</h4>
-                <p className="mt-1 flex items-center gap-2 text-sm">
-                  <Clock3 size={15} aria-hidden="true" />
-                  {item.lastUsedAt ? (
-                    <span>
-                      Last used{" "}
-                      <time dateTime={item.lastUsedAt}>
-                        {new Date(item.lastUsedAt).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </time>
-                    </span>
-                  ) : (
-                    "Last use: never recorded"
+      <ul className="connection-list">
+        {rows.map((item) => {
+          const status = item.revokedAt
+            ? "Revoked"
+            : item.expiresAt && new Date(item.expiresAt) < new Date()
+              ? "Expired"
+              : item.capabilities.length
+                ? "Approved"
+                : "Awaiting approval";
+          return (
+            <li
+              key={item.id}
+              id={`connection-${item.id}`}
+              className="connection-grant"
+            >
+              <div className="connection-grant-main">
+                <div className="connection-grant-title">
+                  <h4>{item.name}</h4>
+                  <span className="connection-status" data-status={status}>
+                    {status}
+                  </span>
+                </div>
+                <p className="connection-grant-meta">
+                  <span>{item.clientId ? "Browser sign-in" : "API key"}</span>
+                  {!item.revokedAt && (
+                    <>
+                      <span>{accessSummary(item.capabilities)}</span>
+                      <span>{scopeSummary(item)}</span>
+                    </>
                   )}
+                  <span className="connection-last-use">
+                    <Clock3 size={13} aria-hidden="true" />
+                    {item.lastUsedAt ? (
+                      <span>
+                        Last used{" "}
+                        <time dateTime={item.lastUsedAt}>
+                          {formatDate(item.lastUsedAt)}
+                        </time>
+                      </span>
+                    ) : (
+                      "Not used yet"
+                    )}
+                  </span>
                 </p>
-                <p className="mt-2 text-xs text-muted">
-                  {item.revokedAt
-                    ? "Revoked"
-                    : item.expiresAt && new Date(item.expiresAt) < new Date()
-                      ? "Expired"
-                      : item.capabilities.length
-                        ? "Approved"
-                        : "Awaiting approval"}{" "}
-                  · {item.clientId ? "Browser OAuth" : "API key"}
-                </p>
+                {item.revokedAt && (
+                  <p className="connection-grant-note">
+                    {item.clientId
+                      ? "Reapprove access here, then sign in again from the app."
+                      : "This key cannot be used again. Create a new key if needed."}
+                  </p>
+                )}
+                <details className="connection-grant-details">
+                  <summary>Connection details</summary>
+                  <dl>
+                    {item.clientId && (
+                      <>
+                        <dt>Client</dt>
+                        <dd className="font-mono">{item.clientId}</dd>
+                      </>
+                    )}
+                    <dt>Created</dt>
+                    <dd>
+                      <time dateTime={item.createdAt}>
+                        {formatDate(item.createdAt)}
+                      </time>
+                    </dd>
+                  </dl>
+                </details>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="connection-grant-actions">
                 {item.setup?.status === "pending" && !item.revokedAt ? (
                   <Link
                     className="app-button secondary"
@@ -351,7 +381,7 @@ export function Connections({ origin }: { origin: string }) {
                 ) : null}
                 {!item.revokedAt && (
                   <button
-                    className="app-button danger"
+                    className="app-button quiet-danger"
                     onClick={() => revoke(item.id)}
                     disabled={revoking !== null}
                   >
@@ -369,45 +399,41 @@ export function Connections({ origin }: { origin: string }) {
                     </button>
                   )}
               </div>
-            </div>
-            {item.revokedAt ? (
-              <p className="mt-4 text-xs leading-6 text-muted">
-                {item.clientId
-                  ? "Reapprove access here, then sign in again from the app."
-                  : "This key cannot be used again. Create a new key if needed."}
-              </p>
-            ) : (
-              <p className="mt-4 text-xs leading-6 text-muted">
-                {item.capabilities
-                  .map((capability) => capabilityLabels[capability])
-                  .join(" · ") || "No note access until approved"}
-                <br />
-                {item.personal
-                  ? "Personal memories"
-                  : "No personal access"} ·{" "}
-                {item.allProjects
-                  ? "All notebooks"
-                  : !item.projectIds.length
-                    ? "No notebooks"
-                    : `${item.projectIds.length} selected notebook${item.projectIds.length === 1 ? "" : "s"}`}
-              </p>
-            )}
-            <details className="mt-2 text-xs text-muted">
-              <summary className="cursor-pointer">Connection details</summary>
-              {item.clientId && (
-                <p className="mt-2 break-all font-mono text-[10px] text-muted">
-                  Client: {item.clientId}
-                </p>
-              )}
-              <p className="mt-2 text-[10px] text-muted">
-                Created: {new Date(item.createdAt).toLocaleString()}
-              </p>
-            </details>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     );
   }
+}
+
+const accessVerbs = {
+  "memory:read": "read",
+  "memory:write": "save",
+  "memory:delete": "delete",
+};
+function accessSummary(capabilities: Connection["capabilities"]) {
+  if (!capabilities.length) return "No access until approved";
+  const verbs = capabilities.map((capability) => accessVerbs[capability]);
+  const text = verbs.join(", ");
+  return text[0].toUpperCase() + text.slice(1);
+}
+
+function scopeSummary(item: Connection) {
+  const notebooks = item.allProjects
+    ? "All notebooks"
+    : item.projectIds.length
+      ? `${item.projectIds.length} notebook${item.projectIds.length === 1 ? "" : "s"}`
+      : "";
+  if (notebooks) return item.personal ? `${notebooks} + personal` : notebooks;
+  return item.personal ? "Personal notes only" : "No notes";
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 export function BrowserConnectionApproval({ id }: { id: string }) {

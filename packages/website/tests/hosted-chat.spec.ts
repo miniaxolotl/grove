@@ -72,7 +72,7 @@ test("review last use and explicitly approve every scope", async ({
   });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${base}/app/settings/connections`);
-  await expect(page.locator(".connection-grant time")).toHaveAttribute(
+  await expect(page.locator(".connection-last-use time")).toHaveAttribute(
     "datetime",
     pending.lastUsedAt,
   );
@@ -80,7 +80,7 @@ test("review last use and explicitly approve every scope", async ({
     .getByRole("listitem")
     .filter({ has: page.getByRole("heading", { name: reader.name }) });
   await expect(row.getByText(/Last used/)).toBeVisible();
-  await expect(page.getByText("Last use: never recorded")).toBeVisible();
+  await expect(page.getByText("Not used yet")).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: info.outputPath("setup.png") });
   await row.locator("..").screenshot({ path: info.outputPath("last-use.png") });
