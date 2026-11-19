@@ -51,6 +51,10 @@
   outline: none;
   gap: 10px;
 }
+.palette-heading .palette-search:focus-within {
+  /* The palette input is the dialog's only field; the caret marks focus. */
+  outline: none;
+}
 .palette-search > svg {
   color: var(--color-muted);
 }
@@ -297,9 +301,8 @@
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 8px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--color-line);
   color: var(--color-muted);
   font-size: 12px;
@@ -321,6 +324,25 @@
   color: var(--color-muted);
   padding: 8px;
   font-size: 12px;
+}
+.quick-search-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+}
+.quick-search-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.quick-search-caption .text-button {
+  font-size: 12px;
+}
+.quick-search-list[aria-busy="true"] > a {
+  opacity: 0.55;
+  transition: opacity 120ms ease;
 }
 .quick-search-result {
   display: flex;

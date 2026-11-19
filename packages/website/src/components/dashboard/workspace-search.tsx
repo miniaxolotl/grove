@@ -121,12 +121,11 @@ function SearchDialog({ close }: { close: () => void }) {
   const search = query.trim();
   const projectId =
     scope === "all" ? undefined : scope === "personal" ? null : scope;
-  const { result: searchQuery, ready } = useNoteSearch(
-    search,
-    projectId,
-    projectId === undefined,
-    !cancelled,
-  );
+  const {
+    result: searchQuery,
+    ready,
+    previous,
+  } = useNoteSearch(search, projectId, projectId === undefined, !cancelled);
   const recentQuery = useInfiniteQuery({
     ...cache.notes({ projectId, limit: 8 }),
     enabled: !search,
@@ -141,6 +140,26 @@ function SearchDialog({ close }: { close: () => void }) {
         error: activeQuery.error ? errorMessage(activeQuery.error) : "",
       }
     : undefined;
+  // A refined phrase keeps the previous matches visible, dimmed, until it lands.
+  const refining = !cancelled && !current && !!search ? previous : undefined;
+  const shown = refining
+    ? {
+        items: refining.data.sources,
+        query: refining.query,
+        matches: refining.data.matches,
+      }
+    : current
+      ? {
+          items: current.items,
+          query: search,
+          matches: searchQuery.data?.matches,
+        }
+      : undefined;
+  const pendingLabel = activeQuery.isPaused
+    ? "Waiting for a connection…"
+    : search
+      ? "Searching…"
+      : "Loading recent notes…";
   function navigateResults(event: ReactKeyboardEvent) {
     if (
       event.nativeEvent.isComposing ||
@@ -220,49 +239,44 @@ function SearchDialog({ close }: { close: () => void }) {
           ref={results}
           onKeyDown={navigateResults}
         >
-          {cancelled || !current ? (
+          {cancelled ? (
             <div className="search-feedback">
-              {cancelled ? (
-                <Search aria-hidden="true" size={22} />
-              ) : (
+              <Search aria-hidden="true" size={22} />
+              <strong role="status">Search cancelled</strong>
+              <p>Your search and notebook are still selected.</p>
+              <button
+                type="button"
+                className="app-button secondary"
+                onClick={() => {
+                  input.current?.focus();
+                  setCancelled(false);
+                }}
+              >
+                Search again
+              </button>
+            </div>
+          ) : !refining && !current ? (
+            // A quiet status line instead of a full-panel spinner.
+            <div className="quick-search-caption">
+              <p role="status" className="quick-search-pending">
                 <LoaderCircle
                   className="motion-safe:animate-spin"
                   aria-hidden="true"
-                  size={22}
+                  size={14}
                 />
-              )}
-              <strong role="status">
-                {cancelled
-                  ? "Search cancelled"
-                  : activeQuery.isPaused
-                    ? "Waiting for a connection…"
-                    : search
-                      ? "Searching…"
-                      : "Loading recent notes…"}
-              </strong>
-              <p>
-                {cancelled
-                  ? "Your search and notebook are still selected."
-                  : activeQuery.isPaused
-                    ? "This lookup will resume when you’re back online."
-                    : search
-                      ? "Looking for matches in your selected notes."
-                      : "Finding the notes you updated most recently."}
+                <span>{pendingLabel}</span>
               </p>
               {!!search && (
                 <button
                   type="button"
-                  className="app-button secondary"
-                  onClick={() => {
-                    if (cancelled) input.current?.focus();
-                    setCancelled(!cancelled);
-                  }}
+                  className="text-button"
+                  onClick={() => setCancelled(true)}
                 >
-                  {cancelled ? "Search again" : "Cancel search"}
+                  Cancel search
                 </button>
               )}
             </div>
-          ) : current.error ? (
+          ) : !refining && current?.error ? (
             <LoadError
               title={
                 search ? "Search couldn’t finish" : "Recent notes couldn’t load"
@@ -274,15 +288,28 @@ function SearchDialog({ close }: { close: () => void }) {
               }}
             />
           ) : (
-            <>
-              {!!current.items?.length && (
-                <p className="quick-search-caption" role="status">
-                  {search
-                    ? `${current.items?.length ?? 0} matching ${current.items?.length === 1 ? "note" : "notes"}`
-                    : "Recently updated"}
-                </p>
+            <div className="quick-search-list" aria-busy={!!refining}>
+              {!!shown?.items?.length && (
+                <div className="quick-search-caption">
+                  <p role="status">
+                    {refining
+                      ? pendingLabel
+                      : search
+                        ? `${shown.items.length} matching ${shown.items.length === 1 ? "note" : "notes"}`
+                        : "Recently updated"}
+                  </p>
+                  {refining && (
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setCancelled(true)}
+                    >
+                      Cancel search
+                    </button>
+                  )}
+                </div>
               )}
-              {current.items?.map((note) => (
+              {shown?.items?.map((note) => (
                 <Link
                   key={note.id}
                   href={`/app/memories/${note.id}`}
@@ -294,9 +321,9 @@ function SearchDialog({ close }: { close: () => void }) {
                     <strong>
                       <SearchTitle
                         title={memoryTitle(note)}
-                        query={search}
+                        query={shown.query}
                         version={note.version}
-                        evidence={searchQuery.data?.matches?.[note.id]}
+                        evidence={shown.matches?.[note.id]}
                       />
                     </strong>
                     <small>
@@ -307,17 +334,17 @@ function SearchDialog({ close }: { close: () => void }) {
                     <p>
                       <SearchPassage
                         content={note.content}
-                        query={search}
+                        query={shown.query}
                         length={140}
                         version={note.version}
-                        evidence={searchQuery.data?.matches?.[note.id]}
+                        evidence={shown.matches?.[note.id]}
                       />
                     </p>
                   </span>
                   <ArrowUpRight size={15} />
                 </Link>
               ))}
-              {!current.items?.length && (
+              {!shown?.items?.length && (
                 <div className="search-feedback">
                   <Search aria-hidden="true" size={22} />
                   <strong role="status">
@@ -342,7 +369,7 @@ function SearchDialog({ close }: { close: () => void }) {
                   )}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>

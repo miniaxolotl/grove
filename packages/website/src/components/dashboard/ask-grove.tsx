@@ -198,7 +198,11 @@ export function AskGrove({
   const [stopped, setStopped] = useState(session?.searchStopped ?? false);
   const searchInput = useRef<HTMLInputElement>(null);
   const search = query.trim();
-  const { result: searchQuery, ready: searchReady } = useNoteSearch(
+  const {
+    result: searchQuery,
+    ready: searchReady,
+    previous: previousSearch,
+  } = useNoteSearch(
     search,
     scope === "all" ? undefined : scope === "personal" ? null : scope,
     scope === "all" || includePersonal,
@@ -1196,6 +1200,17 @@ export function AskGrove({
               className="ask-search-results"
               aria-busy={!!query.trim() && !stopped && !visibleSearch}
             >
+              {query.trim() && !stopped && !visibleSearch && previousSearch && (
+                // Keep the last matches visible, dimmed, while a refined phrase loads.
+                <div className="ask-search-refining">
+                  <SourceList
+                    query={previousSearch.query}
+                    sources={previousSearch.data.sources}
+                    matches={previousSearch.data.matches}
+                    onOpen={setSelected}
+                  />
+                </div>
+              )}
               {query.trim() &&
                 !stopped &&
                 visibleSearch &&

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { AskResult } from "@lib/shared/models";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
@@ -24,5 +25,31 @@ export function useNoteSearch(
     // The cache aborts its fetch only when nobody else needs the same search.
     subscribed: enabled,
   });
-  return { result, ready: enabled && !result.isPending };
+  const ready = enabled && !result.isPending;
+  // While a refined phrase loads, keep the last matches from the same scope on
+  // screen instead of blanking the list. Clearing the phrase or changing scope
+  // drops them, so results from another notebook are never shown as current.
+  const scope = `${projectId === undefined ? "*" : (projectId ?? "-")}:${includePersonal}`;
+  const [last, setLast] = useState<{
+    scope: string;
+    query: string;
+    data: AskResult;
+  }>();
+  if (
+    ready &&
+    result.data &&
+    !result.error &&
+    (last?.data !== result.data || last.scope !== scope)
+  )
+    setLast({ scope, query: search, data: result.data });
+  else if (!phrase && last) setLast(undefined);
+  const previous =
+    active &&
+    phrase &&
+    !ready &&
+    last?.scope === scope &&
+    last.data.sources.length
+      ? last
+      : undefined;
+  return { result, ready, previous };
 }
