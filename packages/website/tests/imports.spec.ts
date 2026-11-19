@@ -38,6 +38,11 @@ for (const width of [1440, 390, 320])
             version: 1,
             status: "active",
           },
+          {
+            id: "233609fd-8dc4-43ca-a611-4e913248a357",
+            name: "Botany",
+            parentId: notebook,
+          },
           ...(batch?.imported ? [{ id: gardening, name: "Gardening" }] : []),
         ];
       else if (path === "/memories/search")
@@ -202,7 +207,11 @@ for (const width of [1440, 390, 320])
     if (width === 1440)
       await page.screenshot({ path: testInfo.outputPath("import.png") });
     const initialOption =
-      width === 1440 ? "Research" : width === 390 ? "New notebook…" : "Unfiled";
+      width === 1440
+        ? "Research / Botany"
+        : width === 390
+          ? "New notebook…"
+          : "Unfiled";
     await page
       .getByRole("option", { name: initialOption, exact: true })
       .click();
@@ -210,6 +219,8 @@ for (const width of [1440, 390, 320])
       await dialog.getByLabel("New notebook name").fill(" ");
       await expect(choose).toBeDisabled();
       await dialog.getByLabel("New notebook name").fill("Field notes");
+      await dialog.getByRole("combobox", { name: "Parent notebook" }).click();
+      await page.getByRole("option", { name: "Research", exact: true }).click();
     }
     await expect(choose).toBeEnabled();
     await dialog.getByLabel("Upload notes and PDFs").setInputFiles([
@@ -236,16 +247,14 @@ for (const width of [1440, 390, 320])
     ).toBeVisible();
     const placement = dialog.locator(".import-placement");
     await expect(
-      dialog
-        .locator(".import-draft > p")
-        .filter({
-          hasText:
-            width === 1440
-              ? /^Notebook: Research$/
-              : width === 390
-                ? /^New notebook: Field notes$/
-                : /^Unfiled$/,
-        }),
+      dialog.locator(".import-draft > p").filter({
+        hasText:
+          width === 1440
+            ? /^Notebook: Research \/ Botany$/
+            : width === 390
+              ? /^New notebook: Research \/ Field notes$/
+              : /^Unfiled$/,
+      }),
     ).toHaveCount(2);
     await dialog
       .getByLabel("I’ve reviewed the notes, destinations and sharing.")
@@ -319,6 +328,11 @@ for (const width of [1440, 390, 320])
       .locator(".import-intro")
       .getByRole("button", { name: "Return to edit" });
     await topRecovery.focus();
+    // Exercise recovery from the top of the review, regardless of how far
+    // the browser happened to scroll when restoring the notebook trigger.
+    await topRecovery.evaluate((button) =>
+      button.scrollIntoView({ block: "start" }),
+    );
     const secondEditor = second.getByRole("textbox", {
       name: "Content from Botany.pdf",
     });

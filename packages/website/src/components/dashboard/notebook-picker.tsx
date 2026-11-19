@@ -72,14 +72,16 @@ export function NotebookPicker({
         : "auto";
     };
     position();
+    // showModal() focuses its first input synchronously. On touch, give it
+    // the browsing target up front so it never requests a software keyboard.
+    const initial = touchOpen.current
+      ? (popup.querySelector<HTMLElement>('[aria-selected="true"]:enabled') ??
+        popup.querySelector<HTMLElement>('[role="option"]:enabled') ??
+        popup)
+      : input.current!;
+    initial.autofocus = true;
     popup.showModal();
-    // Touch users can browse from the current notebook without raising a keyboard.
-    const initial =
-      touchOpen.current &&
-      popup.querySelector<HTMLElement>(
-        '[aria-selected="true"]:not([disabled])',
-      );
-    (initial || input.current)?.focus();
+    initial.autofocus = false;
     window.addEventListener("resize", position);
     window.visualViewport?.addEventListener("resize", position);
     window.visualViewport?.addEventListener("scroll", position);

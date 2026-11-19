@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ import type {
 import type { Task } from "@lib/shared/jobs";
 import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { errorMessage } from "@/lib/dashboard-api";
+import { notebookPath } from "@/lib/notebooks";
 import { workspaceKeys } from "@/lib/workspace-cache";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useNotebooks } from "./notebooks-provider";
@@ -140,12 +141,19 @@ function DraftReview({
   onDirty: (id: string, dirty: boolean) => void;
 }) {
   const { projects } = useNotebooks();
-  const assigned = note.destination;
-  const destinationLabel = assigned
-    ? "name" in assigned
-      ? `New notebook: ${assigned.name}`
-      : `Notebook: ${projects.find((project) => project.id === assigned.projectId)?.name ?? "Unavailable"}`
-    : "Unfiled";
+  const destinationLabel = useMemo(() => {
+    const assigned = note.destination;
+    if (!assigned) return "Unfiled";
+    const id = "name" in assigned ? assigned.parentId : assigned.projectId;
+    const path = id
+      ? notebookPath(projects, id)
+          .map((p) => p.name)
+          .join(" / ") || "Unavailable"
+      : "";
+    if ("name" in assigned)
+      return `New notebook: ${path ? `${path} / ` : ""}${assigned.name}`;
+    return `Notebook: ${path}`;
+  }, [note.destination, projects]);
   const [base, setBase] = useState(note);
   const [content, setContent] = useState(note.content);
   const [destination, setDestination] = useState(note.destination);

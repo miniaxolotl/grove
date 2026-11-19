@@ -561,7 +561,9 @@ function FilesView({ initial }: { initial: FileSearch }) {
             <p className="files-page-status" role="status">
               {files.data.items.length
                 ? `Page ${cursors.length} · ${files.data.items.length} uploads shown`
-                : "No matching uploads"}
+                : filters.query || activeCount || scoped
+                  ? "No matching uploads"
+                  : "No uploads yet"}
             </p>
             {files.data.items.length ? (
               <ul className="file-ledger" aria-label="Uploaded files">
@@ -572,16 +574,34 @@ function FilesView({ initial }: { initial: FileSearch }) {
             ) : (
               <div className="files-empty">
                 <p>
-                  {filters.query || activeCount || scoped
+                  {filters.query || activeCount
                     ? "Try another search or clear your filters to find more files."
-                    : "Upload a document in Ask Grove or Import notes, or add an image or recording to a note. Your files will appear here."}
+                    : scoped
+                      ? "There are no files in this view."
+                      : "Upload a document in Ask Grove or Import notes, or add an image or recording to a note. Your files will appear here."}
                 </p>
-                <Link className="text-button" href="/app/ask">
-                  Open Ask Grove
-                </Link>
-                <Link className="text-button" href="/app/settings/data">
-                  Import notes
-                </Link>
+                {filters.query || activeCount ? (
+                  <button
+                    type="button"
+                    className="app-button secondary"
+                    onClick={clear}
+                  >
+                    Reset file search
+                  </button>
+                ) : scoped ? (
+                  <Link className="text-button" href="/app/settings/files">
+                    Browse all uploads
+                  </Link>
+                ) : (
+                  <>
+                    <Link className="text-button" href="/app/ask">
+                      Open Ask Grove
+                    </Link>
+                    <Link className="text-button" href="/app/settings/data">
+                      Import notes
+                    </Link>
+                  </>
+                )}
               </div>
             )}
             {(cursors.length > 1 || files.data.nextCursor) && (

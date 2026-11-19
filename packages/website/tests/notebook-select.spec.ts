@@ -40,6 +40,8 @@ test("Ask filters nested paths without committing a scope or losing the draft", 
   const filter = page.getByRole("textbox", { name: "Filter notebooks" });
   await expect(filter).toBeFocused();
   await expect(filter).toHaveValue("s");
+  await page.keyboard.type("tud");
+  await expect(filter).toHaveValue("stud");
   await filter.fill("STUD");
   await expect(page.getByRole("option")).toHaveCount(3);
   await filter.press("ArrowDown");
@@ -70,6 +72,34 @@ test("Ask filters nested paths without committing a scope or losing the draft", 
   await expect(scope).toBeFocused();
   await chooseOption(scope, "personal");
   await expect(scope).toHaveText("Unfiled");
+});
+
+test.describe("touch browsing", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 670 } });
+
+  test("opens on the current notebook without focusing the filter until tapped", async ({
+    page,
+  }) => {
+    await notebooks(page);
+    await page.goto(`${base}/app/ask`);
+    const scope = page.getByRole("combobox", { name: "Look in notebook" });
+    const filter = page.getByRole("textbox", { name: "Filter notebooks" });
+    await page.evaluate(() => {
+      document.addEventListener("focusin", ({ target }) => {
+        if (target instanceof HTMLInputElement)
+          target.dataset.receivedFocus = "true";
+      });
+    });
+    await scope.tap();
+    await expect(page.getByRole("option", { selected: true })).toBeFocused();
+    expect(await filter.getAttribute("data-received-focus")).toBeNull();
+    await filter.tap();
+    await expect(filter).toBeFocused();
+    await filter.fill("interviews");
+    await page.getByRole("option", { name: /Interviews/ }).tap();
+    await expect(scope).toContainText("Interviews");
+    await expect(scope).toBeFocused();
+  });
 });
 
 test("quick search keeps its own focus, scope and text when the nested picker is dismissed", async ({
