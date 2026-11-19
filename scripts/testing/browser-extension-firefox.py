@@ -122,7 +122,7 @@ try:
     assert script("return document.title;") == "Grove"
     asynchronous('''
       const host=window.browser,background=await host.runtime.getBackgroundPage();
-      const key=`oauth:https://api.usegrove.cloud|https://clerk.usegrove.cloud|${host.identity.getRedirectURL()}`;
+      const key=`oauth:https://api.grovenote.app|https://clerk.grovenote.app|${host.identity.getRedirectURL()}`;
       await host.storage.session.set({[`${key}:tokens`]:{access_token:"fixture-token",token_type:"Bearer",expires_in:3600},[`${key}:expires`]:Date.now()+3600000});
       const accountId="00000000-0000-4000-a000-000000000001",connectionId="00000000-0000-4000-a000-000000000002",notes=[];
       background.fetch=async(input,init)=>{

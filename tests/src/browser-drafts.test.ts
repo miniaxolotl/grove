@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as drafts from "../../packages/browser-extension/src/drafts.ts";
 
 const scope = {
-  origin: "https://api.usegrove.cloud",
+  origin: "https://api.grovenote.app",
   accountId: "00000000-0000-4000-a000-000000000001",
   connectionId: "00000000-0000-4000-a000-000000000002",
 };

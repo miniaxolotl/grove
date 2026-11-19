@@ -137,6 +137,9 @@ export async function probeDatabase(db: Knex) {
   await db.raw(
     "SELECT scope, version, generation, automatic, revoked_at FROM proofing_consents LIMIT 0",
   );
+  await db.raw(
+    "SELECT initial_destination FROM document_import_batches LIMIT 0",
+  );
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */

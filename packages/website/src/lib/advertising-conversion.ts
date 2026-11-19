@@ -20,7 +20,7 @@ export function captureRegistrationConversion() {
     return (
       process.env.NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT === "production" &&
       url.protocol === "https:" &&
-      ["usegrove.cloud", "www.usegrove.cloud"].includes(url.hostname) &&
+      url.origin === "https://grovenote.app" &&
       url.pathname === "/welcome" &&
       !url.hash &&
       [...url.searchParams.keys()].every((key) =>

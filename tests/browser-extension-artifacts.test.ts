@@ -177,8 +177,8 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       }
     }
     assert.deepEqual(manifest.host_permissions, [
-      "https://api.usegrove.cloud/*",
-      "https://clerk.usegrove.cloud/*",
+      "https://api.grovenote.app/*",
+      "https://clerk.grovenote.app/*",
       "http://*/*",
       "https://*/*",
     ]);

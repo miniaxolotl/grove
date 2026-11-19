@@ -7,9 +7,64 @@ import {
   updateImageSpec,
   assertUnchangedApp,
   assertActiveDeployment,
+  readProviderResponse,
 } from "../scripts/deploy-digitalocean.mjs";
 
+test("provider errors preserve safe support correlation, never body text", async () => {
+  const id = "7c9ab35e-d354-410a-8c67-24b445021713";
+  for (const [body, header, expected] of [
+    [
+      JSON.stringify({
+        id: "invalid_argument",
+        request_id: id,
+        message: "secret",
+      }),
+      null,
+      `invalid_argument, request ${id}`,
+    ],
+    ["<html>secret", id, `unknown, request ${id}`],
+    [JSON.stringify({ request_id: "secret" }), id, `unknown, request ${id}`],
+    [
+      JSON.stringify({ id: "secret", request_id: "secret" }),
+      "secret",
+      "unknown",
+    ],
+  ]) {
+    const response = new globalThis.Response(body, {
+      status: 400,
+      headers: header ? { "x-request-id": header } : {},
+    });
+    await assert.rejects(
+      readProviderResponse(response, "PUT", "/apps/fixture"),
+      {
+        message: `DigitalOcean PUT /apps/fixture failed (HTTP 400, ${expected})`,
+      },
+    );
+  }
+});
+
 const { structuredClone } = globalThis;
+test("successful provider responses never quote malformed private JSON", async () => {
+  await assert.rejects(
+    readProviderResponse(
+      new globalThis.Response("private app data"),
+      "GET",
+      "/apps/fixture",
+    ),
+    {
+      message:
+        "DigitalOcean GET /apps/fixture returned invalid JSON (HTTP 200)",
+    },
+  );
+  assert.deepEqual(
+    await readProviderResponse(
+      globalThis.Response.json({ app: {} }),
+      "GET",
+      "/apps/fixture",
+    ),
+    { app: {} },
+  );
+});
 const digest = `sha256:${"a".repeat(64)}`;
 const ltDigest = `sha256:${"c".repeat(64)}`;
 const env = {
@@ -20,7 +75,7 @@ const env = {
   MIGRATION_DATABASE_URL:
     "postgresql://grove_owner:owner-password@db.example/grove",
   CLERK_SECRET_KEY: "sk_live_test_fixture",
-  CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from("clerk.usegrove.cloud$").toString("base64")}`,
+  CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from("clerk.grovenote.app$").toString("base64")}`,
   CLERK_WEBHOOK_SIGNING_SECRET: "whsec_test_fixture",
   CURSOR_SECRET: "test-cursor-secret".repeat(3),
   SHARE_LINK_KEY: "ab".repeat(32),
@@ -57,6 +112,13 @@ test("rollout pre-write readback rejects changed configuration and deployment id
 test("initial spec isolates runtime secrets and never deploys the migration owner", () => {
   const spec = createAppSpec(env);
   const json = JSON.stringify(spec);
+  assert.equal(spec.domains[0].domain, "api.grovenote.app");
+  for (const component of [...spec.services, ...spec.workers]) {
+    assert.equal(
+      component.envs.find(({ key }) => key === "SITE_URL").value,
+      "https://grovenote.app",
+    );
+  }
   assert(!json.includes("owner-password"));
   assert(!json.includes("MIGRATION_DATABASE_URL"));
   for (const [component, url] of [

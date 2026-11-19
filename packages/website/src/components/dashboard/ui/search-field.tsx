@@ -8,6 +8,7 @@ export function SearchField({
   placeholder,
   inputRef,
   submit = false,
+  clearLabel = false,
   className = "",
   ...inputProps
 }: Omit<
@@ -20,12 +21,15 @@ export function SearchField({
   placeholder: string;
   inputRef?: Ref<HTMLInputElement>;
   submit?: boolean;
+  clearLabel?: boolean;
   className?: string;
 }) {
   return (
     <div className={`app-search ${className}`}>
       <Search size={17} aria-hidden="true" />
       <input
+        name="query"
+        autoComplete="off"
         {...inputProps}
         ref={inputRef}
         aria-label={label}
@@ -44,7 +48,7 @@ export function SearchField({
           onChange("");
         }}
       >
-        <X size={15} />
+        {clearLabel ? "Clear" : <X size={15} aria-hidden="true" />}
       </button>
       {submit && <button type="submit">Search</button>}
     </div>

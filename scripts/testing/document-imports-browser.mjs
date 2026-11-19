@@ -91,7 +91,7 @@ try {
     account.clerk_subject ?? account.clerkSubject,
   );
   const service = new MemoryService(api, "synthetic-test-secret".repeat(3));
-  await service.project(principal, {
+  const research = await service.project(principal, {
     name: "Research",
     identity: "browser-research",
   });
@@ -182,6 +182,7 @@ try {
         const errors = [];
         page.on("pageerror", (error) => errors.push(error.message));
         await page.goto(`http://127.0.0.1:${port}/app`);
+        await page.getByRole("button", { name: "More note actions" }).click();
         await page
           .getByRole("button", { name: "Import notes", exact: true })
           .click();
@@ -190,6 +191,12 @@ try {
           exact: true,
         });
         const original = pdf();
+        await dialog
+          .getByRole("combobox", { name: "Destination notebook" })
+          .click();
+        await page
+          .getByRole("option", { name: "Research", exact: true })
+          .click();
         await dialog.getByLabel("Upload notes and PDFs").setInputFiles([
           {
             name: "Garden.md",
@@ -203,14 +210,10 @@ try {
         await dialog
           .getByRole("heading", { name: "2 proposed notes" })
           .waitFor();
-        const placement = dialog.locator(".import-placement");
-        await placement.getByRole("combobox").first().click();
-        await page
-          .getByRole("option", { name: "Research", exact: true })
-          .click();
-        await placement
-          .getByRole("button", { name: "Use for all notes" })
-          .click();
+        assert.equal(
+          await dialog.getByText("Notebook: Research", { exact: true }).count(),
+          2,
+        );
         const draft = dialog
           .locator(".import-draft")
           .filter({ hasText: "Botany.pdf" });
@@ -247,7 +250,8 @@ try {
           ),
         );
         const captures = resolve(
-          "documentation/design/screenshots/note-imports",
+          process.env.IMPORT_SCREENSHOT_DIR ||
+            "documentation/design/screenshots/note-imports",
         );
         await mkdir(captures, { recursive: true });
         await dialog.evaluate((element) => (element.scrollTop = 0));
@@ -275,6 +279,19 @@ try {
           .where({ batchId: batch.id })
           .whereNotNull("memoryId");
         assert.equal(rows.length, 2);
+        const projects = await owner("projects").where({
+          accountId: account.id,
+          name: `Plant care ${browserName} ${width}`,
+        });
+        assert.equal(projects.length, 1);
+        const saved = await owner("memories").whereIn(
+          "id",
+          rows.map((row) => row.memoryId),
+        );
+        assert.deepEqual(
+          saved.map((note) => note.projectId).sort(),
+          [research.id, projects[0].id].sort(),
+        );
         const file = await owner("document_import_files")
           .where({ batchId: batch.id, filename: "Botany.pdf" })
           .first();

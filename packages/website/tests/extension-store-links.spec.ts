@@ -44,17 +44,30 @@ for (const [name, ua, brand, expected, width] of [
         .getByRole("list", { name: "Browser extension stores" })
         .getByRole("link");
       await expect(links).toHaveCount(3);
-      await expect(links.nth(2)).toContainText("not yet available");
-      if (expected !== -1)
-        await expect(links.nth(expected)).toContainText("Your browser");
-      await expect(links.filter({ hasText: "Your browser" })).toHaveCount(
-        expected === -1 ? 0 : 1,
-      );
+      if (url === connections) {
+        await expect(links.nth(2)).toContainText("Chrome setup guide");
+        const recommended = links.filter({ hasText: "(your browser)" });
+        await expect(recommended).toHaveCount(expected === -1 ? 0 : 1);
+        if (expected !== -1)
+          await expect(links.nth(expected)).toHaveAccessibleName(
+            /your browser/,
+          );
+      } else {
+        await expect(links.nth(2)).toContainText("not yet available");
+        if (expected !== -1)
+          await expect(links.nth(expected)).toContainText("Your browser");
+        await expect(links.filter({ hasText: "Your browser" })).toHaveCount(
+          expected === -1 ? 0 : 1,
+        );
+      }
       await links.first().focus();
       for (const [index, href] of stores.entries()) {
         const link = links.nth(index);
         await expect(link).toBeFocused();
-        await expect(link).toHaveAttribute("href", href);
+        await expect(link).toHaveAttribute(
+          "href",
+          url === connections && index === 2 ? install : href,
+        );
         await expect(link).toBeInViewport({ ratio: 1 });
         if (index < 2) await page.keyboard.press("Tab");
       }

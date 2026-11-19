@@ -7,12 +7,16 @@ beneath Notes and Ask Grove. The Grove logo returns to Notes. Connected agents
 share these notes and their approved permissions; technical references stay in
 **Note properties → Agent details**.
 
+In **Settings → Connections**, each connection shows its last recorded use in your local time. This is authenticated client activity, not necessarily a note edit. **Hide** only tidies this browser’s list. **Revoke** names the connection and asks you to confirm before stopping access. A revoked API key cannot be used again. In the access dialog, **Approve access** saves the checked permissions. **Approve all scopes** grants every note permission for personal notes and all current and future notebooks, plus writing and sharing for OAuth clients.
+
+Workspace search and the **Search** view in Ask Grove keep your query when you cancel a slow lookup. Choose **Search again** to retry it, or edit the query to start another. [See the search and connection previews](design/screenshots/connections-search/README.md).
+
 ## Your first saved note
 
 You only need a Grove account and a browser. No CLI, agent plugin or personal
 model-provider key is needed for the Cloud notebook.
 
-1. [Create an account](https://usegrove.cloud/sign-up), then open **Notes**.
+1. [Create an account](https://grovenote.app/sign-up), then open **Notes**.
 2. Choose **New note**, or **Write your first note** if the library is empty.
    You can file it in a notebook later.
 3. Write a short title and something you will want to find,
@@ -25,7 +29,7 @@ model-provider key is needed for the Cloud notebook.
 
 Start with non-sensitive sample text while trying a feature. Keep an unsaved or
 failed draft open: reloading is not a recovery step. The sections below explain
-editing, search, sharing and recovery. [Connect an AI tool](https://usegrove.cloud/install)
+editing, search, sharing and recovery. [Connect an AI tool](https://grovenote.app/install)
 only if you want to use the notebook outside the browser; that separate guide
 owns connection commands and approval.
 
@@ -266,6 +270,6 @@ without inference; [speech](speech.md) requires separate explicit actions.
   rather than reinstalling the notebook or deleting credentials.
 
 For help, include the page, action, approximate time and redacted error in a
-[support request](https://usegrove.cloud/support). Do not include note contents,
+[support request](https://grovenote.app/support). Do not include note contents,
 private sharing links, API keys or sign-in tokens unless you deliberately choose
 to share a safe reproduction.

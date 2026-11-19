@@ -189,9 +189,9 @@ async function main() {
   );
   assert.deepEqual(report.config, {
     target: browser,
-    apiOrigin: "https://api.usegrove.cloud",
-    siteOrigin: "https://usegrove.cloud",
-    issuer: "https://clerk.usegrove.cloud",
+    apiOrigin: "https://api.grovenote.app",
+    siteOrigin: "https://grovenote.app",
+    issuer: "https://clerk.grovenote.app",
   });
   const name = `grove-${browser}.zip`,
     wanted = sha(files[name]);

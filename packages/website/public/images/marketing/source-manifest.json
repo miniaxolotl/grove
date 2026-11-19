@@ -130,7 +130,7 @@
         "headline": "Keep the thought. Find it later.",
         "description": "Write private notes, organize them in notebooks and search by what you remember.",
         "action": "Create your account",
-        "destination": "https://usegrove.cloud/sign-up",
+        "destination": "https://grovenote.app/sign-up",
         "availability": "Available"
       },
       "alt": "Grove: Keep the thought. Find it later. Hands drawing in a grid notebook beside a keyboard. An open notebook, a map and a camera.",
@@ -259,7 +259,7 @@
         "headline": "Remember the idea, not the wording.",
         "description": "Search by meaning to find a note even when you can’t remember the exact phrase.",
         "action": "Create your account",
-        "destination": "https://usegrove.cloud/sign-up",
+        "destination": "https://grovenote.app/sign-up",
         "availability": "Available"
       },
       "alt": "Grove: Remember the idea, not the wording. A pencil and travel notes on a map.",
@@ -381,7 +381,7 @@
         "headline": "Give each project its own notebook.",
         "description": "Keep research, plans and personal notes in notebooks you can browse and search.",
         "action": "Create your account",
-        "destination": "https://usegrove.cloud/sign-up",
+        "destination": "https://grovenote.app/sign-up",
         "availability": "Available"
       },
       "alt": "Grove: Give each project its own notebook. An open notebook, a map and a camera. Hands drawing in a grid notebook beside a keyboard. A person writing in a notebook beside a window.",
@@ -522,7 +522,7 @@
         "headline": "The earlier draft is still there.",
         "description": "Return to previous versions of a note when an edit takes you in the wrong direction.",
         "action": "Create your account",
-        "destination": "https://usegrove.cloud/sign-up",
+        "destination": "https://grovenote.app/sign-up",
         "availability": "Available"
       },
       "alt": "Grove: The earlier draft is still there. A person writing in a notebook beside a window.",
@@ -653,7 +653,7 @@
         "headline": "Make room for your next idea.",
         "description": "Start a private notebook for the plans and thoughts you want to keep.",
         "action": "Create your account",
-        "destination": "https://usegrove.cloud/sign-up",
+        "destination": "https://grovenote.app/sign-up",
         "availability": "Available"
       },
       "alt": "Grove: Make room for your next idea. Hands drawing in a grid notebook beside a keyboard.",
@@ -734,7 +734,7 @@
         "headline": "Find that note again.",
         "description": "Search your private notes by meaning. Even when the exact words escape you.",
         "action": "Create your account",
-        "destination": "https://usegrove.cloud/sign-up",
+        "destination": "https://grovenote.app/sign-up",
         "availability": "Available"
       },
       "alt": "Grove: Find that note again. A person writing in a notebook beside a window.",

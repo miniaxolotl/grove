@@ -11,7 +11,7 @@ filing, archive/restore and deletion. [Tool reference](documentation/server.md#m
 **One database:** PostgreSQL full-text search, pg_trgm and pgvector, with account-owned rows
 and non-owner runtime roles enforcing row-level security.
 
-[Website](https://usegrove.cloud) · [Tools/API](documentation/server.md) ·
+[Website](https://grovenote.app) · [Tools/API](documentation/server.md) ·
 [Agent installation](documentation/client.md) · [Hosting](documentation/deploy.md) ·
 [Browser extension](documentation/browser-extension.md) ·
 [Delivery evidence](documentation/delivery.md)
@@ -32,7 +32,7 @@ Qwen embeddings and Clef decisions on DeepInfra, with MiniMax M3.1 Flash generat
 
 ## Connect a web chat
 
-Use the remote MCP endpoint `https://api.usegrove.cloud/mcp` in **ChatGPT** or
+Use the remote MCP endpoint `https://api.grovenote.app/mcp` in **ChatGPT** or
 **Claude web**, sign in with OAuth, then approve the matching client in Grove
 Connections. No terminal or API key is needed. This is a custom-connection beta,
 not a public-directory listing; host/account policies apply. See the

@@ -65,9 +65,9 @@ function httpsOrigin(value) {
 // Initial provisioning only. Migration-owner credentials are deliberately absent.
 export function createAppSpec(env) {
   const spec = structuredClone(template);
-  const apiOrigin = env.API_ORIGIN ?? "https://api.usegrove.cloud";
-  const siteUrl = env.SITE_URL ?? "https://usegrove.cloud";
-  const issuer = env.CLERK_ISSUER ?? "https://clerk.usegrove.cloud";
+  const apiOrigin = env.API_ORIGIN ?? "https://api.grovenote.app";
+  const siteUrl = env.SITE_URL ?? "https://grovenote.app";
+  const issuer = env.CLERK_ISSUER ?? "https://clerk.grovenote.app";
   spec.domains[0].domain = httpsOrigin(apiOrigin).hostname;
   httpsOrigin(siteUrl);
   httpsOrigin(issuer);
@@ -330,6 +330,40 @@ export function findDeployment(
   );
 }
 
+export async function readProviderResponse(response, method, path) {
+  if (response.ok)
+    return response.json().catch(() => {
+      throw new Error(
+        `DigitalOcean ${method} ${path} returned invalid JSON (HTTP ${response.status})`,
+      );
+    });
+  // A provider message (or a JSON parse error) can contain submitted values.
+  // Keep only known error codes and a UUID suitable for a private support lookup.
+  const data = await response.json().catch(() => null);
+  const code = [
+    "invalid_argument",
+    "bad_request",
+    "conflict",
+    "server_error",
+    "service_unavailable",
+    "unauthorized",
+    "forbidden",
+    "not_found",
+    "unprocessable_entity",
+    "too_many_requests",
+  ].includes(data?.id)
+    ? data.id
+    : "unknown";
+  const id = [data?.request_id, response.headers.get("x-request-id")].find(
+    (v) =>
+      typeof v === "string" &&
+      /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(v),
+  );
+  throw new Error(
+    `DigitalOcean ${method} ${path} failed (HTTP ${response.status}, ${code}${id ? `, request ${id}` : ""})`,
+  );
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -386,13 +420,7 @@ async function main() {
       ...(body ? { body: JSON.stringify(body) } : {}),
       signal: AbortSignal.timeout(60000),
     });
-    const data = await response.json();
-    // Provider errors can echo submitted settings; never log request/response bodies.
-    assert(
-      response.ok,
-      `DigitalOcean ${method} ${path} failed (HTTP ${response.status}, ${data.id ?? "unknown"})`,
-    );
-    return data;
+    return readProviderResponse(response, method, path);
   }
 
   let spec;

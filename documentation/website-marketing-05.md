@@ -7,7 +7,7 @@ answers; all use labelled sample content and perform no account writes.
 
 The homepage introduces the product in plain text next to one interactive
 notebook with cited answers. **Get started** links to extension and AI tool setup
-and to [Notebook examples](https://usegrove.cloud/examples), where visitors can
+and to [Notebook examples](https://grovenote.app/examples), where visitors can
 try the separate library and Ask examples without signing in. The homepage keeps
 signup, the feature list, pricing and FAQ without repeating the setup steps.
 It uses system UI fonts and does not wait for scroll-triggered reveals.

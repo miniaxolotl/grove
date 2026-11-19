@@ -33,7 +33,7 @@ All illustrations are editable SVG/CSS authored for this website.
 
 ## Production publication — October 19, 2026
 
-- Live: <https://usegrove.cloud>
+- Live: <https://grovenote.app>
 - Website source: `94d969553942d2950a0a0beb7e9141731146d431`;
   [PR #9](https://github.com/miniaxolotl/grove/pull/9).
 - Vercel deployment: `dpl_2kJf9iTqVGWLUXBpWYs4E4yHeKh1`, independently read

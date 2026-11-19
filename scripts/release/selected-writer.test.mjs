@@ -93,7 +93,7 @@ async function fixture(t, footer = "") {
       productionSha: baseline,
       deploymentId: "dpl_fixture",
       deploymentUrl: "https://grove-fixture.vercel.app",
-      alias: "https://usegrove.cloud",
+      alias: "https://grovenote.app",
     },
   };
   targets.service = {

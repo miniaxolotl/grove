@@ -6,7 +6,7 @@ inquiries, privacy/account questions and private security reports. Both are publ
 and readable without JavaScript. Neither accepts messages through a new backend
 or asks for private notebook content.
 
-Public contact is **support@usegrove.cloud**, defined once in
+Public contact is **support@grovenote.app**, defined once in
 `packages/website/src/lib/contact.ts`. Legal/help/contact pages reuse it. Provider
 console contacts are separate operator configuration; changing website prose does
 not change them.

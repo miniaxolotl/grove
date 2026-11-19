@@ -91,7 +91,7 @@ export function AgentSetup({
           </p>
           <CodeBlock
             title="Headless login"
-            code={`npx @miniaxolotl/grove login --client ${client === "mcp" ? "cli" : client} --url ${origin || "https://api.usegrove.cloud"} --key-stdin`}
+            code={`npx @miniaxolotl/grove login --client ${client === "mcp" ? "cli" : client} --url ${origin || "https://api.grovenote.app"} --key-stdin`}
           />
         </details>
       )}

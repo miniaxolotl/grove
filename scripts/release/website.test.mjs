@@ -164,7 +164,7 @@ test("website-only delivery requires exact scope and live backend verification b
   // check. A retry must verify the live site before it accepts the receipt.
   assert.match(
     website,
-    /if: steps\.receipts\.outputs\.alreadyDelivered == 'true'\s+run: \|\s+node scripts\/release\/website\.mjs preflight\s+test "\$\(curl [^\n]+https:\/\/usegrove\.cloud\/\)" = 200[\s\S]*upload-artifact/,
+    /if: steps\.receipts\.outputs\.alreadyDelivered == 'true'\s+run: \|\s+node scripts\/release\/website\.mjs preflight\s+test "\$\(curl [^\n]+https:\/\/grovenote\.app\/\)" = 200[\s\S]*upload-artifact/,
   );
   assert.ok(
     workflow.indexOf("node scripts/release/website.mjs preflight") <

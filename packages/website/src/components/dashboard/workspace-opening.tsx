@@ -17,7 +17,11 @@ export function LibrarySkeleton({
         <div className="select-loaded">
           <i className="skeleton-check" aria-hidden="true" />
           <span role="status">
-            {archive ? "Opening your archive…" : "Opening your notes…"}
+            {showExcerpt
+              ? "Searching notes…"
+              : archive
+                ? "Opening your archive…"
+                : "Opening your notes…"}
           </span>
         </div>
       </div>

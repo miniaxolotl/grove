@@ -8,9 +8,9 @@ export const connectCommand = (
   agent: "opencode" | "claude" | "codex",
   origin?: string,
 ) =>
-  `npx @miniaxolotl/grove connect ${agent}${origin && origin !== "https://api.usegrove.cloud" ? ` --url ${origin}` : ""}`;
+  `npx @miniaxolotl/grove connect ${agent}${origin && origin !== "https://api.grovenote.app" ? ` --url ${origin}` : ""}`;
 
-export const mcpEndpoint = "https://api.usegrove.cloud/mcp";
+export const mcpEndpoint = "https://api.grovenote.app/mcp";
 export const clientOptions = [
   { value: "opencode", label: "OpenCode", guide: "/docs/client#opencode-v2" },
   { value: "claude", label: "Claude Code", guide: "/docs/client#claude-code" },

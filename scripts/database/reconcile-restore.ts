@@ -341,6 +341,7 @@ export async function reconcileRestore(authority: Knex, restored: Knex) {
         });
       // Recovery must not replay old account emails or notifications from grant invalidation.
       await target("transactional_emails").delete();
+      await target("deletion_receipts").delete();
       let softDeletedMemories = 0;
       let blockedAccounts = 0;
       const restoredIds = new Set(existing.map((row) => row.id));

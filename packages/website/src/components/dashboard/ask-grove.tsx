@@ -26,7 +26,6 @@ import {
   Globe,
   AtSign,
 } from "lucide-react";
-import type { AskResult } from "@lib/shared/models";
 import { askToolCatalog } from "@lib/shared/ask-tools";
 import type {
   Conversation,
@@ -45,7 +44,7 @@ import { memoryExcerpt, memoryTitle } from "@/lib/memory-display";
 import { notebookPath } from "@/lib/notebooks";
 import { SearchPassage, SearchTitle } from "./search-passage";
 import type { SearchMatches } from "@lib/shared/search";
-import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { useNoteSearch } from "./use-note-search";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
 import { SegmentedControl } from "./ui/segmented-control";
@@ -104,14 +103,13 @@ function reconcileReply(
 export function AskGrove({
   projectId,
   embedded = false,
+  sessionKey = `ask:${projectId === undefined ? "global" : (projectId ?? "personal")}`,
 }: {
   projectId?: string | null;
   embedded?: boolean;
+  sessionKey?: string;
 }) {
-  const workspace = useWorkspaceSearch();
-  const sessions = workspace?.sessions;
-  const consumeQuestion = workspace?.setQuestion;
-  const sessionKey = `ask:${projectId === undefined ? "global" : (projectId ?? "personal")}`;
+  const sessions = useWorkspaceSearch()?.sessions;
   const [session] = useState(() => sessions?.get(sessionKey));
   const { projects, error: projectError } = useNotebooks();
   const cache = useWorkspaceCache();
@@ -124,11 +122,9 @@ export function AskGrove({
     session?.includePersonal ?? false,
   );
   const [mode, setMode] = useState<"answer" | "search">(
-    workspace?.question ? "answer" : (session?.mode ?? "answer"),
+    session?.mode ?? "answer",
   );
-  const [draft, setDraft] = useState(
-    workspace?.question || session?.draft || "",
-  );
+  const [draft, setDraft] = useState(session?.draft ?? "");
   const [sources, setSources] = useState<SourceSelection | undefined>(
     session?.sources,
   );
@@ -137,14 +133,6 @@ export function AskGrove({
   const mention = useRef<
     { value: string; start: number; end: number } | undefined
   >(undefined);
-  const [handoff, setHandoff] = useState(workspace?.question);
-  if (workspace?.question !== handoff) {
-    setHandoff(workspace?.question);
-    if (workspace?.question) {
-      setDraft(workspace.question);
-      setMode("answer");
-    }
-  }
   const [conversationId, setConversationId] = useState(session?.conversationId);
   const [conversation, setConversation] = useState<Conversation>();
   const [unconfirmed, setUnconfirmed] = useState(session?.unconfirmed);
@@ -196,17 +184,19 @@ export function AskGrove({
   const error =
     actionError || (chatQuery.error ? errorMessage(chatQuery.error) : "");
   const [query, setQuery] = useState(session?.query ?? "");
-  const search = useDebouncedValue(query.trim());
-  const searchQuery = useQuery({
-    ...cache.resource<AskResult>("/ask", {
-      query: search,
-      projectId:
-        scope === "all" ? undefined : scope === "personal" ? null : scope,
-      includePersonal: scope === "all" || includePersonal,
-      mode: "search",
-    }),
-    enabled: mode === "search" && !!search,
-  });
+  const [stopped, setStopped] = useState(session?.searchStopped ?? false);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const search = query.trim();
+  const {
+    result: searchQuery,
+    ready: searchReady,
+    previous: previousSearch,
+  } = useNoteSearch(
+    search,
+    scope === "all" ? undefined : scope === "personal" ? null : scope,
+    scope === "all" || includePersonal,
+    mode === "search" && !stopped,
+  );
   const [selected, setSelected] = useState<Pick<
     Memory,
     "id" | "version"
@@ -234,9 +224,6 @@ export function AskGrove({
     includePersonal,
   };
   useEffect(() => {
-    consumeQuestion?.("");
-  }, [consumeQuestion, workspace?.question]);
-  useEffect(() => {
     sessions?.set(sessionKey, {
       scope,
       includePersonal,
@@ -245,6 +232,7 @@ export function AskGrove({
       sources,
       rejected,
       query,
+      searchStopped: stopped,
       conversationId,
       unconfirmed,
       conversationDrafts: conversationDrafts.current,
@@ -259,6 +247,7 @@ export function AskGrove({
     sources,
     rejected,
     query,
+    stopped,
     conversationId,
     unconfirmed,
   ]);
@@ -691,15 +680,12 @@ export function AskGrove({
       setToolsBusy(false);
     }
   }
-  const visibleSearch =
-    search === query.trim() && !searchQuery.isPending
-      ? {
-          result: searchQuery.data,
-          error: searchQuery.error
-            ? errorMessage(searchQuery.error)
-            : undefined,
-        }
-      : undefined;
+  const visibleSearch = searchReady
+    ? {
+        result: searchQuery.data,
+        error: searchQuery.error ? errorMessage(searchQuery.error) : undefined,
+      }
+    : undefined;
   const historyButton = (
     <Button
       variant="secondary"
@@ -771,6 +757,7 @@ export function AskGrove({
                   setSources(undefined);
                   setRejected(undefined);
                   setScope(value);
+                  setStopped(false);
                 }}
                 leading={[
                   { value: "all", label: "All notes" },
@@ -793,6 +780,7 @@ export function AskGrove({
                     setSources(undefined);
                     setRejected(undefined);
                     setPersonal(e.target.checked);
+                    setStopped(false);
                   }}
                 />
                 Include unfiled notes
@@ -1147,18 +1135,40 @@ export function AskGrove({
               <SearchField
                 label="Search saved notes"
                 value={query}
-                onChange={setQuery}
+                inputRef={searchInput}
+                onChange={(value) => {
+                  setStopped(false);
+                  setQuery(value);
+                }}
                 placeholder="Find a decision, detail, or idea…"
               />
-              <p className="ask-result-count" role="status">
-                {!query.trim()
-                  ? "Search by words or meaning."
-                  : !visibleSearch
-                    ? "Searching…"
-                    : visibleSearch.error
-                      ? "Search couldn’t finish"
-                      : `${visibleSearch.result!.sources.length} ${visibleSearch.result!.sources.length === 1 ? "note" : "notes"} found`}
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="ask-result-count" role="status">
+                  {!query.trim()
+                    ? "Search by words or meaning."
+                    : stopped
+                      ? "Search cancelled"
+                      : !visibleSearch
+                        ? searchQuery.isPaused
+                          ? "Waiting for a connection…"
+                          : "Searching…"
+                        : visibleSearch.error
+                          ? "Search couldn’t finish"
+                          : `${visibleSearch.result!.sources.length} ${visibleSearch.result!.sources.length === 1 ? "note" : "notes"} found`}
+                </p>
+                {!!search && (stopped || !visibleSearch) && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => {
+                      if (stopped) searchInput.current?.focus();
+                      setStopped(!stopped);
+                    }}
+                  >
+                    {stopped ? "Search again" : "Cancel search"}
+                  </button>
+                )}
+              </div>
               {visibleSearch?.result?.usage ? (
                 <p className="ask-answer-note">
                   {visibleSearch.result.usage.status === "cached"
@@ -1174,15 +1184,30 @@ export function AskGrove({
             </div>
             <div
               className="ask-search-results"
-              aria-busy={!!query.trim() && !visibleSearch}
+              aria-busy={!!query.trim() && !stopped && !visibleSearch}
             >
+              {query.trim() && !stopped && !visibleSearch && previousSearch && (
+                // Keep the last matches visible, dimmed, while a refined phrase loads.
+                <div className="ask-search-refining">
+                  <SourceList
+                    query={previousSearch.query}
+                    sources={previousSearch.data.sources}
+                    matches={previousSearch.data.matches}
+                    onOpen={setSelected}
+                  />
+                </div>
+              )}
               {query.trim() &&
+                !stopped &&
                 visibleSearch &&
                 (visibleSearch.error ? (
                   <LoadError
                     message={visibleSearch.error}
                     title="Search couldn’t finish"
-                    retry={() => void searchQuery.refetch()}
+                    retry={() => {
+                      searchInput.current?.focus();
+                      void searchQuery.refetch();
+                    }}
                   />
                 ) : visibleSearch.result!.sources.length ? (
                   <SourceList

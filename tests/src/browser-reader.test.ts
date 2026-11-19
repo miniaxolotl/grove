@@ -103,7 +103,7 @@ test("extension reader summaries stay bounded and never claim remote content", a
       const html = serialize(
         renderNote(
           "Hello **world**.\n\n[Unsafe](javascript:alert(1))\n\n![A diagram](https://example.com/img.png)",
-          "https://usegrove.cloud",
+          "https://grovenote.app",
           fakeDocument(),
         ) as unknown as FakeNode,
       );
@@ -121,7 +121,7 @@ test("extension reader summaries stay bounded and never claim remote content", a
       const html = serialize(
         renderNote(
           "```js\nconst a = 1;\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |",
-          "https://usegrove.cloud",
+          "https://grovenote.app",
           fakeDocument(),
         ) as unknown as FakeNode,
       );

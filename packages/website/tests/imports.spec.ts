@@ -1,7 +1,5 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { note as savedNote } from "./fixtures/workspace-fixture";
 import type {
@@ -40,6 +38,11 @@ for (const width of [1440, 390, 320])
             version: 1,
             status: "active",
           },
+          {
+            id: "233609fd-8dc4-43ca-a611-4e913248a357",
+            name: "Botany",
+            parentId: notebook,
+          },
           ...(batch?.imported ? [{ id: gardening, name: "Gardening" }] : []),
         ];
       else if (path === "/memories/search")
@@ -64,6 +67,7 @@ for (const width of [1440, 390, 320])
       else if (path === "/import-batches" && request.method() === "POST") {
         batch = {
           id: request.postDataJSON().id,
+          initialDestination: request.postDataJSON().destination,
           version: 1,
           status: "uploading",
           taskId: null,
@@ -119,7 +123,7 @@ for (const width of [1440, 390, 320])
             ? "# Plant research\n\nSeedlings need steady moisture and indirect light."
             : "# Garden journal\n\nWater seedlings in the morning.",
           included: true,
-          destination: null,
+          destination: batch!.initialDestination,
           suggestion: null,
           pageStart: 1,
           pageEnd: 1,
@@ -195,6 +199,34 @@ for (const width of [1440, 390, 320])
       name: "Import notes",
       exact: true,
     });
+    const choose = dialog.getByRole("button", { name: "Choose files" });
+    // Unfiled is preselected outside a notebook, so upload is ready at once.
+    await expect(choose).toBeEnabled();
+    await expect(
+      dialog.getByRole("combobox", { name: "Destination notebook" }),
+    ).toHaveText("Unfiled");
+    await dialog
+      .getByRole("combobox", { name: "Destination notebook" })
+      .click();
+    if (width === 1440)
+      await page.screenshot({ path: testInfo.outputPath("import.png") });
+    const initialOption =
+      width === 1440
+        ? "Research / Botany"
+        : width === 390
+          ? "New notebook…"
+          : "Unfiled";
+    await page
+      .getByRole("option", { name: initialOption, exact: true })
+      .click();
+    if (width === 390) {
+      await dialog.getByLabel("New notebook name").fill(" ");
+      await expect(choose).toBeDisabled();
+      await dialog.getByLabel("New notebook name").fill("Field notes");
+      await dialog.getByRole("combobox", { name: "Parent notebook" }).click();
+      await page.getByRole("option", { name: "Research", exact: true }).click();
+    }
+    await expect(choose).toBeEnabled();
     await dialog.getByLabel("Upload notes and PDFs").setInputFiles([
       {
         name: "Garden.md",
@@ -218,11 +250,30 @@ for (const width of [1440, 390, 320])
       ),
     ).toBeVisible();
     const placement = dialog.locator(".import-placement");
+    await expect(
+      dialog.locator(".import-draft > p").filter({
+        hasText:
+          width === 1440
+            ? /^Notebook: Research \/ Botany$/
+            : width === 390
+              ? /^New notebook: Research \/ Field notes$/
+              : /^Unfiled$/,
+      }),
+    ).toHaveCount(2);
+    await dialog
+      .getByLabel("I’ve reviewed the notes, destinations and sharing.")
+      .check();
     await placement.getByRole("combobox").first().click();
     await page
       .getByRole("option", { name: "New notebook…", exact: true })
       .click();
     await placement.getByLabel("New notebook name").fill("Gardening");
+    await expect(
+      dialog.getByRole("button", { name: "Confirm import" }),
+    ).toBeDisabled();
+    await expect(
+      dialog.getByLabel("I’ve reviewed the notes, destinations and sharing."),
+    ).not.toBeChecked();
     await placement.getByRole("button", { name: "Use for all notes" }).click();
     const first = dialog.locator(".import-draft").first(),
       second = dialog.locator(".import-draft").nth(1);
@@ -281,6 +332,11 @@ for (const width of [1440, 390, 320])
       .locator(".import-intro")
       .getByRole("button", { name: "Return to edit" });
     await topRecovery.focus();
+    // Exercise recovery from the top of the review, regardless of how far
+    // the browser happened to scroll when restoring the notebook trigger.
+    await topRecovery.evaluate((button) =>
+      button.scrollIntoView({ block: "start" }),
+    );
     const secondEditor = second.getByRole("textbox", {
       name: "Content from Botany.pdf",
     });
@@ -309,13 +365,9 @@ for (const width of [1440, 390, 320])
       testInfo.project.name.includes("chromium") ||
       testInfo.project.name === ""
     ) {
-      const directory = resolve(
-        "../../documentation/design/screenshots/note-imports",
-      );
-      await mkdir(directory, { recursive: true });
       await dialog.evaluate((element) => (element.scrollTop = 0));
       await page.screenshot({
-        path: resolve(directory, `review-${width}.png`),
+        path: testInfo.outputPath(`review-${width}.png`),
       });
     }
     await dialog
@@ -375,6 +427,106 @@ for (const width of [1440, 390, 320])
       await page.screenshot({
         path: testInfo.outputPath("imported-notebook.png"),
       });
+  });
+
+for (const recovery of [
+  "choose Unfiled while loading",
+  "retry notebooks",
+  "choose Unfiled after failure",
+] as const)
+  test(`notebook-scoped import: ${recovery}`, async ({ page }) => {
+    const gate = Promise.withResolvers<void>();
+    let offline = recovery !== "choose Unfiled while loading";
+    const destinations: ImportDestination[] = [];
+    await page.route("**/api/grove/**", async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      let data: unknown = [];
+      if (path.endsWith("/projects/catalog")) {
+        await gate.promise;
+        if (offline)
+          return route.fulfill({
+            status: 503,
+            json: { success: false, error: { message: "Unavailable" } },
+          });
+        data = catalogResponse(request.url(), [
+          { id: notebook, name: "Research", version: 7 },
+        ]);
+      } else if (path.endsWith("/me")) data = { accountId: "scoped-import" };
+      else if (path.endsWith("/memories/search"))
+        data = { items: [], nextCursor: null };
+      else if (
+        path.endsWith("/import-batches") &&
+        request.method() === "POST"
+      ) {
+        destinations.push(request.postDataJSON().destination);
+        // The contract under test ends at batch creation.
+        return route.abort();
+      }
+      return route.fulfill({ json: { success: true, data } });
+    });
+    await page.goto(`${base}/app?notebook=${notebook}`);
+    await page.getByRole("button", { name: "More note actions" }).click();
+    await page
+      .getByRole("button", { name: "Import notes", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog", {
+      name: "Import notes",
+      exact: true,
+    });
+    const picker = dialog.getByRole("combobox", {
+      name: "Destination notebook",
+    });
+    const choose = dialog.getByRole("button", { name: "Choose files" });
+    const input = dialog.getByLabel("Upload notes and PDFs");
+    await expect(choose).toBeDisabled();
+    await expect(input).toBeDisabled();
+    await expect(picker).toHaveText("Choose a destination…");
+    await dialog.getByText("Drop files here").evaluate((target) => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File(["Hello"], "hello.txt"));
+      target.dispatchEvent(
+        new DragEvent("drop", { bubbles: true, dataTransfer }),
+      );
+    });
+    if (offline) {
+      gate.resolve();
+      const retry = dialog.getByRole("button", { name: "Retry notebooks" });
+      await expect(retry).toBeVisible({ timeout: 15_000 });
+      await expect(choose).toBeDisabled();
+      if (recovery === "retry notebooks") {
+        offline = false;
+        await retry.click();
+        await expect(picker).toHaveText("Research");
+      }
+    }
+    if (recovery !== "retry notebooks") {
+      await picker.click();
+      await page.getByRole("option", { name: "Unfiled" }).click();
+      await expect(choose).toBeEnabled();
+      if (!offline) {
+        gate.resolve();
+        await picker.click();
+        await expect(
+          page.getByRole("option", { name: "Research" }),
+        ).toBeVisible();
+        await page.keyboard.press("Escape");
+      }
+      await expect(picker).toHaveText("Unfiled");
+    }
+    expect(destinations).toEqual([]);
+    await input.setInputFiles({
+      name: "hello.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Hello"),
+    });
+    await expect
+      .poll(() => destinations)
+      .toEqual([
+        recovery === "retry notebooks"
+          ? { projectId: notebook, version: 7 }
+          : null,
+      ]);
   });
 
 test("import status follows a queued, running and failed job and retries the same task", async ({
