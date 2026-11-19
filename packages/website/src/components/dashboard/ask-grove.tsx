@@ -103,14 +103,13 @@ function reconcileReply(
 export function AskGrove({
   projectId,
   embedded = false,
+  sessionKey = `ask:${projectId === undefined ? "global" : (projectId ?? "personal")}`,
 }: {
   projectId?: string | null;
   embedded?: boolean;
+  sessionKey?: string;
 }) {
-  const workspace = useWorkspaceSearch();
-  const sessions = workspace?.sessions;
-  const consumeQuestion = workspace?.setQuestion;
-  const sessionKey = `ask:${projectId === undefined ? "global" : (projectId ?? "personal")}`;
+  const sessions = useWorkspaceSearch()?.sessions;
   const [session] = useState(() => sessions?.get(sessionKey));
   const { projects, error: projectError } = useNotebooks();
   const cache = useWorkspaceCache();
@@ -123,11 +122,9 @@ export function AskGrove({
     session?.includePersonal ?? false,
   );
   const [mode, setMode] = useState<"answer" | "search">(
-    workspace?.question ? "answer" : (session?.mode ?? "answer"),
+    session?.mode ?? "answer",
   );
-  const [draft, setDraft] = useState(
-    workspace?.question || session?.draft || "",
-  );
+  const [draft, setDraft] = useState(session?.draft ?? "");
   const [sources, setSources] = useState<SourceSelection | undefined>(
     session?.sources,
   );
@@ -136,14 +133,6 @@ export function AskGrove({
   const mention = useRef<
     { value: string; start: number; end: number } | undefined
   >(undefined);
-  const [handoff, setHandoff] = useState(workspace?.question);
-  if (workspace?.question !== handoff) {
-    setHandoff(workspace?.question);
-    if (workspace?.question) {
-      setDraft(workspace.question);
-      setMode("answer");
-    }
-  }
   const [conversationId, setConversationId] = useState(session?.conversationId);
   const [conversation, setConversation] = useState<Conversation>();
   const [unconfirmed, setUnconfirmed] = useState(session?.unconfirmed);
@@ -234,9 +223,6 @@ export function AskGrove({
       scope === "all" ? undefined : scope === "personal" ? null : scope,
     includePersonal,
   };
-  useEffect(() => {
-    consumeQuestion?.("");
-  }, [consumeQuestion, workspace?.question]);
   useEffect(() => {
     sessions?.set(sessionKey, {
       scope,

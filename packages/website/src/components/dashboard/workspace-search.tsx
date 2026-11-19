@@ -9,6 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import {
   Search,
@@ -59,18 +60,16 @@ export type AskSession = {
   searchStopped?: boolean;
   mode: "answer" | "search";
 };
+export const paletteSessionKey = (id: string) => `ask:palette:${id}`;
 const Context = createContext<{
   open: () => void;
   sessions: Map<string, AskSession>;
-  question: string;
-  setQuestion: (value: string) => void;
 } | null>(null);
 export const useWorkspaceSearch = () => useContext(Context);
 
 export function WorkspaceSearch({ children }: { children: ReactNode }) {
   const [opened, setOpened] = useState(false);
   const [sessions] = useState(() => new Map<string, AskSession>());
-  const [question, setQuestion] = useState("");
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if (
@@ -85,9 +84,7 @@ export function WorkspaceSearch({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", shortcut);
   }, []);
   return (
-    <Context.Provider
-      value={{ open: () => setOpened(true), sessions, question, setQuestion }}
-    >
+    <Context.Provider value={{ open: () => setOpened(true), sessions }}>
       {children}
       {opened && <SearchDialog close={() => setOpened(false)} />}
     </Context.Provider>
@@ -111,6 +108,7 @@ export function WorkspaceSearchButton() {
 }
 function SearchDialog({ close }: { close: () => void }) {
   const context = useWorkspaceSearch()!;
+  const router = useRouter();
   const { projects } = useNotebooks();
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState("all");
@@ -200,18 +198,26 @@ function SearchDialog({ close }: { close: () => void }) {
         placeholder: "Search your notes…",
       }}
       footer={
-        query.trim() ? (
-          <Link
+        search ? (
+          <button
+            type="button"
             className="quick-search-ask"
-            href="/app/ask"
             onClick={() => {
-              context.setQuestion(query.trim());
+              const id = crypto.randomUUID();
+              context.sessions.set(paletteSessionKey(id), {
+                scope,
+                includePersonal: projectId === undefined,
+                mode: "answer",
+                draft: search,
+                query: "",
+              });
+              router.push(`/app/ask?draft=${id}`);
               close();
             }}
           >
             <MessageSquare size={16} /> Ask Grove about this{" "}
             <ArrowUpRight size={15} />
-          </Link>
+          </button>
         ) : (
           <span>Type to search, or open a recent note.</span>
         )

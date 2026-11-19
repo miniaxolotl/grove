@@ -17,6 +17,51 @@ const pending = {
   lastUsedAt: "2026-10-24T10:01:00Z",
 };
 
+test("revoking an API key requires explicit confirmation", async ({
+  page,
+}, info) => {
+  let deletes = 0;
+  await page.route("**/api/grove/**", (route) => {
+    const request = route.request();
+    if (request.method() === "DELETE") {
+      expect(request.url()).toContain(`/connections/${pending.id}`);
+      deletes++;
+    }
+    return route.fulfill({
+      json: {
+        success: true,
+        data: request.url().endsWith("/connections")
+          ? [
+              {
+                ...pending,
+                name: "Notebook export",
+                clientId: null,
+                capabilities: ["memory:read"],
+                revokedAt: deletes ? new Date().toISOString() : null,
+              },
+            ]
+          : [],
+      },
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${base}/app/settings/connections`);
+  const revoke = page.getByRole("button", { name: "Revoke", exact: true });
+  await revoke.click();
+  const dialog = page.getByRole("dialog", { name: "Revoke connection?" });
+  await expect(dialog).toContainText("Notebook export");
+  await expect(dialog).toContainText("This API key cannot be used again");
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await dialog.screenshot({ path: info.outputPath("revoke-confirm.png") });
+  await page.keyboard.press("Escape");
+  await expect(revoke).toBeFocused();
+  expect(deletes).toBe(0);
+  await revoke.click();
+  await dialog.getByRole("button", { name: "Revoke access" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(deletes).toBe(1);
+});
+
 test("review last use and explicitly approve every scope", async ({
   page,
 }, info) => {

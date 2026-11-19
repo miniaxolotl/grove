@@ -6580,19 +6580,72 @@ test("workspace search includes personal notes and dialogs light-dismiss only on
     await page.getByRole("button", { name: "Close dialog" }).click();
   } else await page.mouse.click(2, 2);
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page
-    .getByRole("navigation", { name: "Workspace" })
-    .getByRole("link", { name: "Ask Grove", exact: true })
-    .click();
+});
+
+test("palette to Ask keeps scoped drafts separate from scratch and conversation drafts", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  const draft = page.getByLabel("Ask about your notes");
+  const scope = page.getByRole("combobox", { name: "Look in notebook" });
+  const send = page.getByRole("button", { name: "Send question" });
+  async function fromPalette(scope: string, phrase: string) {
+    await page.keyboard.press("Control+k");
+    const dialog = page.getByRole("dialog", { name: "Search your Grove" });
+    await chooseOption(
+      dialog.getByRole("combobox", { name: "Search in notebook" }),
+      scope,
+    );
+    await dialog.getByLabel("Search your Grove", { exact: true }).fill(phrase);
+    await dialog.getByRole("button", { name: "Ask Grove about this" }).click();
+    await expect(draft).toHaveValue(phrase);
+  }
+  await page.goto(`${base}/app/ask`);
+  await draft.fill("Unsent global question");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  await page.keyboard.press("Control+k");
-  await dialog
-    .getByLabel("Search your Grove", { exact: true })
-    .fill("Summarize my review note");
-  await dialog.getByRole("link", { name: "Ask Grove about this" }).click();
-  await expect(page.getByLabel("Ask about your notes")).toHaveValue(
+  await fromPalette(project.id, "Summarize my review note");
+  await expect(scope).toHaveText(project.name);
+  await expect(page.getByLabel("Include unfiled notes")).not.toBeChecked();
+  expect(state.chats.size).toBe(0);
+  await send.click();
+  await expect(page.locator(".ask-statement")).toContainText("working example");
+  const [notebookChat] = state.chats.values();
+  expect(notebookChat.scope).toEqual({
+    projectId: project.id,
+    includePersonal: false,
+  });
+  await draft.fill("Unsent notebook follow-up");
+  await fromPalette("personal", "Find my unfiled plans");
+  await expect(scope).toHaveText("Unfiled");
+  await expect(page.locator(".ask-question")).toHaveCount(0);
+  expect(state.chats.size).toBe(1);
+  expect(notebookChat.turns).toHaveLength(1);
+  await draft.fill("Find my unfiled plans for Friday");
+  await page.goBack();
+  await expect(draft).toHaveValue("Unsent notebook follow-up");
+  await expect(page.locator(".ask-question")).toContainText(
     "Summarize my review note",
   );
+  await page.goBack();
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(draft).toHaveValue("Unsent global question");
+  await expect(scope).toHaveText("All notes");
+  await page.goForward();
+  await page.goForward();
+  await expect(draft).toHaveValue("Find my unfiled plans for Friday");
+  await send.click();
+  await expect(page.locator(".ask-statement")).toContainText("working example");
+  expect([...state.chats.values()].at(-1)?.scope).toEqual({
+    projectId: null,
+    includePersonal: false,
+  });
+  await fromPalette("all", "Review all my notes");
+  await expect(scope).toHaveText("All notes");
+  expect(state.chats.size).toBe(2);
+  expect(decodeURIComponent(page.url())).not.toContain("Review all my notes");
+  await page.reload();
+  await expect(page.getByText("This search draft is no longer available.")).toBeVisible();
+  await expect(draft).toHaveCount(0);
 });
 
 test("mobile notebook browsing keeps creation and dated writing in the selected notebook", async ({

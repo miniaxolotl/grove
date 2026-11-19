@@ -6,9 +6,12 @@ and Ask Grove. Viewing files never saves or shares them.
 
 Choose **Import notes** from **Notes → More**, **Notebook options**, or
 **Settings → Your data**. The adjacent **View files & storage** link opens the file ledger.
-**Import into** defaults to the current notebook, or **Unfiled** elsewhere, so
-you can add files right away. Before uploading you can pick another notebook or
-**New notebook…** (optionally nested). Every proposed note starts with that
+**Import into** defaults to the current notebook, or **Unfiled** outside a notebook.
+If the current notebook hasn’t loaded, uploads wait. You can choose **Unfiled**
+or **New notebook…** immediately, or use **Retry notebooks** if the notebook is
+unavailable. Loading the notebook list later won’t replace your choice.
+Before uploading you can also pick another existing notebook or a parent for a
+new one. Every proposed note starts with that
 destination, even if you close the dialog and resume the import later. Upload UTF-8 Markdown (`.md`,
 `.markdown`), plain text (`.txt`), DOCX or text-based PDF files.
 

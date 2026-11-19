@@ -7,7 +7,7 @@ beneath Notes and Ask Grove. The Grove logo returns to Notes. Connected agents
 share these notes and their approved permissions; technical references stay in
 **Note properties → Agent details**.
 
-In **Settings → Connections**, each connection shows its last recorded use in your local time. This is authenticated client activity, not necessarily a note edit. **Hide** only tidies this browser’s list; **Revoke** stops access. In the access dialog, **Approve access** saves the checked permissions. **Approve all scopes** grants every note permission for personal notes and all current and future notebooks, plus writing and sharing for OAuth clients.
+In **Settings → Connections**, each connection shows its last recorded use in your local time. This is authenticated client activity, not necessarily a note edit. **Hide** only tidies this browser’s list. **Revoke** names the connection and asks you to confirm before stopping access. A revoked API key cannot be used again. In the access dialog, **Approve access** saves the checked permissions. **Approve all scopes** grants every note permission for personal notes and all current and future notebooks, plus writing and sharing for OAuth clients.
 
 Workspace search and the **Search** view in Ask Grove keep your query when you cancel a slow lookup. Choose **Search again** to retry it, or edit the query to start another. [See the search and connection previews](design/screenshots/connections-search/README.md).
 

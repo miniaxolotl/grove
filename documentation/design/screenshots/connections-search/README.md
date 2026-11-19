@@ -4,6 +4,10 @@ The examples in this gallery use synthetic workspace data. See the [workspace gu
 
 ### Connections
 
+![Revoke confirmation names the API key and explains that it cannot be used again](revoke-confirm.png)
+
+The confirmation opens with **Cancel** focused. Captured with a synthetic API key in the local Chromium fixture at 390 × 844, cropped to the dialog.
+
 - [Desktop setup](setup.png) — Settings at 1440 × 900, with direct actions for the extension, agents and API keys.
 - [Last use](last-use.png) — compact connection rows from the same viewport: status, access, scope and last use on one line, with a key that has not been used yet. None of it requires opening Connection details.
 - [Phone setup](setup-mobile.png) — setup actions at a 390 × 844 touch viewport, cropped to the action list. Both dialogs opened and closed by touch.

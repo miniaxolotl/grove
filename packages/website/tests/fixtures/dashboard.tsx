@@ -13,7 +13,7 @@ import Settings from "../../src/app/app/settings/page";
 import { ModelSettings } from "../../src/components/dashboard/model-settings";
 import { AiPreferencesPanel } from "../../src/components/dashboard/preferences-panel";
 import { MemoryContext } from "../../src/components/dashboard/context";
-import { AskGrove } from "../../src/components/dashboard/ask-grove";
+import AskPage from "../../src/app/app/ask/page";
 import { NoteDocument } from "../../src/components/dashboard/note-document";
 import { SettingsPanel } from "../../src/components/dashboard/settings-panel";
 import { FilesPanel } from "../../src/components/dashboard/files-panel";
@@ -29,7 +29,7 @@ function DashboardFixture() {
   const query = new URLSearchParams(search);
   if (query.has("fixtureOpening")) return <WorkspaceOpening path={path} />;
   const content = path.endsWith("/ask") ? (
-    <AskGrove />
+    <AskPage />
   ) : path.endsWith("/journal") ? (
     <MemoryLibrary initialSort="created_desc" />
   ) : path.startsWith("/app/memories/") && Number(query.get("revision")) > 0 ? (
