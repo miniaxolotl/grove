@@ -5,14 +5,14 @@ The examples in this gallery use synthetic workspace data. See the [workspace gu
 ### Connections
 
 - [Desktop setup](setup.png) — Settings at 1440 × 900, with direct actions for the extension, agents and API keys.
-- [Last use](last-use.png) — detail from the same viewport showing a recorded local timestamp and a key with no use recorded. Neither requires opening Connection details.
+- [Last use](last-use.png) — compact connection rows from the same viewport: status, access, scope and last use on one line, with a key that has not been used yet. None of it requires opening Connection details.
 - [Phone setup](setup-mobile.png) — setup actions at a 390 × 844 touch viewport, cropped to the action list. Both dialogs opened and closed by touch.
 
 Captured in Playwright Chromium from the local dashboard fixture and compiled website CSS, using the Connections changes based on `49022855`. Store installation, live providers and physical devices were not exercised.
 
 ### Search
 
-- [Recent notes](search-recent.png) and [loading](search-loading.png) — the desktop palette stays anchored while looking up a phrase (1440 × 800).
+- [Recent notes](search-recent.png) and [loading](search-loading.png) — the desktop palette stays anchored and shows a one-line status with **Cancel search** while looking up a phrase (1440 × 800).
 - [Cancelled](search-cancelled.png) and [empty](search-empty.png) — cancelling keeps the phrase and scope; resuming can return no matches (390 × 800, empty state cropped to the dialog).
 - [Retry](search-error.png) — an unavailable search keeps the selected notebook and offers a keyboard-operable retry (390 × 700).
 - [Matching passage](search-results.png), [Ask results](search-ask.png) and [library results](search-library.png) — the matching note is reachable by keyboard in each view (390 × 850, 390 × 900 and 1280 × 720 respectively).
