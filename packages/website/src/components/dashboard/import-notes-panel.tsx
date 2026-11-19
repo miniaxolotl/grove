@@ -282,7 +282,8 @@ export function ImportNotesPanel({
             projectId: currentNotebook.id,
             version: currentNotebook.version ?? 1,
           }
-        : undefined;
+        : // Unfiled is a safe default: every note is reviewed before import.
+          null;
   const [placement, setPlacement] = useState<ImportDestination>();
   const [reviewedVersion, setReviewedVersion] = useState<number>();
   const [dirtyNotes, setDirtyNotes] = useState<Set<string>>(() => new Set());
@@ -607,10 +608,9 @@ export function ImportNotesPanel({
       {(!id || batch?.status === "uploading") && (
         <>
           <section className="import-placement" aria-label="Import destination">
-            <h3>Where should these notes go?</h3>
+            <h3>Import into</h3>
             <p className="import-small">
-              Choose an existing notebook, create a new one, or leave the notes
-              Unfiled. You can change individual notes during review.
+              You can move individual notes before anything is saved.
             </p>
             <Destination
               value={uploadDestination}

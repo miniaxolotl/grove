@@ -200,7 +200,11 @@ for (const width of [1440, 390, 320])
       exact: true,
     });
     const choose = dialog.getByRole("button", { name: "Choose files" });
-    await expect(choose).toBeDisabled();
+    // Unfiled is preselected outside a notebook, so upload is ready at once.
+    await expect(choose).toBeEnabled();
+    await expect(
+      dialog.getByRole("combobox", { name: "Destination notebook" }),
+    ).toHaveText("Unfiled");
     await dialog
       .getByRole("combobox", { name: "Destination notebook" })
       .click();
@@ -522,6 +526,6 @@ test("retrying recent imports only reads the list and restores focus", async ({
   await expect(retry).toBeHidden();
   expect(reads.slice(failedReads)).toEqual(["/import-batches"]);
   await expect(
-    dialog.getByRole("combobox", { name: "Destination notebook" }),
+    dialog.getByRole("button", { name: "Choose files" }),
   ).toBeFocused();
 });
