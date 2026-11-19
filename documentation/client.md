@@ -10,6 +10,15 @@ The [setup page](https://grovenote.app/install) has separate links to AI tool
 instructions and the browser extension guide. Neither is required to use the web
 notebook.
 
+Cloud client setup uses `https://api.grovenote.app`; its approval website is
+`https://grovenote.app` and its OAuth issuer is `https://clerk.grovenote.app`.
+The CLI bundled in the OpenCode, Claude Code and Codex packages must carry the
+same defaults. Verify the packed executables, not only the source or website:
+already-published versions do not change when a domain PR is merged. Publish
+bundled consumers through the coordinated release process and preserve explicit
+self-hosted origins. Reconnect through the supported setup flow when an existing
+grant is bound to the old resource; do not copy old tokens to a new origin.
+
 Connection names are prefilled and can be edited during setup or later under
 **Settings → Connections → Edit scope**. Choose **Hide** to move an old entry
 into **Hidden connections** in this browser, and **Show again** to restore it.

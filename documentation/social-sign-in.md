@@ -30,16 +30,41 @@ Do not create a second Grove account and expect its memories to be merged.
 
 ## Production configuration
 
-- Target website: `https://grovenote.app` (see [domain cutover](deploy.md#domain-cutover)).
+- Website: `https://grovenote.app` (see [domain cutover](deploy.md#domain-cutover)).
 - Clerk application: `app_3KtGcnwE2Yg0P34l9PVij7LnOTS`.
 - Production instance: `ins_3Ktp2ZQ986pL3Dmhk7tJkesRR6A`.
-- Last verified Clerk issuer: `https://clerk.usegrove.cloud`; migrate it on the
-  same production instance before enabling the new website origin.
+- Clerk issuer: `https://clerk.grovenote.app`; the existing production instance
+  and user identities are retained.
 - Dedicated Google project: `grove-clerk-auth-2026` (`Grove Authentication`).
 
-At the last verified registration, all four connection settings used this callback:
-`https://clerk.usegrove.cloud/v1/oauth_callback`. Development uses a separate
-Clerk instance, with all four shared development connections enabled.
+The production callback is `https://clerk.grovenote.app/v1/oauth_callback`.
+Check each provider's saved callback independently; changing the Clerk domain
+does not update a provider's registration. Development uses a separate Clerk
+instance. The dated registration and account-linking evidence below predates the
+domain change and does not establish acceptance on the new domain.
+
+### Verify the deployed public key
+
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is a build-time input. Updating its saved Vercel
+value or redeploying an old `.vercel/output` directory does not replace the key
+already compiled into the browser bundle. A READY deployment or HTTP 200 sign-in
+document is not sufficient: the form can remain at “Loading sign-in…” while the
+old Clerk script host fails CORS.
+
+For a configuration-only repair, use a clean checkout of the **currently admitted
+website source**, pull its current production environment, and run an actual
+production build before deploying the resulting prebuilt output. Preserve the
+release source/version identity and coordinate with the release owner; do not
+substitute a newer moving branch or bypass backend/schema admission. Keep pulled
+environment files private and remove them after use.
+
+Verify the public-key hostname in the built output before deployment. Then check
+the served sign-in document, successfully loaded Clerk scripts and initialized
+form in a real browser on `grovenote.app`. The current host must be
+`clerk.grovenote.app`, not `clerk.usegrove.cloud`. See the scoped
+[browser comparison](design/screenshots/clerk-build/README.md).
+Rendering the form is not a completed provider login, email-delivery test or
+authenticated API/MCP acceptance; perform those checks separately with the user.
 
 | Provider  | Registration requirements                                                                                                                  | Clerk configuration section  |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
@@ -109,7 +134,9 @@ For each enabled provider, verify:
 Configuration inspection and mocked website checks do not establish successful
 real-provider OAuth. Keep completion evidence explicit in the execution status.
 
-The Settings UI passes website lint, type checks, production build and the
+### Historical account-linking evidence — October 2026
+
+The Settings UI passed website lint, type checks, production build and the
 19-test browser/accessibility suite. All four providers appear on live sign-in
 and sign-up. GitHub's real-account sign-in is verified. The existing account now
 reports verified connections for Google, Microsoft, Apple and GitHub.
