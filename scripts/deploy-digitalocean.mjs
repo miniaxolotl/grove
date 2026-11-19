@@ -2,6 +2,7 @@ import { version as proofingReleaseVersion } from "./release/proofing-release.mj
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import console from "node:console";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
@@ -15,6 +16,67 @@ const { AbortSignal, fetch, structuredClone } = globalThis;
 const template = JSON.parse(
   await readFile(new URL("../.do/app.json", import.meta.url), "utf8"),
 );
+
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, canonical(value[key])]),
+    );
+  return value;
+}
+
+// Hash settings in memory; never return/log the provider's secret-bearing spec.
+export function appStateFingerprint(app) {
+  assert(app?.id && app.spec, "Provider app state is required");
+  const identity = (deployment) =>
+    deployment
+      ? { id: deployment.id ?? null, phase: deployment.phase ?? null }
+      : null;
+  return createHash("sha256")
+    .update(
+      JSON.stringify(
+        canonical({
+          id: app.id,
+          spec: app.spec,
+          active: identity(app.active_deployment),
+          pending: identity(app.pending_deployment),
+          inProgress: identity(app.in_progress_deployment),
+        }),
+      ),
+    )
+    .digest("hex");
+}
+
+function assertExpectedAppState(app, expected) {
+  assert(
+    appStateFingerprint(app) === expected,
+    "Provider app state changed; revalidate before rollout",
+  );
+  assert(
+    !app.pending_deployment &&
+      !app.in_progress_deployment &&
+      app.active_deployment?.id &&
+      app.active_deployment.phase === "ACTIVE",
+    "Reconcile pending or unsettled service delivery before rollout",
+  );
+  assert(
+    isDeepStrictEqual(app.spec, app.active_deployment.spec),
+    "Reconcile desired/active spec drift before rollout",
+  );
+  assert(
+    ["jobs", "static_sites", "functions", "databases"].every(
+      (key) => !app.spec[key]?.length,
+    ) &&
+      app.spec.services?.length === 1 &&
+      app.spec.services[0].name === "api" &&
+      app.spec.workers?.length === 1 &&
+      app.spec.workers[0].name === "worker",
+    "Expected-state delivery preserves the two-component Grove topology",
+  );
+}
 
 export function assertUnchangedApp(previous, current) {
   assert(
@@ -374,6 +436,7 @@ async function main() {
       digest: { type: "string" },
       "languagetool-digest": { type: "string" },
       "coordinated-checker": { type: "string" },
+      "expected-app-state": { type: "string" },
     },
   });
   const token = required(process.env, "DIGITALOCEAN_ACCESS_TOKEN");
@@ -381,6 +444,17 @@ async function main() {
   const coordinated = values["coordinated-checker"] !== undefined;
   const requestedLt =
     values["coordinated-checker"] ?? values["languagetool-digest"];
+  const expectedAppState = values["expected-app-state"];
+  if (expectedAppState !== undefined) {
+    assert(
+      /^[a-f0-9]{64}$/.test(expectedAppState),
+      "Invalid expected provider state fingerprint",
+    );
+    assert(
+      appId && !values.create && requestedLt === undefined,
+      "Expected-state delivery requires an existing app without checker changes",
+    );
+  }
   if (coordinated) {
     assert(
       !values["languagetool-digest"] &&
@@ -429,6 +503,8 @@ async function main() {
   if (appId) {
     assert.match(appId, /^[0-9a-f-]{36}$/, "Invalid DigitalOcean app ID");
     const { app } = await request(`/apps/${appId}`);
+    if (expectedAppState !== undefined)
+      assertExpectedAppState(app, expectedAppState);
     previousApp = app;
     if (requestedLt !== undefined && !coordinated) {
       const apiDigest = values.digest ?? process.env.GROVE_IMAGE_DIGEST;
@@ -485,6 +561,17 @@ async function main() {
       requestedLt,
       coordinated,
     );
+    if (expectedAppState !== undefined && isDeepStrictEqual(spec, app.spec)) {
+      if (process.env.GITHUB_ACTIONS === "true")
+        assertCurrentRef(workflowContext());
+      console.log(
+        JSON.stringify({
+          action: "already-active",
+          deploymentId: app.active_deployment.id,
+        }),
+      );
+      return;
+    }
   } else {
     assert(
       values.create || values.propose,
@@ -536,6 +623,8 @@ async function main() {
   }
   if (appId) {
     const { app: current } = await request(`/apps/${appId}`);
+    if (expectedAppState !== undefined)
+      assertExpectedAppState(current, expectedAppState);
     assertUnchangedApp(previousApp, current);
   }
   if (process.env.GITHUB_ACTIONS === "true")
