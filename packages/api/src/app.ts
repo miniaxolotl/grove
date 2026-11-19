@@ -25,7 +25,11 @@ import { readMediaBytes } from "./media-input.ts";
 import { Billing } from "./billing.ts";
 import { AdminAccounts, type AdminDirectory } from "./system-admin.ts";
 export { Billing };
-export { FlagPricing, MonthlyPricing, YearlyPricing } from "./billing-pricing.ts";
+export {
+  FlagPricing,
+  MonthlyPricing,
+  YearlyPricing,
+} from "./billing-pricing.ts";
 import { PassThrough, Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { accountIdentity, type Reporter } from "@lib/telemetry";
@@ -129,7 +133,10 @@ import {
   defaultAskTools,
 } from "@lib/shared/conversations";
 
+import { prepareDeletionReceipt } from "./deletion-recipient.ts";
+
 export type AppDependencies = {
+  deletionReceipt?: Parameters<typeof prepareDeletionReceipt>[1];
   adminDirectory?: AdminDirectory;
   billing?: Billing;
   media?: MediaStore | null;
@@ -446,6 +453,10 @@ export function createApp(deps: AppDependencies) {
         ]);
       }
     });
+    if (payload.type === "user.deleted" && deps.deletionReceipt)
+      console.info(
+        JSON.stringify({ code: "receipt_skipped_identity_webhook" }),
+      );
     return c.json({ success: true });
   });
   const authorize = async (
@@ -623,19 +634,24 @@ export function createApp(deps: AppDependencies) {
   ) => schema.parse(await c.req.json());
   const configured = !!proofingEndpoint(deps.languageToolUrl);
   function requireChecker() {
-    if (!configured) throw new GroveError('proofing_disabled','Enhanced grammar is not configured.',503);
+    if (!configured)
+      throw new GroveError(
+        "proofing_disabled",
+        "Enhanced grammar is not configured.",
+        503,
+      );
   }
-  app.get('/v1/proofing/consent',async c => {
-    const consent = await proofing.settings(c.get('principal'));
-    return c.json(configured ? consent : {...consent, available:false});
+  app.get("/v1/proofing/consent", async (c) => {
+    const consent = await proofing.settings(c.get("principal"));
+    return c.json(configured ? consent : { ...consent, available: false });
   });
-  app.put('/v1/proofing/consent', async c => {
+  app.put("/v1/proofing/consent", async (c) => {
     const value = await body(c, proofingConsentSchema);
     if (value.enabled) requireChecker();
-    const consent = await proofing.settings(c.get('principal'),value);
-    return c.json(configured ? consent : {...consent, available:false});
+    const consent = await proofing.settings(c.get("principal"), value);
+    return c.json(configured ? consent : { ...consent, available: false });
   });
-  app.post('/v1/proofing/check',async c => {
+  app.post("/v1/proofing/check", async (c) => {
     requireChecker();
     const principal = c.get("principal"),
       input = await body(c, proofingCheckSchema);
@@ -2094,7 +2110,16 @@ export function createApp(deps: AppDependencies) {
       z.object({ confirm: z.literal("delete my account") }).strict(),
     );
     return c.json(
-      { success: true, data: await service.deleteAccount(c.get("principal")) },
+      {
+        success: true,
+        data: await service.deleteAccount(
+          c.get("principal"),
+          await prepareDeletionReceipt(
+            c.get("principal"),
+            deps.deletionReceipt,
+          ),
+        ),
+      },
       202,
     );
   });

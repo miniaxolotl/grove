@@ -3,6 +3,7 @@ import { setTimeout } from "node:timers/promises";
 import { createRuntime } from "./runtime.ts";
 import { camelRows } from "@lib/database";
 import { deliverEmail } from "./mail.ts";
+import { deliverDeletionReceipt } from "./deletion-receipt-worker.ts";
 import { JobBroker, type JobEnvelope } from "./broker.ts";
 import { WorkerPool } from "./worker-pool.ts";
 import { createLaneExecutor, laneSources } from "./worker-routing.ts";
@@ -45,6 +46,7 @@ process.once("SIGINT", stop);
 const mail = runtime.env.RESEND_API_KEY
   ? {
       key: runtime.env.RESEND_API_KEY,
+      exportReady: runtime.env.EMAIL_EXPORT_READY_ENABLED,
       from: runtime.env.EMAIL_FROM,
       siteUrl: runtime.env.SITE_URL,
     }
@@ -80,7 +82,12 @@ const handlers: Partial<Record<TaskKind, TaskHandler>> = {
     runtime.env.SPEECH_PROVIDER_CONCURRENCY,
   ),
   ...(runtime.artifacts
-    ? exportHandlers(runtime.db, runtime.artifacts, runtime.media)
+    ? exportHandlers(
+        runtime.db,
+        runtime.artifacts,
+        runtime.media,
+        runtime.env.EMAIL_EXPORT_READY_ENABLED,
+      )
     : {}),
   ...importHandlers(runtime.memories),
   ...documentImportHandlers(runtime.memories, extractDocument, runtime.media),
@@ -117,9 +124,24 @@ for (const lane of queueLanes)
 const pools = Object.fromEntries(
   queueLanes.map((lane) => [lane, new WorkerPool(capacities[lane])]),
 ) as Record<QueueLane, WorkerPool>;
+const receiptMail =
+  mail &&
+  runtime.env.EMAIL_DELETION_RECEIPT_ENABLED &&
+  runtime.env.DELETION_RECEIPT_KEY
+    ? { ...mail, receiptKey: runtime.env.DELETION_RECEIPT_KEY }
+    : null;
+let receiptFirst = false;
 const route = createLaneExecutor({
-  email: async (_lane, id) =>
-    mail ? deliverEmail(runtime.db, mail, recipient, id) : false,
+  email: async (_lane, id) => {
+    if (!mail) return false;
+    const ordinary = () => deliverEmail(runtime.db, mail, recipient, id);
+    if (!receiptMail) return ordinary();
+    const receipt = () => deliverDeletionReceipt(runtime.db, receiptMail, id);
+    receiptFirst = !receiptFirst;
+    return receiptFirst
+      ? (await receipt()) || ordinary()
+      : (await ordinary()) || receipt();
+  },
   memory: (lane, id) =>
     runtime.memories.runJob(id, {
       lane,
@@ -196,6 +218,21 @@ const dispatch = loop("dispatch_retry", async () => {
   let count = 0;
   try {
     for (const lane of queueLanes.filter((lane) => capacities[lane] > 0)) {
+      if (lane === "email" && receiptMail) {
+        // AMQP carries the same opaque email envelope for both sources. A failed
+        // publish can be redispatched after 15s; polling does not wait for that timer.
+        const receipts = camelRows<{ id: string; dispatchId: string }>(
+          await runtime.db.raw("SELECT * FROM grove_dispatch_receipts()"),
+        );
+        for (const { id, dispatchId } of receipts) {
+          await broker.publish({ kind: "email", id }, lane);
+          await runtime.db.raw("SELECT grove_mark_receipt_dispatched(?, ?)", [
+            id,
+            dispatchId,
+          ]);
+        }
+        count += receipts.length;
+      }
       for (const source of laneSources(lane)) {
         const jobs = camelRows<JobEnvelope & { dispatchId: string }>(
           await runtime.db.raw(
@@ -265,8 +302,21 @@ const maintenance = loop("maintenance_retry", async () => {
   );
   return 60000;
 });
+const receiptExpiry = loop("receipt_sweep_retry", async () => {
+  const result = await runtime.db.raw(
+    "SELECT grove_sweep_receipts(?) AS cleared",
+    [!runtime.env.EMAIL_DELETION_RECEIPT_ENABLED],
+  );
+  return Number(result.rows[0].cleared) >= 1000 ? 10 : 30000;
+});
 try {
-  await Promise.all([dispatch, ...consumers, models, maintenance]);
+  await Promise.all([
+    dispatch,
+    ...consumers,
+    models,
+    maintenance,
+    receiptExpiry,
+  ]);
 } finally {
   await broker?.close();
   await Promise.all(Object.values(pools).map((pool) => pool.drain()));
