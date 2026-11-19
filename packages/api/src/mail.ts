@@ -1,5 +1,7 @@
 import { camelRows, tenant, type Knex } from "@lib/database";
 
+import { renderEmail } from "./email-template.ts";
+
 type MailJob = {
   id: string;
   accountId: string;
@@ -8,24 +10,6 @@ type MailJob = {
   attempts: number;
 };
 type MailConfig = { key: string; from: string; siteUrl: string };
-const messages = {
-  welcome: {
-    subject: "Welcome to Grove",
-    text: "Your Grove is ready. Write your first note, start a journal, or make a notebook for something you care about.",
-    path: "/app",
-  },
-  connection_approved: {
-    subject: "An agent connection was approved",
-    text: "A connection now has access to your Grove. You can review its permissions or revoke access in Connections.",
-    path: "/app/connections",
-  },
-  connection_revoked: {
-    subject: "An agent connection was revoked",
-    text: "A connection’s access to your Grove has been revoked. Your notes remain in your account.",
-    path: "/app/connections",
-  },
-};
-
 export async function deliverEmail(
   db: Knex,
   config: MailConfig,
@@ -58,7 +42,6 @@ export async function deliverEmail(
       retryable = false;
       throw new Error();
     }
-    const message = messages[job.kind];
     const allowed = await tenant(
       db,
       job.accountId,
@@ -72,19 +55,6 @@ export async function deliverEmail(
       retryable = false;
       throw new Error();
     }
-    const link = `${config.siteUrl}${message.path}`;
-    const escape = (text: string) =>
-      text.replace(
-        /[&<>"']/g,
-        (value) =>
-          ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;",
-          })[value]!,
-      );
     const response = await send("https://api.resend.com/emails", {
       method: "POST",
       signal: AbortSignal.timeout(20000),
@@ -96,9 +66,7 @@ export async function deliverEmail(
       body: JSON.stringify({
         from: config.from,
         to: [to],
-        subject: message.subject,
-        text: `${message.text}\n\n${link}\n\nGrove · Bramble Labs Inc.\nThis is a transactional account notification.`,
-        html: `<!doctype html><html lang="en"><body style="margin:0;background:#f7f6ef;color:#263f32;font-family:Arial,sans-serif"><main style="max-width:520px;margin:40px auto;padding:32px;background:#fffefb;border:1px solid #e0e4d8;border-radius:12px"><p style="font-size:21px;font-weight:600;letter-spacing:2px">GROVE</p><h1 style="font-size:24px;font-weight:500;margin:32px 0 16px">${message.subject}</h1><p style="font-size:16px;line-height:1.8;color:#58685e">${message.text}</p><p style="margin:28px 0"><a href="${escape(link)}" style="display:inline-block;padding:13px 20px;background:#263f32;color:#ffffff;border-radius:8px;text-decoration:none">${job.kind === "welcome" ? "Open your notebook" : "Review connections"}</a></p><p style="font-size:12px;line-height:1.8;color:#58685e">A little space for what matters.<br>Grove · Bramble Labs Inc.</p><p style="font-size:11px;color:#58685e">This is a transactional account notification.</p></main></body></html>`,
+        ...renderEmail({ kind: job.kind }, config.siteUrl),
       }),
     });
     if (!response.ok) {

@@ -36,7 +36,7 @@ Worker-only configuration:
 
 ```sh
 RESEND_API_KEY=re_YOUR_DOMAIN_SCOPED_SENDING_KEY
-EMAIL_FROM=notifications@mail.usegrove.cloud
+EMAIL_FROM=notifications@grovenote.app
 ```
 
 No key means email delivery is disabled. Account creation and connection
@@ -50,11 +50,17 @@ Resend idempotency key protects retries. Transient failures retry up to five tim
 delivery stops after23 hours, within Resend's24-hour deduplication window. Recovery
 discards restored pending mail.
 
-Cloud's verified sending domain is `mail.usegrove.cloud`. Cloudflare hosts its
-DKIM and DNS-only `send.mail`/`rsend.mail` CNAME records. The DNS-only tracking CNAME
-`links.mail` points to `links2.resend-dns.com`; click tracking is enabled, open
-tracking disabled, matching the existing Fern setup. Use each new domain's own
-Resend-provided records. API and Clerk CNAMEs must remain DNS-only.
+Cloud's intended From domain is `grovenote.app`. Verify **its own** Resend DNS
+records, sending-key authorization and DMARC alignment before changing the
+worker's sender. Disable click and open tracking and preserve existing inbound
+mail routing. Keep `SITE_URL` pointed at the website; it is independent of the
+mail domain. Drain or reconcile pending sends before changing From or templates.
+
+To inspect the five [sample letters](design/screenshots/transactional-email/README.md)
+without contacting Resend, run `node scripts/testing/email-previews.mjs render /tmp/grove-email-preview`.
+For an authorized test inbox, use `node scripts/testing/email-previews.mjs send REVIEW_ADDRESS`
+with a domain-scoped `RESEND_API_KEY`. Samples are labelled **Preview** and contain
+synthetic data. Provider acceptance is not proof of inbox delivery.
 
 ## Rollout and checks
 
