@@ -1,20 +1,24 @@
 # Website product presentation
 
-The public site explains Grove as a private notebook with semantic search,
-source-linked Ask answers and optional agent context. Notebook signup is the
-primary action. Interactive examples demonstrate notes, journal/graph views and
-answers; all use labelled sample content and perform no account writes.
+The public site explains Grove as an AI notebook for study and thoughtful work:
+notes, readings, short recordings and source-linked Ask answers. Agent context is
+optional. Notebook signup is the primary action. Interactive examples demonstrate
+notes, journal/graph views and answers; all use labelled sample content and perform
+no account writes.
 
 The homepage introduces the product in plain text next to one interactive
 notebook with cited answers. **Get started** links to extension and AI tool setup
 and to [Notebook examples](https://grovenote.app/examples), where visitors can
 try the separate library and Ask examples without signing in. The homepage keeps
 signup, the feature list, pricing and FAQ without repeating the setup steps.
-It uses system UI fonts and does not wait for scroll-triggered reveals.
+It uses the approved Space Grotesk family and does not wait for scroll-triggered
+reveals. The opening reads “Your AI notebook”; its default sample is a seminar
+note, not a claim that a dedicated study mode or flashcard feature is available.
 
-Library views explain nested notebooks, semantic/keyword search and assistance
-previews. The feature index adds short voice recording/transcription, read aloud,
-import/sharing, revision history, export and scoped agent access.
+Library examples show nested notebooks and semantic/keyword search. The homepage
+feature list groups saving notes/PDFs/short recordings, transcription/read-aloud,
+revision comparisons, sharing and export. Browser extension and scoped AI-client
+setup remain separate links under Get started.
 Reverted Workbench/meeting-preparation workflows are not advertised.
 Existing cloud/self-hosted setup and private workspace routes are preserved.
 
@@ -27,12 +31,46 @@ billing, promise an annual discount or create a checkout session. Prices shown
 before a purchase are informational; the account and checkout remain authoritative.
 See [billing](billing.md) for reset, cache, provider-budget and downgrade rules.
 
-The homepage's two columns stack on phones. Weekend, newsletter and journal
+The homepage's two columns stack on phones. Seminar, weekend, newsletter and journal
 selectors switch the complete note, question and answer; each citation returns
 to its note. The layout uses flat surfaces and keeps the approved Grove marks.
 The expanded library and Ask examples use labelled sample content, not account
-data. The workspace uses the same interface typeface, but keeps its own sidebar,
-note editor and settings navigation.
+data. The authenticated workspace retains its existing system interface font,
+sidebar, note editor and settings navigation.
+
+The former revision-review screenshot is replaced by **Notes / Transcript /
+Listen**, a browser-only sample tool. Visitors can edit and reset a bounded
+sample draft, inspect a prepared transcript, and explicitly play the original
+sample with an available on-device English browser voice. Edits never update the
+prepared answers or audio, are not saved, and do not reach Grove APIs. No
+microphone, file upload or AI provider runs from this demo. Voice availability
+varies; unavailable/error states keep the text readable. This is not acceptance
+of Grove's production transcription or speech providers. Actual recording limits
+remain in [recordings](recordings.md), and read-aloud in [speech](speech.md).
+
+Public pages share the family’s neutral paper/white surfaces, readable legal
+text, consistent focus treatment and restrained secondary-page headings.
+The marketing and account-entry layouts load the existing licensed Space Grotesk
+400/500/600/700 WOFF2 files with `next/font/local`; no external font service is
+called. Each layout scopes `--font-public-sans` and `--font-interface` to its own
+wrapper, leaving the root system-font default and authenticated workspace alone.
+At widths below 360px, Your Grove remains a visible, keyboard-accessible account
+icon with its explicit accessible name. It does not shrink the approved header
+signature or crowd the menu control.
+Public headings, prices and links use supplied weights rather than intermediate
+weight requests. Code keeps its existing JetBrains Mono treatment.
+
+Sign-in, sign-up and nested Clerk recovery steps retain support/privacy/terms links in
+their surrounding layout, including when the provider is unavailable. Public
+auth entry deliberately stays light in either OS scheme, matching the marketing
+site; provider security notices and validation remain intact.
+
+See the [family-polish review](design/screenshots/marketing-family-polish/README.md).
+Research direction: professional learning and source inspection, informed by
+[NotebookLM](https://support.google.com/notebooklm/answer/16179559?hl=en),
+[Notion](https://www.notion.com/help/notion-agent) and
+[Granola](https://docs.granola.ai/help-center/taking-notes/ai-enhanced-notes).
+Audience/message ideas are hypotheses to test, not customer-demand evidence.
 
 The website owns its CSS and assets and does not import the sibling kit at
 runtime. Share artwork and adaptive SVG, ICO and PNG favicons are tracked in
@@ -103,9 +141,10 @@ control. Public styling stays scoped away from the authenticated workspace.
 
 ## Historical Collection 05 material
 
-The website leads with a private notebook that makes saved notes easy to find.
-The main action is notebook signup. The developer section explains saved context
-across coding sessions and links to agent setup.
+The Collection 05 website led with a private notebook that made saved notes easy
+to find. Its main action was notebook signup. The developer section explained
+saved context across coding sessions and linked to agent setup. The current
+AI-notebook positioning and scoped typography are described above.
 
 Current support/contact routes and designated public email are documented in
 [Website support and contact](website-support-contact.md). Earlier verification
@@ -129,8 +168,9 @@ no overflow, accessibility violations or browser errors.
 
 - Search and journal graphics use Collection 05 notebook artwork.
 - The interactive notebook and Ask Grove previews demonstrate the supported tasks.
-- The approved Sprout mark remains. The media kit still ships brand fonts;
-  website interface text uses system fonts and code can use JetBrains Mono.
+- The approved Sprout mark remains. The media kit ships brand fonts. Collection 05
+  used system fonts for website interface text; current public/account-entry text
+  uses scoped Space Grotesk, while code can use JetBrains Mono.
 - Share metadata, the brand page, product description and media kit are refreshed.
 - `packages/website/public/materials/manifest.json` records sources and hashes.
 - The media kit includes logos, fonts, licenses, illustrations and product copy.

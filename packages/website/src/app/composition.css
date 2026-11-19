@@ -1,6 +1,5 @@
 /* A compact product example beside a plain-text introduction. */
 .notebook-home {
-  --brand-paper: #f7f9f6;
   --brand-surface: #fff;
   --brand-ink: #202b24;
   --brand-muted: #535e56;
@@ -29,7 +28,7 @@
 }
 .notebook-home .hero-title {
   font-size: clamp(36px, 4.1vw, 56px);
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.1;
   max-width: 15ch;
@@ -269,8 +268,12 @@
   border-radius: 6px;
   background: #fff;
 }
-.guest-writing-form button { justify-self: start; }
-.guest-writing-form button:is(:disabled, [aria-disabled="true"]) { opacity: 0.6; }
+.guest-writing-form button {
+  justify-self: start;
+}
+.guest-writing-form button:is(:disabled, [aria-disabled="true"]) {
+  opacity: 0.6;
+}
 .guest-writing-form :is(button, textarea):focus-visible {
   outline: 2px solid var(--brand-accent);
   outline-offset: 3px;
@@ -283,10 +286,22 @@
   color: var(--brand-muted);
   overflow-wrap: anywhere;
 }
-.guest-writing-form li strong { color: var(--brand-ink); }
-.guest-writing-account { margin-top: 32px; }
-.guest-writing-account h2 { font-size: 20px; font-weight: 600; }
-.guest-writing-account .home-resource-links { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; }
+.guest-writing-form li strong {
+  color: var(--brand-ink);
+}
+.guest-writing-account {
+  margin-top: 32px;
+}
+.guest-writing-account h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.guest-writing-account .home-resource-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 10px;
+}
 .notebook-home :is(#your-library, #how-it-works, #for-developers) {
   scroll-margin-top: 80px;
 }
@@ -297,23 +312,17 @@
   padding-bottom: 0;
 }
 .notebook-home
-  :is(
-    .story-section,
-    .feature-index,
-    .product-facts,
-    .library-section
-  ) {
+  :is(.story-section, .feature-index, .product-facts, .library-section) {
   padding-block: 64px;
 }
 .marketing-site .setup-page {
   padding-block: clamp(24px, 4vw, 52px) 72px;
-  max-width: 1080px;
 }
 .marketing-site .setup-heading {
   font-size: clamp(32px, 4vw, 44px);
   line-height: 1.15;
   letter-spacing: -0.025em;
-  font-weight: 650;
+  font-weight: 600;
 }
 .marketing-site .setup-intro > p {
   max-width: 60ch;

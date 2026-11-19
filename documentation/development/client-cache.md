@@ -186,7 +186,9 @@ The installed Clerk SDK requires its UI entry for sign-in and account controls.
 A `prefetchUI={false}` trial broke real sign-in and was reverted. Production-runtime
 checks exercise sign-in and the account menu alongside the deferred note editor.
 The two JetBrains Mono weights load on CSS demand, saving 79,396 preloaded font
-bytes on Notes. Space Grotesk retains its preloads and adjusted fallback metrics.
+bytes on Notes. Notes uses the existing system interface font. The self-hosted
+Space Grotesk preloads and adjusted fallback metrics are scoped to public and
+authentication layouts, not the authenticated notebook.
 
 Deferred views share a quiet `LoadingState`. Drawer loading, recovery and ready
 content use the same width. Retry returns focus to the dialog's close control before
