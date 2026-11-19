@@ -155,6 +155,11 @@ export async function runProviderTransition(
     if (before.settings !== command.proposed) {
       const fresh = await io.getState();
       assert.equal(fresh.state, command.expected);
+      assert.deepEqual(
+        fresh.instances,
+        before.instances,
+        "Provider instances changed before write",
+      );
       await journal.append("transaction_pending", {
         providerHash: command.proposed,
         hold: true,

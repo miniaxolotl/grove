@@ -183,6 +183,26 @@ test("exact active target is a verified no-op; stale generation and torn journal
     controller.reconcileProviderTransition?.(p, p, g.command, g.io, now),
   );
 });
+test("an instance restart between proposal admission and final write readback vetoes the provider write", async () => {
+  const f = fixture();
+  let reads = 0;
+  f.io.getState = async () => ({
+    state: f.command.expected,
+    settings: "2".repeat(64),
+    generation: "same-generation",
+    instances: [
+      {
+        component_name: "worker",
+        instance_name: ++reads === 1 ? "worker-before" : "worker-restarted",
+      },
+    ],
+  });
+  await assert.rejects(
+    controller.runProviderTransition(p, p, f.command, {}, f.io, now),
+    /instances/i,
+  );
+  assert.equal(f.writes(), 0);
+});
 
 test("database transition journals intent and treats an unknown commit as readback-only", async () => {
   const f = fixture();
