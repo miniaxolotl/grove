@@ -9,7 +9,7 @@
       "source": {
         "source": "npm",
         "package": "@miniaxolotl/grove-codex-plugin",
-        "version": "1.11.30"
+        "version": "1.11.31"
       },
       "policy": {
         "installation": "AVAILABLE",

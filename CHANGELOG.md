@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.31](https://github.com/miniaxolotl/grove/compare/v1.11.30...v1.11.31) (2026-11-19)
+
+
+### Bug Fixes
+
+* **release:** discover strict held version stamps on source pushes ([#317](https://github.com/miniaxolotl/grove/issues/317)) ([c6dddda](https://github.com/miniaxolotl/grove/commit/c6dddda7609194055e1ab3c582e0eb89c70dc014))
+
 ## [1.11.30](https://github.com/miniaxolotl/grove/compare/v1.11.29...v1.11.30) (2026-11-19)
 
 
