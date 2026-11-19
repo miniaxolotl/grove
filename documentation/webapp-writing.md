@@ -1,8 +1,6 @@
 # Writing checks in the webapp
 
-The note editor checks spelling and basic grammar on your device, using the
-same English engine as the browser extension — one shared implementation, not
-a second opinion. There is nothing to install and no setup step: checks run
+The note editor and browser extension use Harper to check English spelling and grammar on your device. Both checks are on by default. There is nothing to install and no setup step: checks run
 after a typing pause, and saving never waits for them.
 
 ## Reviewing suggestions
@@ -20,30 +18,10 @@ checker is ready, choose **Check writing** without having to edit the text again
   link. A suggestion whose replacement would cross masked inline code is omitted.
   If the text changed underneath, the card says so and asks for a fresh check
   instead of editing stale text. The quiet status in the editor footer shows
-  the current count, or **Retry writing checks** when the dictionary could not
+  the current count, or **Retry writing checks** when the local checker could not
   load. When checks are off or the note is empty, it shows nothing rather
   than a success panel.
-- Suggestions put the obvious fix first — keyboard transpositions (**teh** →
-  **the**), missing apostrophes (**dont** → **don't**) and dropped doubled
-  letters (**refered** → **referred**) outrank unrelated near-edits — then
-  follow the original word's capitalization. Grammar covers the same ground
-  as the extension: matching brackets/quotes, **a/an** sound exceptions,
-  repeated words, spacing, sentence capitalization, wordy phrases, pronoun
-  verb agreement, confused words and acronym plurals. Inverted questions
-  (**does he have**) and mandative clauses (**I suggest he go**) are left
-  alone rather than "fixed".
-- The English dictionary recognizes everyday note terms such as **watchlist**,
-  **audiobook** and **backlink**, including plurals and possessives. For example,
-  **watchlists** is accepted and **watchlsit** suggests **watchlist**.
-  Local vocabulary also covers software, science, medicine, law, finance,
-  geography, education and music. You can mix terms from different fields in one note.
-  Hyphenated compounds such as **read-only** and **state-of-the-art** work with
-  regular and nonbreaking hyphens. In **read-onyl**, only **onyl** needs correcting.
-- Grammar leaves **If she were available**, **we should of course wait**, and
-  year possessives such as **2024’s budget** alone. Word-pair checks don’t join
-  words separated by inline code or a blank paragraph.
-  It distinguishes **a UI change** from **an MRI-guided procedure**, leaves
-  either article before **SQL** alone, and suggests **I’ve written** for **I’ve wrote**.
+- The editor checks visible prose against its Markdown source. You can correct a word inside a heading, formatted link label, or table cell without rewriting the surrounding Markdown. Code, link destinations and markup are protected. Suggestions arriving after a newer edit cannot replace the newer text.
 - **No issues found by spelling and basic grammar checks** means exactly that:
   it is not a complete grammar guarantee.
 
@@ -76,19 +54,22 @@ immediately and stays on this device:
   sign-in.
 
 - Local checks never send keystrokes, prose, dictionary words or results
-  anywhere. The first check loads the 555 KB dictionary from Grove. Concurrent
-  checks share that download: starting a newer check does not interrupt it.
-  The dictionary stays cached in memory; a failed download can be retried.
+  anywhere. The web app loads its own Harper worker and WebAssembly assets. An initialized worker is reused across edits.
   Spelling and grammar checks are unlimited on every plan.
-- Only English is supported. Code, link destinations, filenames and Markdown
-  syntax are never flagged. Ambiguous rules abstain rather than guess.
+- Only English is supported. Protected Markdown spans are excluded from edits.
 - Sentence rewrites with AI alternatives stay in the browser extension for now:
   they need an explicit consent and a connection-scoped authorization the
   website session does not carry yet. There they use a monthly writing
   allowance — 100 a month on Free (up to 30 a day), 1,000 a month on Pro (up
-  to 200 a day) — with the same local checks staying unlimited. The webapp
-  never sends what you type for checking, and this page will name the release
-  when that changes.
+  to 200 a day) — with the same local checks staying unlimited.
+
+## Enhanced grammar in signed-in notes
+
+Where the private LanguageTool service is configured, signed-in writers can enable **Enhanced grammar** in Writing settings. It is off by default. An enhanced check sends one eligible paragraph to Grove's private checker; it never sends the complete note, a link destination or the personal dictionary. Masking Markdown is not anonymization: the words you wrote in the paragraph are still sent. Guests and the extension use local checks only.
+
+When the private service is not configured, enhanced checks are unavailable and existing opt-ins can still be revoked in Settings.
+
+Manual and automatic checking are separate choices. Corrections from both engines use the same editor underlines, issue list and Undo history. Saving does not depend on either engine. If hosted checking is busy or unavailable, local feedback remains available. Turn off Enhanced grammar to stop sending paragraphs.
 
 ## No double checking
 

@@ -104,6 +104,23 @@ uncertain upload before continuing. It preserves authored release notes and
 unrelated assets; malformed owned-section markers stop the operation. Rerun the
 same current Deploy after a partial failure, never move tags or use `--clobber`.
 
+For the held v1.11.25 downloads, **Released browser download** is a separate,
+owner-dispatched production workflow. It needs a later protected tooling promotion:
+do not change the frozen release tree. After successful promotion and Deploy,
+review one entry per eligible browser in `scripts/release/download-approval.json`:
+`source`, `production`, `promotionPr`, `deployRun`, `sourceRun`, `artifactId`,
+`releaseId`, `containerDigest`, `zipDigest` (`sha256:` prefix) and store evidence.
+The next patch is calculated above the previous GitHub and pre-submission store
+floors. Edge and Firefox already submitted that version from this exact artifact;
+the reviewed store version and submitted ZIP digest must both match. Recheck
+reservations before dispatch: a newer or different submission holds that browser.
+Chrome has no confirmed reservation and is excluded.
+The workflow attaches only the original Edge or Firefox ZIP to the existing
+release's Assets list. It does not publish an all-browser index or change notes.
+Record the direct asset URL and verified digest in a per-browser receipt after
+readback; do not advance the coordinated downloads baseline for a partial set.
+Artifact expiry, conflicting assets and uncertain provenance require reconciliation.
+
 Verification lives in `scripts/release/release-policy.test.mjs` (real upstream
 version/update fixtures), `release-intent.test.mjs` and `release-workflow.test.mjs`.
 Use the upstream strategy rather than duplicating version calculations. Common

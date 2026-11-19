@@ -1,0 +1,402 @@
+[
+  {
+    "id": "O01",
+    "kind": "grammar",
+    "text": "Me and him went…",
+    "gold": "He and I went…",
+    "legacyFirst": false
+  },
+  {
+    "id": "O02",
+    "kind": "grammar",
+    "text": "Your welcome to join us.",
+    "gold": "You're welcome to join us.",
+    "legacyFirst": false
+  },
+  {
+    "id": "O03",
+    "kind": "grammar",
+    "text": "I hope your well.",
+    "gold": "I hope you're well.",
+    "legacyFirst": false
+  },
+  {
+    "id": "O04",
+    "kind": "grammar",
+    "text": "There going to the park.",
+    "gold": "They're going to the park.",
+    "legacyFirst": false
+  },
+  {
+    "id": "O05",
+    "kind": "grammar",
+    "text": "Who's book is this?",
+    "gold": "Whose book is this?",
+    "legacyFirst": false
+  },
+  {
+    "id": "O06",
+    "kind": "grammar",
+    "text": "You're car is red.",
+    "gold": "Your car is red.",
+    "legacyFirst": false
+  },
+  {
+    "id": "O07",
+    "kind": "grammar",
+    "text": "The dog wagged it's tail.",
+    "gold": "The dog wagged its tail.",
+    "legacyFirst": false
+  },
+  {
+    "id": "O08",
+    "kind": "grammar",
+    "text": "Its raining today.",
+    "gold": "It's raining today.",
+    "legacyFirst": false
+  },
+  {
+    "id": "O09",
+    "kind": "grammar",
+    "text": "Each of the students have a book.",
+    "gold": "Each of the students has a book.",
+    "legacyFirst": false
+  },
+  {
+    "id": "O10",
+    "kind": "grammar",
+    "text": "Then end of the story.",
+    "gold": "The end of the story.",
+    "legacyFirst": false
+  },
+  {
+    "id": "O11",
+    "kind": "grammar",
+    "text": "I have went there.",
+    "gold": "I have gone there.",
+    "legacyFirst": true
+  },
+  {
+    "id": "O12",
+    "kind": "grammar",
+    "text": "The affect of the change was huge.",
+    "gold": "The effect of the change was huge.",
+    "legacyFirst": false
+  },
+  {
+    "id": "C01",
+    "kind": "clean",
+    "text": "The data and I are ready.",
+    "legacyAlarms": 1
+  },
+  {
+    "id": "C02",
+    "kind": "clean",
+    "text": "Let's make it work.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "C03",
+    "kind": "clean",
+    "text": "The tools they use to build are fast.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "C04",
+    "kind": "clean",
+    "text": "I had had enough.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "C05",
+    "kind": "clean",
+    "text": "If I were you",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "C06",
+    "kind": "clean",
+    "text": "I suggest he go",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D01",
+    "kind": "spelling",
+    "text": "- [ ] Review the [dependancies](https://example.invalid/dependancies) before Monday.",
+    "gold": "- [ ] Review the [dependencies](https://example.invalid/dependancies) before Monday.",
+    "legacyFirst": true
+  },
+  {
+    "id": "D02",
+    "kind": "spelling",
+    "text": "The `build_id` field contians a number.",
+    "gold": "The `build_id` field contains a number.",
+    "legacyFirst": true
+  },
+  {
+    "id": "D03",
+    "kind": "spelling",
+    "text": "✅ Next step: document the enviroment variable.",
+    "gold": "✅ Next step: document the environment variable.",
+    "legacyFirst": true
+  },
+  {
+    "id": "D04",
+    "kind": "spelling",
+    "text": "The rollout is blocked by a permision error in `open_file`.",
+    "gold": "The rollout is blocked by a permission error in `open_file`.",
+    "legacyFirst": true
+  },
+  {
+    "id": "D05",
+    "kind": "grammar",
+    "text": "# Standup\nThe deploy notes was missing.",
+    "gold": "# Standup\nThe deploy notes were missing.",
+    "legacyFirst": false
+  },
+  {
+    "id": "D06",
+    "kind": "grammar",
+    "text": "The results from `load_test` is ready.",
+    "gold": "The results from `load_test` are ready.",
+    "legacyFirst": false
+  },
+  {
+    "id": "D07",
+    "kind": "grammar",
+    "text": "- The new dashboard has ran for six days.",
+    "gold": "- The new dashboard has run for six days.",
+    "legacyFirst": false
+  },
+  {
+    "id": "D08",
+    "kind": "grammar",
+    "text": "See [the report](https://example.invalid/teh). We need to to review it.",
+    "gold": "See [the report](https://example.invalid/teh). We need to review it.",
+    "legacyFirst": true
+  },
+  {
+    "id": "D09",
+    "kind": "spelling",
+    "text": "Please back up the database befor closing the ticket.",
+    "gold": "Please back up the database before closing the ticket.",
+    "legacyFirst": true
+  },
+  {
+    "id": "D10",
+    "kind": "grammar",
+    "text": "We agreed to merge the patch, but its still in review.",
+    "gold": "We agreed to merge the patch, but it’s still in review.",
+    "legacyFirst": false
+  },
+  {
+    "id": "D11",
+    "kind": "clean",
+    "text": "Run `pnpm test` before the meeting.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D12",
+    "kind": "clean",
+    "text": "- [x] Rotate the staging key after the demo.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D13",
+    "kind": "clean",
+    "text": "Read [the migration guide](https://example.invalid/teh-path) before the release.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D14",
+    "kind": "clean",
+    "text": "The retry budget is documented at https://example.invalid/thier/budget.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D15",
+    "kind": "clean",
+    "text": "```ts\nconst mesage = \"teh teh\";\n```\nThe second attempt passed.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D16",
+    "kind": "clean",
+    "text": "Ask dev-team@example.invalid about the review window.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D17",
+    "kind": "clean",
+    "text": "The client sends request_id with every call.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D18",
+    "kind": "clean",
+    "text": "## Action items\n- Ship the rollback patch on Tuesday.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D19",
+    "kind": "clean",
+    "text": "The API returns HTTP 204 when the queue is empty.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "D20",
+    "kind": "clean",
+    "text": "Mark `cache_miss` as expected in the logs.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "E01",
+    "kind": "spelling",
+    "text": "We received teh revised agenda.",
+    "gold": "We received the revised agenda.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E02",
+    "kind": "spelling",
+    "text": "The team will recieve a copy on Friday.",
+    "gold": "The team will receive a copy on Friday.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E03",
+    "kind": "spelling",
+    "text": "Please attach the seperate invoice.",
+    "gold": "Please attach the separate invoice.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E04",
+    "kind": "spelling",
+    "text": "We need to accomodate both shifts.",
+    "gold": "We need to accommodate both shifts.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E05",
+    "kind": "spelling",
+    "text": "This occured before lunch.",
+    "gold": "This occurred before lunch.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E06",
+    "kind": "spelling",
+    "text": "The next milestone is definately achievable.",
+    "gold": "The next milestone is definitely achievable.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E07",
+    "kind": "spelling",
+    "text": "Our panel made a unanimous recomendation.",
+    "gold": "Our panel made a unanimous recommendation.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E08",
+    "kind": "spelling",
+    "text": "I will send the attachement tomorrow.",
+    "gold": "I will send the attachment tomorrow.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E09",
+    "kind": "grammar",
+    "text": "A list of deadlines were attached.",
+    "gold": "A list of deadlines was attached.",
+    "legacyFirst": false
+  },
+  {
+    "id": "E10",
+    "kind": "grammar",
+    "text": "She has wrote the summary.",
+    "gold": "She has written the summary.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E11",
+    "kind": "grammar",
+    "text": "The reviewer could of asked for a copy.",
+    "gold": "The reviewer could have asked for a copy.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E12",
+    "kind": "grammar",
+    "text": "We had less meetings last month.",
+    "gold": "We had fewer meetings last month.",
+    "legacyFirst": false
+  },
+  {
+    "id": "E13",
+    "kind": "grammar",
+    "text": "Please keep this between you and I.",
+    "gold": "Please keep this between you and me.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E14",
+    "kind": "grammar",
+    "text": "The backup lost it’s index.",
+    "gold": "The backup lost its index.",
+    "legacyFirst": false
+  },
+  {
+    "id": "E15",
+    "kind": "grammar",
+    "text": "This change will effect our budget.",
+    "gold": "This change will affect our budget.",
+    "legacyFirst": false
+  },
+  {
+    "id": "E16",
+    "kind": "grammar",
+    "text": "The report is longer then the draft.",
+    "gold": "The report is longer than the draft.",
+    "legacyFirst": false
+  },
+  {
+    "id": "E17",
+    "kind": "grammar",
+    "text": "They left the the office early.",
+    "gold": "They left the office early.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E18",
+    "kind": "grammar",
+    "text": "We need a accurate estimate.",
+    "gold": "We need an accurate estimate.",
+    "legacyFirst": true
+  },
+  {
+    "id": "E19",
+    "kind": "clean",
+    "text": "We ordered more smaller boxes for the cables.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "E20",
+    "kind": "clean",
+    "text": "After you and I met, the schedule changed.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "E21",
+    "kind": "clean",
+    "text": "The outage had no effect on the queue.",
+    "legacyAlarms": 0
+  },
+  {
+    "id": "E22",
+    "kind": "clean",
+    "text": "When the guests arrived, we had had enough time to prepare.",
+    "legacyAlarms": 0
+  }
+]

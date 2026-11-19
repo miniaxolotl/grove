@@ -1,3 +1,4 @@
+import { version as proofingReleaseVersion } from "./release/proofing-release.mjs";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import console from "node:console";
@@ -27,10 +28,10 @@ export function assertUnchangedApp(previous, current) {
   );
 }
 
-export function assertActiveDeployment(app, deploymentId, digest) {
+export function assertActiveDeployment(app, deploymentId, digest, ltDigest) {
   assert(
     app?.active_deployment?.phase === "ACTIVE" &&
-      findDeployment([app.active_deployment], digest, [])?.id ===
+      findDeployment([app.active_deployment], digest, [], ltDigest)?.id ===
         deploymentId &&
       (!app.in_progress_deployment?.id ||
         app.in_progress_deployment.id === deploymentId),
@@ -207,7 +208,12 @@ export function createAppSpec(env) {
 }
 
 // Rollouts preserve the provider's encrypted secrets, DNS and operator settings.
-export function updateImageSpec(current, digest) {
+export function updateImageSpec(
+  current,
+  digest,
+  ltDigest,
+  coordinated = false,
+) {
   imageDigest(digest);
   assert.equal(
     current.name,
@@ -228,10 +234,90 @@ export function updateImageSpec(current, digest) {
     delete component.image.deploy_on_push;
     component.image.digest = digest;
   }
+  const existing = privateChecker(spec);
+  if (ltDigest !== undefined) {
+    imageDigest(ltDigest);
+    if (existing) {
+      if (coordinated)
+        assert.equal(
+          existing.image.repository,
+          "grove",
+          "Unexpected staged checker registry",
+        );
+      existing.image.digest = ltDigest;
+    } else
+      spec.services.push({
+        name: "languagetool",
+        image: {
+          registry_type: "DOCKER_HUB",
+          registry: "miniaxolotl",
+          repository: coordinated ? "grove" : "grove-languagetool",
+          digest: ltDigest,
+        },
+        internal_ports: [8081],
+        instance_count: 1,
+        instance_size_slug: "apps-s-1vcpu-1gb-fixed",
+        health_check: {
+          http_path: "/ready",
+          port: 8081,
+          initial_delay_seconds: 60,
+          timeout_seconds: 5,
+          period_seconds: 10,
+          failure_threshold: 6,
+        },
+      });
+    privateChecker(spec);
+  }
   return spec;
 }
 
-export function findDeployment(deployments, digest, previousIds = []) {
+function privateChecker(spec) {
+  const parts =
+    spec?.services?.filter((part) => part.name === "languagetool") ?? [];
+  if (!parts.length) return undefined;
+  const [part] = parts;
+  assert(
+    parts.length === 1 &&
+      part.image?.registry_type === "DOCKER_HUB" &&
+      part.image.registry === "miniaxolotl" &&
+      ["grove", "grove-languagetool"].includes(part.image.repository) &&
+      !spec.services.some(
+        (s) => s.name === "api" && s.image?.digest === part.image.digest,
+      ) &&
+      !part.image.tag &&
+      !part.image.deploy_on_push?.enabled &&
+      !part.run_command &&
+      !part.git &&
+      !part.github &&
+      !part.gitlab &&
+      !part.bitbucket,
+    "Unexpected LanguageTool component or image source",
+  );
+  imageDigest(part.image.digest);
+  assert(
+    !spec.envs?.length &&
+      !part.envs?.length &&
+      !part.log_destinations?.length &&
+      !part.routes?.length &&
+      !part.http_port &&
+      isDeepStrictEqual(part.internal_ports, [8081]) &&
+      part.health_check?.http_path === "/ready" &&
+      part.health_check.port === 8081 &&
+      spec.ingress?.rules?.some((rule) => rule.component?.name === "api") &&
+      !spec.ingress.rules.some(
+        (rule) => rule.component?.name === "languagetool",
+      ),
+    "LanguageTool must remain private with no inherited environment or command overrides",
+  );
+  return part;
+}
+
+export function findDeployment(
+  deployments,
+  digest,
+  previousIds = [],
+  ltDigest,
+) {
   return deployments.find(
     (item) =>
       item &&
@@ -239,7 +325,8 @@ export function findDeployment(deployments, digest, previousIds = []) {
       [
         item.spec?.services?.find((part) => part.name === "api"),
         item.spec?.workers?.find((part) => part.name === "worker"),
-      ].every((part) => part?.image?.digest === digest),
+      ].every((part) => part?.image?.digest === digest) &&
+      privateChecker(item.spec)?.image.digest === ltDigest,
   );
 }
 
@@ -251,10 +338,38 @@ async function main() {
       wait: { type: "boolean" },
       "app-id": { type: "string" },
       digest: { type: "string" },
+      "languagetool-digest": { type: "string" },
+      "coordinated-checker": { type: "string" },
     },
   });
   const token = required(process.env, "DIGITALOCEAN_ACCESS_TOKEN");
   const appId = values["app-id"] ?? process.env.DIGITALOCEAN_APP_ID;
+  const coordinated = values["coordinated-checker"] !== undefined;
+  const requestedLt =
+    values["coordinated-checker"] ?? values["languagetool-digest"];
+  if (coordinated) {
+    assert(
+      !values["languagetool-digest"] &&
+        appId &&
+        !values.create &&
+        (values.wait || values.propose) &&
+        process.env.GITHUB_ACTIONS === "true" &&
+        process.env.RELEASE_TAG === `v${proofingReleaseVersion}`,
+      "Invalid coordinated checker rollout",
+    );
+    assertCurrentRef(workflowContext());
+    imageDigest(requestedLt);
+  }
+  if (requestedLt !== undefined && !coordinated) {
+    imageDigest(requestedLt);
+    assert(
+      appId &&
+        !values.create &&
+        process.env.GITHUB_ACTIONS !== "true" &&
+        (values.propose || values.wait),
+      "LanguageTool changes require an operator proposal or waited existing-app update",
+    );
+  }
   assert(
     !(values.create && appId),
     "Creation does not accept an existing app ID",
@@ -287,6 +402,51 @@ async function main() {
     assert.match(appId, /^[0-9a-f-]{36}$/, "Invalid DigitalOcean app ID");
     const { app } = await request(`/apps/${appId}`);
     previousApp = app;
+    if (requestedLt !== undefined && !coordinated) {
+      const apiDigest = values.digest ?? process.env.GROVE_IMAGE_DIGEST;
+      assert(
+        !app.in_progress_deployment?.id &&
+          app.active_deployment?.phase === "ACTIVE" &&
+          [app.spec, app.active_deployment.spec].every(
+            (s) =>
+              s?.services?.find((p) => p.name === "api")?.image?.digest ===
+                apiDigest &&
+              s?.workers?.find((p) => p.name === "worker")?.image?.digest ===
+                apiDigest,
+          ),
+        "An independent LanguageTool change must preserve the verified active API and worker digests",
+      );
+    } else {
+      assert(
+        privateChecker(app.spec)?.image.digest ===
+          privateChecker(app.active_deployment?.spec)?.image.digest,
+        "An ordinary release cannot change the active LanguageTool digest or topology",
+      );
+    }
+    if (coordinated) {
+      assert(
+        !app.in_progress_deployment?.id &&
+          app.active_deployment?.phase === "ACTIVE",
+        "Existing rollout must be settled",
+      );
+      for (const candidate of [app.spec, app.active_deployment.spec]) {
+        const checker = privateChecker(candidate);
+        if (checker)
+          assert(
+            checker.instance_count === 1 &&
+              checker.instance_size_slug === "apps-s-1vcpu-1gb-fixed" &&
+              checker.image.repository === "grove" &&
+              checker.image.digest === requestedLt,
+            "Unexpected existing checker; reconcile before release",
+          );
+        assert(
+          !candidate.services
+            .find((s) => s.name === "api")
+            ?.envs?.some((e) => e.key === "LANGUAGETOOL_URL" && e.value),
+          "Stage checker with text transmission off",
+        );
+      }
+    }
     previousIds = [
       app.active_deployment?.id,
       app.in_progress_deployment?.id,
@@ -294,6 +454,8 @@ async function main() {
     spec = updateImageSpec(
       app.spec,
       values.digest ?? process.env.GROVE_IMAGE_DIGEST,
+      requestedLt,
+      coordinated,
     );
   } else {
     assert(
@@ -305,6 +467,7 @@ async function main() {
       ...(values.digest ? { GROVE_IMAGE_DIGEST: values.digest } : {}),
     });
   }
+  const ltDigest = privateChecker(spec)?.image.digest;
   const proposal = await request("/apps/propose", {
     spec,
     ...(appId ? { app_id: appId } : {}),
@@ -315,11 +478,34 @@ async function main() {
       app: spec.name,
       region: spec.region,
       digest: spec.services.find((item) => item.name === "api").image.digest,
+      languagetoolDigest: ltDigest,
       cost: proposal.app_cost,
     }),
   );
   if (values.propose) return;
 
+  if (
+    coordinated &&
+    !previousApp.in_progress_deployment?.id &&
+    isDeepStrictEqual(previousApp.spec, spec) &&
+    previousApp.active_deployment?.phase === "ACTIVE" &&
+    findDeployment(
+      [previousApp.active_deployment],
+      values.digest ?? process.env.GROVE_IMAGE_DIGEST,
+      [],
+      ltDigest,
+    )
+  ) {
+    assertCurrentRef(workflowContext());
+    console.log(
+      JSON.stringify({
+        action: "already-active",
+        deploymentId: previousApp.active_deployment.id,
+        languagetoolDigest: ltDigest,
+      }),
+    );
+    return;
+  }
   if (appId) {
     const { app: current } = await request(`/apps/${appId}`);
     assertUnchangedApp(previousApp, current);
@@ -334,6 +520,7 @@ async function main() {
     [app.in_progress_deployment],
     digest,
     previousIds,
+    ltDigest,
   );
   console.log(
     JSON.stringify({
@@ -354,7 +541,7 @@ async function main() {
       const { deployments } = await request(
         `/apps/${app.id}/deployments?per_page=5`,
       );
-      deployment = findDeployment(deployments, digest, previousIds);
+      deployment = findDeployment(deployments, digest, previousIds, ltDigest);
       if (!deployment) {
         await setTimeout(10000);
         continue;
@@ -374,7 +561,7 @@ async function main() {
     }
     if (deployment.phase === "ACTIVE") {
       const { app: current } = await request(`/apps/${app.id}`);
-      assertActiveDeployment(current, deployment.id, digest);
+      assertActiveDeployment(current, deployment.id, digest, ltDigest);
       if (process.env.GITHUB_ACTIONS === "true")
         assertCurrentRef(workflowContext());
       return;

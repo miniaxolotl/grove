@@ -46,6 +46,9 @@ export const privacy: LegalDocument = {
               temporary machine suggestions and cached generated audio.
             </li>
             <li>
+              <strong>Writing checks:</strong> spelling and grammar run locally by default. If you sign in and enable Enhanced grammar in the note editor, Grove sends the paragraph being checked to its private LanguageTool service. You can turn this off in Writing settings. Guest and extension checks stay on your device.
+            </li>
+            <li>
               <strong>Search information:</strong> recall queries and the memory
               content processed to produce search results, full-text indexes,
               and numerical embeddings.

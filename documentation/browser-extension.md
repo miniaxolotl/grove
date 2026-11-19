@@ -104,52 +104,7 @@ dictionary words remain scoped to the API/account and English language (with a s
 signed-out dictionary). Upgrade preserves existing opt-outs rather than resetting them.
 They do not contain draft text or check results. Turning Grove off overrides them.
 
-The bundled `dictionary-en` 4.0.0 data is SCOWL-derived **American English**, with
-`nspell` 2.1.5 for affix-aware lookup. Their MIT/BSD notices are included in the ZIP.
-The shared checker adds common note words such as **watchlist**, **roadmap** and
-**audiobook** with their plurals and possessives. Personal names are matched
-regardless of case, apostrophe style or equivalent accent encoding; adding a name
-also covers its possessive.
-Specialist vocabulary for software, science, medicine, law, finance, geography,
-education and music works across sites and in Notes. A compound such as
-**read-only** is checked by its parts when it has no dictionary entry; fixing
-**read-onyl** changes only the misspelled part and preserves the hyphen.
-There is no dictionary download, external spelling service or AI request. Basic rules
-cover brackets/quotes, **a/an** sound exceptions, repeated words, spacing, obvious
-capitalization (including the start of a new line or list item), unambiguous wordy
-phrases (**all of the** → **all the**, **in order to** → **to**, **due to the fact
-that** → **because**, **in the event that** → **if**, **in spite of the fact that** →
-**although**, **on a daily basis** → **daily**, **close proximity** → **proximity**,
-**revert back** → **revert**, doubled comparatives (**more better** → **better**,
-**most biggest** → **biggest**)), declarative pronoun verb agreement for common
-verbs (**he go** → **he goes**, **they goes** → **they go**, **she say** →
-**she says**) plus **should of** → **should have** and **he don't** →
-**he doesn't**, and plural acronyms before a plural verb (**PR's are** →
-**PRs are**) or in decades (**1990's** → **1990s**). Inverted questions keep
-their bare verbs (**does he have**, **will she come**) and mandative clauses
-keep the base form (**I suggest he go**): the agreement check abstains there
-rather than "fixing" correct English. Confused-word
-checks cover **its a** → **it's a**, **its been** → **it's been**,
-**their gone** → **they're gone** (**your gone** → **you're gone**),
-**their is** → **there is**, **suppose to** →
-**supposed to**, **bigger then** → **bigger than**, **I use to** →
-**I used to** (never after _didn't_), preposition +
-**and I** → **and me**, ordinal suffixes (**22th** → **22nd**), common eggcorns
-(**weather or not**, **free reign**, **baited breath**, **escape goat**) and
-single-token fixes the affix suggester cannot rank (**alot** → **a lot**,
-**maintainance** → **maintenance**, **questionairre** → **questionnaire**,
-**lisence** → **license**, **speach** → **speech**, **tendancy** → **tendency**,
-**wich** → **which**). Spelling alternatives put the obvious fix first:
-adjacent transpositions (**teh** → **the**), missing apostrophes (**dont** →
-**don't**) and dropped doubled letters (**refered** → **referred**) outrank
-unrelated near-edits, then follow the original word's capitalization, and
-plural acronyms such as **PRs** are not flagged as misspellings. An article before a
-plural-looking noun (**an apples**) abstains: the article is not the real error.
-These are not a complete grammar/style analysis. Unknown names can be
-added to the dictionary; ambiguous rules abstain rather than guess a replacement.
-Possessive acronyms (**the PR's title**), soft-wrapped lines,
-much/many and less/fewer are deliberately left alone.
-Future UI translations and proofing languages remain separate; only English ships.
+The extension bundles Harper's English spelling and grammar engine, including its WebAssembly file. It works locally while signed in, signed out or offline. It does not send paragraphs to LanguageTool. Adding a personal word suppresses spelling findings for that term without changing the page's text. Check a suggestion in context before applying it; grammar checks do not guarantee that every error will be found. Optional AI sentence tools are a separate workflow.
 
 There is no per-site setup. Writing → **Check writing everywhere** pauses local
 assistance browser-wide; **Domain exceptions** skips a chosen hostname and all its
@@ -174,9 +129,7 @@ override a globally disabled feature. Browser-withheld site access, restricted p
 and private browsing remain unavailable; extension controls cannot bypass native grants.
 
 Checks cover a bounded 6,000 UTF-16-unit window and expose partial coverage for longer
-text; results never replace newer typing. Keystrokes coalesce, dictionary work runs
-in the extension background rather than the editor thread, spelling alternatives
-are generated only on review, and highlight movement coalesces per animation frame.
+text; results never replace newer typing. Keystrokes coalesce and proofing runs off the editor thread. The editor applies results only to the draft version that produced them.
 Warm latency is a regression measurement, not a universal responsiveness guarantee.
 Run `pnpm test:writing` and the installed browser journeys to reproduce the focused
 rules, bounds, source/Undo, permission and excluded-field checks.
@@ -577,8 +530,11 @@ pnpm test:artifacts
 
 `build:extension` uses esbuild's browser target, not a native CLI bundle. In addition
 to the packages, it keeps the isolated ESM `core.js` and `core.build.json`. Runtime
-scripts, fonts, logo, icons and their licenses are local; CSP forbids remote scripts, inline scripts,
-dynamic code generation, frames and objects. Network access is limited to the exact
+scripts, WASM, fonts, logo, icons and their licenses are local. CSP permits the bundled
+worker and WebAssembly compilation, but forbids remote/inline scripts, JavaScript
+`eval`, frames and objects. No proofing resources are web-accessible. Chrome and Edge
+use a private offscreen document to host the dedicated worker; Firefox uses its
+background page. Network access outside the package is limited to the exact
 API and issuer hosts. Self-hosted builds may set `--apiOrigin`, `--siteOrigin` and
 `--issuer` to exact HTTPS origins; rebuild manifests/CSP and qualify OAuth separately.
 No runtime arbitrary-host setting or wildcard redirect is offered.
@@ -602,13 +558,16 @@ messages, off-state request/menu enforcement and storage feedback. Installed Chr
 package with synthetic HTTP/auth, native panel calls, retry, reading/copying,
 sharing, cross-panel sign-out, unknown-save pause/reopen/resume, theme isolation,
 keyboard-switch focus and 320/390/768px accessibility/overflow (including short
-windows and dark Settings). Set
-`EXTENSION_EDGE_BINARY` to an actual Edge executable for its supplemental host run;
-that run checks API acceptance, not the unobserved Edge `onOpened` event.
+windows and dark Settings). The host test starts with a signed-out, offline spelling
+and grammar check. By default both packages use Playwright Chromium. To test branded
+desktop browsers in isolated profiles, set `EXTENSION_CHROME_BINARY` to a Chrome
+executable with CDP `Extensions.loadUnpacked` support and `EXTENSION_EDGE_BINARY`
+to an Edge executable. The Edge run checks side-panel API acceptance, not visibility.
 
 `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1 python scripts/testing/browser-extension-firefox.py`
-uses an isolated native Firefox profile and temporary add-on to check installation,
-native sidebar, capture, formatted search and reader/copy with synthetic HTTP/auth. This variable
+uses an isolated native Firefox profile and temporary add-on to check signed-out
+spelling and grammar on a loopback page in offline mode, native sidebar, capture,
+formatted search and reader/copy with synthetic HTTP/auth. This variable
 permits test automation of that disposable browser only, not application privilege.
 Firefox packaging can also be checked with `pnpm dlx web-ext@10.8.0 lint --source-dir
 packages/browser-extension/dist/firefox`. [Visual evidence](design/screenshots/browser-extension/README.md)
@@ -667,6 +626,7 @@ store-owned support fields need operator review before submission.
 | `scripting`            | Attach bundled local checks to already-open normal tabs; inspect no excluded fields     |
 | HTTP(S) hosts          | Default-on local writing, subject to native grants and browser/domain opt-outs          |
 | `sidePanel` (Chromium) | Native persistent panel                                                                 |
+| `offscreen` (Chromium) | Host Harper's local worker without opening a tab or exposing it to websites             |
 | Exact API/issuer hosts | Authenticated Grove requests and OAuth discovery/exchange                               |
 
 Firefox declares authentication information, website content, browsing activity
@@ -679,7 +639,16 @@ the reported location before submission. The shared Markdown reader bundles
 `mdast-util-from-markdown`, which calls `micromark`’s document tokenizer and
 writes preprocessed Markdown to that tokenizer, not to a browser DOM document.
 If the report points to that call, explain it in the reviewer notes and provide
-buildable source from the exact submitted tag.
+buildable source from the exact submitted tag. To prepare the separate source archive,
+clone `https://github.com/Automattic/harper.git` at `v3.2.0`, then run:
+
+```sh
+bash scripts/package-browser-reviewer-source.sh <grove-commit-sha> <harper-checkout> reviewer-source.tar.gz
+```
+
+The archive includes the extension build inputs and licenses, pinned Harper sources,
+Rust and JS lockfiles, and the upstream WASM build recipe. Follow `BUILD.txt` inside
+the archive and compare rebuilt ZIPs before store submission.
 
 ## Shared implementation notes
 

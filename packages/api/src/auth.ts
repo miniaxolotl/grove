@@ -14,6 +14,7 @@ export interface Identity {
   subject: string;
   type: "session" | "oauth";
   sessionId?: string;
+  sessionExpiresAt?: number;
   clientId?: string;
   issuedAt?: number;
   scopes?: string[];
@@ -64,6 +65,7 @@ export function clerkVerifier(env: ServerEnvironment): TokenVerifier {
             subject: payload.sub,
             type: "session",
             sessionId: payload.sid,
+            sessionExpiresAt: payload.exp! * 1000,
           };
         }
         const access = await clerk.idPOAuthAccessToken.verify(token, {
@@ -123,7 +125,9 @@ export class Authentication {
     private verifier: TokenVerifier,
     private workspaceCreated?: (account: string, request: Request) => void,
   ) {}
-  async principal(request: Request): Promise<Principal> {
+  async principal(
+    request: Request,
+  ): Promise<Principal & { sessionExpiresAt?: number }> {
     const token = request.headers
       .get("authorization")
       ?.match(/^Bearer (\S+)$/i)?.[1];
@@ -178,6 +182,7 @@ export class Authentication {
       return {
         ...sessionPrincipal(account.id, identity.subject),
         sessionId: identity.sessionId,
+        sessionExpiresAt: identity.sessionExpiresAt,
       };
     if (
       !identity.clientId ||

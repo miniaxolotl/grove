@@ -1,6 +1,6 @@
 {
   "name": "@miniaxolotl/grove-opencode-plugin",
-  "version": "1.11.24",
+  "version": "1.11.27",
   "type": "module",
   "description": "Grove private memory for OpenCode V2: bounded recall and four authenticated tools",
   "main": "index.js",

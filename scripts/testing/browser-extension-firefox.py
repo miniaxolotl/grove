@@ -4,6 +4,7 @@ Run after pnpm build:extension with MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1.
 No geckodriver, user profile, real account or provider configuration is used.
 """
 import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
 import pathlib
 import shutil
@@ -11,6 +12,7 @@ import socket
 import subprocess
 import tempfile
 import time
+from threading import Thread
 
 base = pathlib.Path(os.environ.get("TMPDIR", "/tmp/opencode"))
 base.mkdir(parents=True, exist_ok=True)
@@ -93,6 +95,29 @@ try:
     call("Marionette:SetContext", {"value": "chrome"})
     uuid = script('return JSON.parse(Services.prefs.getStringPref("extensions.webextensions.uuids"))["grove@usegrove.cloud"];')
     call("Marionette:SetContext", {"value": "content"})
+    class LocalPage(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b'<!doctype html><html lang="en"><label>Message<textarea rows="8"></textarea></label></html>')
+
+        def log_message(self, *args):
+            pass
+
+    with HTTPServer(("127.0.0.1", 0), LocalPage) as server:
+        Thread(target=server.serve_forever, daemon=True).start()
+        call("WebDriver:Navigate", {"url": "http://127.0.0.1:%d/" % server.server_port})
+        server.shutdown()
+    call("Marionette:SetContext", {"value": "chrome"})
+    script("Services.io.offline = true;")
+    call("Marionette:SetContext", {"value": "content"})
+    script('const note=document.querySelector("textarea"); note.focus();note.value="This is a sentnce. This is a apple.";note.dispatchEvent(new Event("input",{bubbles:true}));')
+    wait_for('document.querySelector("div[data-grove-writing-ui]")?.shadowRoot.querySelector("mark.spelling")?.textContent === "sentnce"')
+    assert script('return document.querySelector("div[data-grove-writing-ui]").shadowRoot.querySelector("mark.grammar").textContent;') == 'a'
+    call("Marionette:SetContext", {"value": "chrome"})
+    script("Services.io.offline = false;")
+    call("Marionette:SetContext", {"value": "content"})
     call("WebDriver:Navigate", {"url": "moz-extension://" + uuid + "/panel.html"})
     assert script("return document.title;") == "Grove"
     asynchronous('''
@@ -133,7 +158,7 @@ try:
     call("Marionette:SetContext", {"value": "chrome"})
     sidebar = script("return {open:window.SidebarController.isOpen,id:window.SidebarController.currentID};")
     assert sidebar == {"open": True, "id": "grove_usegrove_cloud-sidebar-action"}, sidebar
-    print("PASS Firefox", session["capabilities"]["browserVersion"], "temporary install, native sidebar, capture, formatted search, reader/copy (synthetic HTTP/auth)")
+    print("PASS Firefox", session["capabilities"]["browserVersion"], "temporary install, signed-out offline Harper spelling and grammar, native sidebar, capture, formatted search, reader/copy (synthetic HTTP/auth)")
     call("Marionette:Quit", {"flags": ["eAttemptQuit"]})
 finally:
     try:

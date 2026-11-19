@@ -24,7 +24,7 @@ the bundled English dictionary, not a live site or a physical device.
 
 ## Note editor
 
-Reviewed captures from `packages/website/tests/writing.spec.ts` (Playwright,
+Historical captures from the pre-Harper release, from `packages/website/tests/writing.spec.ts` (Playwright,
 fixture-backed, real engine + pinned `dictionary-en` 4.0.0 served from
 `/dictionaries`). Draft: “This is the the test of teh checker …” — the
 repeated “the”, “teh”, “All of the” and “in order to” are flagged; “an hour”

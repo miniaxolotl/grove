@@ -573,7 +573,8 @@
   flex-shrink: 0;
 }
 .live-editor .editor-footer {
-  min-height: 32px;
+  /* Reserve one action row in preview, loading and checked states alike. */
+  min-height: 36px;
   flex-shrink: 0;
   flex-wrap: nowrap;
   align-items: center;

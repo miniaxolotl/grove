@@ -1,6 +1,12 @@
 import { randomUUID, createHash } from "node:crypto";
 import { DocumentImports } from "@lib/memory";
 import { WritingTools } from "@lib/memory";
+import { ProofingConsents } from "@lib/memory";
+import {
+  proofingConsentSchema,
+  proofingCheckSchema,
+} from "@lib/shared/proofing-contract";
+import { languageTool, proofingEndpoint } from "./proofing.ts";
 import { writingRequestSchema } from "@lib/shared/writing-assistance";
 import { ConversationDocuments } from "@lib/memory";
 import { memoryUpdateSchema } from "@lib/shared/memory-tools";
@@ -58,7 +64,6 @@ import {
   connectSchema,
   approveConnectSchema,
   uuidSchema,
-  type Principal,
 } from "@lib/shared/contracts";
 import {
   ConnectionSetup,
@@ -142,11 +147,12 @@ export type AppDependencies = {
   shareLinkKey?: string;
   writingStagingKey?: string;
   writingProviderNotice?: string;
+  languageToolUrl?: string;
   capacity?: Partial<ApiCapacity>;
 };
 type Environment = {
   Variables: {
-    principal: Principal;
+    principal: Awaited<ReturnType<Authentication["principal"]>>;
     requestId: string;
     signal: AbortSignal;
     finish: () => void;
@@ -156,6 +162,13 @@ type Environment = {
 
 export function createApp(deps: AppDependencies) {
   const app = new Hono<Environment>();
+  const proofing = new ProofingConsents(deps.memories);
+  const checkParagraph = languageTool(deps.languageToolUrl);
+  const proofingLane = new Admission(1, 0, 0);
+  const liveSession = (principal: Environment["Variables"]["principal"]) => {
+    if (!principal.sessionExpiresAt || principal.sessionExpiresAt <= Date.now())
+      throw new GroveError("unauthorized", "Sign in to Grove", 401);
+  };
   const writing = new WritingTools(
     deps.memories,
     deps.writingStagingKey,
@@ -189,6 +202,7 @@ export function createApp(deps: AppDependencies) {
     await next();
     if (
       requestCollectionAllowed(c.req.raw.headers) &&
+      !c.req.path.startsWith("/v1/proofing/") &&
       !c.req.path.startsWith("/health/")
     )
       deps.telemetry?.operation(
@@ -346,9 +360,21 @@ export function createApp(deps: AppDependencies) {
     c.set("signal", signal);
     c.set("finish", finish);
     try {
-      release = await (long ? interactive : foreground).acquire(signal);
+      const isCheck = c.req.path === "/v1/proofing/check";
+      release = await (
+        isCheck ? proofingLane : long ? interactive : foreground
+      ).acquire(signal);
       await withMemoryOperation(async () => {
-        if (!mediaUpload) c.req.raw = await admittedRequest(c.req.raw, signal);
+        if (!mediaUpload)
+          c.req.raw = await admittedRequest(
+            c.req.raw,
+            signal,
+            isCheck
+              ? 16384
+              : c.req.path === "/v1/proofing/consent"
+                ? 512
+                : undefined,
+          );
         await next();
         if (!c.get("streaming") && !c.error) signal.throwIfAborted();
       }, signal);
@@ -442,6 +468,18 @@ export function createApp(deps: AppDependencies) {
       throw new GroveError("forbidden", "Origin is not allowed", 403);
     c.set("principal", principal);
     c.get("signal").throwIfAborted();
+    if (c.req.path.startsWith("/v1/proofing/")) {
+      if (origin !== deps.siteUrl)
+        throw new GroveError("forbidden", "Editor origin is required", 403);
+      if (principal.type !== "session" || !principal.sessionId)
+        throw new GroveError(
+          "forbidden",
+          "A signed-in editor session is required",
+          403,
+        );
+      liveSession(principal);
+      return next();
+    }
     await deps.models?.refresh();
     const sink = deps.telemetry?.forIdentity(
       accountIdentity(c.get("principal").accountId),
@@ -582,6 +620,34 @@ export function createApp(deps: AppDependencies) {
     c: import("hono").Context<Environment>,
     schema: z.ZodType<T>,
   ) => schema.parse(await c.req.json());
+  const configured = !!proofingEndpoint(deps.languageToolUrl);
+  function requireChecker() {
+    if (!configured) throw new GroveError('proofing_disabled','Enhanced grammar is not configured.',503);
+  }
+  app.get('/v1/proofing/consent',async c => {
+    const consent = await proofing.settings(c.get('principal'));
+    return c.json(configured ? consent : {...consent, available:false});
+  });
+  app.put('/v1/proofing/consent', async c => {
+    const value = await body(c, proofingConsentSchema);
+    if (value.enabled) requireChecker();
+    const consent = await proofing.settings(c.get('principal'),value);
+    return c.json(configured ? consent : {...consent, available:false});
+  });
+  app.post('/v1/proofing/check',async c => {
+    requireChecker();
+    const principal = c.get("principal"),
+      input = await body(c, proofingCheckSchema);
+    const mode = z
+      .enum(["manual", "automatic"])
+      .parse(c.req.header("x-grove-proofing-mode") ?? "manual");
+    const generation = await proofing.grant(principal, mode);
+    liveSession(principal);
+    const result = await checkParagraph(input, c.get("signal"));
+    await proofing.grant(principal, mode, generation);
+    liveSession(principal);
+    return c.json(result);
+  });
   const mutation = async <T>(
     c: import("hono").Context<Environment>,
     schema: z.ZodType<T>,

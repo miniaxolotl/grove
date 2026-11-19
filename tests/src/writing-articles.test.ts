@@ -1,17 +1,16 @@
+import { checker } from "./fixtures/harper-checker.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   applyWritingEdit,
-  createEnglishChecker,
   writingSettingsSchema,
 } from "../../lib/shared/src/writing-core.ts";
 
-const checker = createEnglishChecker({ aff: "SET UTF-8\n", dic: "1\nnote\n" });
 const settings = writingSettingsSchema.parse({ spelling: false });
-const articles = (text: string) =>
-  checker
-    .check(text, settings)
-    .issues.filter((issue) => issue.rule === "articles");
+const articles = async (text: string) =>
+  (await checker.check(text, settings)).issues.filter(
+    (issue) => issue.rule === "articles",
+  );
 
 for (const [correct, phrase] of [
   ["a", "one-time fee"],
@@ -40,19 +39,19 @@ for (const [correct, phrase] of [
   ["an", "L‑shaped desk"],
   ["a", "U-turn"],
 ] as const) {
-  test(`offers the article-only edit for ${correct} ${phrase}`, () => {
+  test(`offers the article-only edit for ${correct} ${phrase}`, async () => {
     const wrong = correct === "a" ? "an" : "a";
     const prefix = "📌 Consider ";
     const source = `${prefix}${wrong} ${phrase}.`;
     const corrected = `${prefix}${correct} ${phrase}.`;
-    const issues = articles(source);
+    const issues = await articles(source);
     assert.equal(issues.length, 1);
     const [issue] = issues;
     assert.equal(issue.from, prefix.length);
     assert.equal(issue.original, wrong);
     assert.deepEqual(issue.replacements, [correct]);
     assert.equal(applyWritingEdit(source, issue, correct), corrected);
-    assert.deepEqual(articles(corrected), []);
+    assert.deepEqual(await articles(corrected), []);
   });
 }
 
@@ -73,13 +72,13 @@ for (const phrase of [
   "homage",
   "unionized sample",
 ]) {
-  test(`abstains for either pronunciation of ${phrase}`, () => {
+  test(`abstains for either pronunciation of ${phrase}`, async () => {
     for (const article of ["a", "an"]) {
-      assert.deepEqual(articles(`Consider ${article} ${phrase}.`), []);
+      assert.deepEqual(await articles(`Consider ${article} ${phrase}.`), []);
     }
   });
 }
 
-test("does not treat a letter grade as a second article", () => {
-  assert.deepEqual(articles("She earned an A in English."), []);
+test("does not treat a letter grade as a second article", async () => {
+  assert.deepEqual(await articles("She earned an A in English."), []);
 });

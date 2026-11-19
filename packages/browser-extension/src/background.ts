@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { checkLocally } from "./writing/local-check.ts";
 import {
   writingRequestSchema,
   unavailableWriting,
@@ -37,16 +38,6 @@ const client = new ExtensionClient(config, local, session, oauth);
 const writing = new WritingPreferencesStore(local, config.apiOrigin, () =>
   host.storage.local.get(null),
 );
-let english:
-  | Promise<(typeof import("./writing/english.ts"))["englishChecker"]>
-  | undefined;
-const localChecker = () =>
-  (english ??= import("./writing/english.ts")
-    .then((module) => module.englishChecker)
-    .catch((error) => {
-      english = undefined;
-      throw error;
-    }));
 const ready =
   host.storage.session.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" }) ??
   Promise.resolve();
@@ -304,14 +295,13 @@ async function localWriting(raw: unknown) {
   await ready;
   const message = z
     .object({
-      kind: z.enum(["writingCheck", "writingSuggest"]),
+      kind: z.literal("writingCheck"),
       windowId: z.number().int().nonnegative(),
       accountId: z.uuid(),
       connectionId: z.uuid(),
       payload: z
         .object({
-          text: z.string().max(NOTE_CONTENT_MAX).optional(),
-          word: z.string().max(24).optional(),
+          text: z.string().max(NOTE_CONTENT_MAX),
         })
         .strict(),
     })
@@ -329,7 +319,10 @@ async function localWriting(raw: unknown) {
     throw new Error("Writing checks are paused or the account changed.");
   const before = await writing.read(identity.accountId);
   if (!before.settings.enabled) throw new Error("Writing assistance is off.");
-  const checker = await localChecker();
+  const result = await checkLocally(
+    message.payload.text,
+    effectiveWritingSettings(before.settings),
+  );
   const after = await writing.read(identity.accountId);
   const current = (await session.get("identity")) as typeof identity;
   if (
@@ -339,14 +332,7 @@ async function localWriting(raw: unknown) {
     current?.connectionId !== identity.connectionId
   )
     throw new Error("Writing settings changed. Check again.");
-  if (message.kind === "writingSuggest")
-    return before.settings.spelling
-      ? checker.suggest(message.payload.word ?? "")
-      : [];
-  return checker.check(
-    message.payload.text ?? "",
-    effectiveWritingSettings(before.settings),
-  );
+  return result;
 }
 async function websiteWriting(raw: unknown, sender: MessageSender) {
   const origin = writingSenderOrigin(sender, host.runtime.id);
@@ -363,7 +349,6 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
       kind: z.enum([
         "writingSiteState",
         "writingSiteCheck",
-        "writingSiteSuggest",
         "writingSiteAddWord",
       ]),
       payload: z
@@ -443,7 +428,7 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
       return true;
     });
   }
-  const checker = await localChecker();
+  const result = await checkLocally(message.payload?.text ?? "", settings);
   const after = await writing.read(current?.accountId),
     identity = (await session.get("identity")) as typeof current;
   if (
@@ -456,11 +441,7 @@ async function websiteWriting(raw: unknown, sender: MessageSender) {
     }))
   )
     throw new Error("Writing settings changed. Check again.");
-  if (message.kind === "writingSiteSuggest")
-    return settings.spelling
-      ? checker.suggest(message.payload?.word ?? "")
-      : [];
-  return checker.check(message.payload?.text ?? "", settings);
+  return result;
 }
 type WritingBinding = {
   accountId: string;
@@ -673,15 +654,14 @@ async function aiWriting(raw: unknown, sender: MessageSender, panel: boolean) {
 host.runtime.onMessage.addListener((message, sender, respond) => {
   const panel = trustedPanel(sender, host.runtime);
   if (!panel && !writingSenderOrigin(sender, host.runtime.id)) return false;
-  // Dictionary parsing and candidate generation run off the editor's UI thread and
-  // do not hold the capture/auth/settings state-transition queue while awaiting load.
+  // A local worker check must never hold the capture/auth/settings queue.
   const kind = (message as { kind?: string })?.kind;
   void (
     typeof kind === "string" && kind.startsWith("writingAI")
       ? aiWriting(message, sender, panel)
       : !panel
         ? websiteWriting(message, sender)
-        : kind === "writingCheck" || kind === "writingSuggest"
+        : kind === "writingCheck"
           ? localWriting(message)
           : serial(() => dispatch(message))
   ).then(

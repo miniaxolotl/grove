@@ -11,6 +11,7 @@ import {
 
 const { structuredClone } = globalThis;
 const digest = `sha256:${"a".repeat(64)}`;
+const ltDigest = `sha256:${"c".repeat(64)}`;
 const env = {
   GROVE_API_DATABASE_URL:
     "postgresql://grove_api:api-password@db.example/grove?sslmode=verify-full",
@@ -209,6 +210,102 @@ test("rollouts reject another application or registry and require immutable imag
   assert.throws(() => updateImageSpec(spec, "latest"), /digest/);
   spec.workers[0].image.repository = "other-product";
   assert.throws(() => updateImageSpec(spec, digest));
+});
+
+test("only an explicit LT digest adds the private component, never an API URL", () => {
+  const initial = createAppSpec({
+    ...env,
+    LANGUAGETOOL_URL: "http://unexpected",
+    LANGUAGETOOL_IMAGE_DIGEST: ltDigest,
+  });
+  assert.equal(updateImageSpec(initial, digest).services.length, 1);
+  const next = updateImageSpec(initial, digest, ltDigest);
+  assert.equal(next.services.length, 2);
+  const lt = next.services[1];
+  assert.deepEqual(lt.image, {
+    registry_type: "DOCKER_HUB",
+    registry: "miniaxolotl",
+    repository: "grove-languagetool",
+    digest: ltDigest,
+  });
+  assert.deepEqual(lt.internal_ports, [8081]);
+  assert.equal(lt.health_check.http_path, "/ready");
+  assert.equal(lt.instance_count, 1);
+  assert.equal(lt.instance_size_slug, "apps-s-1vcpu-1gb-fixed");
+  assert(!lt.envs && !lt.http_port && !lt.routes);
+  assert(!JSON.stringify(next).includes("LANGUAGETOOL_URL"));
+  assert.deepEqual(next.ingress, initial.ingress);
+  assert.equal(
+    updateImageSpec(next, digest).services[1].image.digest,
+    ltDigest,
+  );
+  assert.equal(
+    updateImageSpec(next, digest, `sha256:${"d".repeat(64)}`).services[1].image
+      .digest,
+    `sha256:${"d".repeat(64)}`,
+  );
+  assert.throws(() => updateImageSpec(initial, digest, "latest"));
+});
+
+test("existing LT must be pinned, private and isolated even on an ordinary rollout", () => {
+  const spec = updateImageSpec(createAppSpec(env), digest, ltDigest);
+  for (const change of [
+    { http_port: 8081 },
+    { internal_ports: [80] },
+    { routes: [{ path: "/lt" }] },
+    { envs: [{ key: "DATABASE_URL", value: "private-test-marker" }] },
+    { run_command: "alternate" },
+    { image: { digest: ltDigest, repository: "other" } },
+    {
+      image: {
+        registry_type: "DOCKER_HUB",
+        registry: "miniaxolotl",
+        repository: "grove-languagetool",
+        tag: "latest",
+      },
+    },
+  ]) {
+    const drift = structuredClone(spec);
+    drift.services[1] = { ...drift.services[1], ...change };
+    assert.throws(
+      () => updateImageSpec(drift, digest),
+      (e) => !String(e).includes("private-test-marker"),
+    );
+  }
+  for (const edit of [
+    (s) => s.ingress.rules.push({ component: { name: "languagetool" } }),
+    (s) => {
+      s.envs = [{ key: "DATABASE_URL", value: "private-test-marker" }];
+    },
+  ]) {
+    const drift = structuredClone(spec);
+    edit(drift);
+    assert.throws(
+      () => updateImageSpec(drift, digest),
+      (e) => !String(e).includes("private-test-marker"),
+    );
+  }
+});
+
+test("provider selection and active readback require the expected LT topology and digest", () => {
+  const initial = updateImageSpec(createAppSpec(env), digest);
+  const spec = updateImageSpec(initial, digest, ltDigest);
+  const item = { id: "rollout", phase: "ACTIVE", spec };
+  assert.equal(findDeployment([item], digest, [], ltDigest), item);
+  for (const [observed, expected] of [
+    [initial, ltDigest],
+    [spec, `sha256:${"d".repeat(64)}`],
+    [spec, undefined],
+  ]) {
+    const active_deployment = { ...item, spec: observed };
+    assert.equal(
+      findDeployment([active_deployment], digest, [], expected),
+      undefined,
+    );
+    assert.throws(() =>
+      assertActiveDeployment({ active_deployment }, item.id, digest, expected),
+    );
+  }
 });
 
 test("deployment wait ignores previous generations and mismatched worker images", () => {
