@@ -264,6 +264,9 @@ jobs:
         env:
           CHECKER_DIGEST: ${{ needs.publish.outputs.checker }}
           RELEASE_MODE: ${{ needs.candidate.outputs.mode }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
         run: |
           if [[ "$RELEASE_MODE" == selected ]]; then
             node scripts/release/selected-deploy.mjs
