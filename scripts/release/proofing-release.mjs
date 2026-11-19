@@ -7,7 +7,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { resolveDecision } from "./selected-decision.mjs";
 import { assertCoordinatedStamp } from "./coordinated-stamp.mjs";
-import { resolveHeldDecision } from "./held-delivery.mjs";
+import { resolveHeldDecision, resolveHeldSource } from "./held-delivery.mjs";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const read = (ref, path) => JSON.parse(git("show", `${ref}:${path}`));
 const baseline = "6566c2dca78e7fde9c79357f8d07c5ad6f4cc7d5";
@@ -65,7 +65,10 @@ if (
 ) {
   const source = process.argv[2];
   const selected = resolveDecision(source, process.argv[3] === "released");
-  const held = resolveHeldDecision(source, process.argv[3] === "released");
+  const held =
+    process.argv[3] === "released"
+      ? resolveHeldDecision(source, true)
+      : resolveHeldSource(source);
   assert(
     !(held && selected),
     "Choose held coordinated publication or selected hosted delivery, never both",

@@ -122,6 +122,16 @@ test("released held intent admits only the upstream coordinated version stamp on
     delivery.resolveHeldDecision?.(source, true, api)?.hash,
     receiptHash(decision),
   );
+  assert.equal(
+    delivery.resolveHeldSource?.(declared, api)?.hash,
+    receiptHash(decision),
+    "Source Release must discover an exact declaration",
+  );
+  assert.equal(
+    delivery.resolveHeldSource?.(source, api)?.hash,
+    receiptHash(decision),
+    "Source Release must discover the same strict stamp without a released flag",
+  );
   assert.throws(() =>
     delivery.resolveHeldDecision?.(source, true, {
       ...api,
@@ -130,6 +140,25 @@ test("released held intent admits only the upstream coordinated version stamp on
           ? JSON.stringify({ version: "1.11.30", extra: "unreviewed" })
           : api.read(ref, path),
     }),
+  );
+  assert.throws(() =>
+    delivery.resolveHeldSource?.(source, {
+      ...api,
+      read: (ref, path) =>
+        path === "package.json" && ref === source
+          ? JSON.stringify({ version: "1.11.30", extra: "unreviewed" })
+          : api.read(ref, path),
+    }),
+  );
+  assert.throws(() =>
+    delivery.resolveHeldSource?.(source, {
+      ...api,
+      read: (ref, path) =>
+        path === "package.json"
+          ? JSON.stringify({ version: "1.11.29" })
+          : api.read(ref, path),
+    }),
+    "An inherited decision without a version stamp must remain rejected",
   );
 });
 test("pending publication durably binds the archived baseline and exact source/run before irreversible writes", () => {

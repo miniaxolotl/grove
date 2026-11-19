@@ -84,6 +84,23 @@ export function resolveHeldDecision(source, released = false, api = defaults) {
   }
   return { manifest: decision, hash: receiptHash(decision), declared };
 }
+// Source Release runs on both declaration and version-stamp pushes. Neither
+// shape may inherit the declaration onto arbitrary later source changes.
+export function resolveHeldSource(source, api = defaults) {
+  try {
+    return resolveHeldDecision(source, false, api);
+  } catch (declarationError) {
+    try {
+      return resolveHeldDecision(source, true, api);
+    } catch (stampError) {
+      throw new AggregateError(
+        [declarationError, stampError],
+        "Neither a valid held source declaration nor its coordinated stamp",
+        { cause: stampError },
+      );
+    }
+  }
+}
 function identity(context) {
   validateHeldContext(context);
   return Object.fromEntries(
