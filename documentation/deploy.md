@@ -146,8 +146,21 @@ readiness, or infer that this source change migrated the live database.
 Five bundled packages/native-marketplace pins share one Release Please-owned version.
 Do not hand-bump versions or publish changed bytes under an existing version.
 `node scripts/publish.mjs --dry-run` preflights without publishing. For partial
-publication rerun Deploy on the same current production commit: identical artifacts
-are reused; conflicts need a new release. Never move a tag/frozen head.
+publication, recheck the protected production head, frozen source and observed
+predecessor before each authorized batch. Match the main image on GHCR and Docker
+Hub, private checker digest, five npm integrities and release ZIP checksums against
+the admitted build. Once the rejection is resolved, an authorized retry of Deploy
+on the same current production commit can reuse identical artifacts. Conflicting
+bytes require a new reviewed release. Never move a tag/frozen head. ZIPs do not
+establish store delivery.
+
+A successful DigitalOcean proposal followed by a rejected app update is not a
+deployment. Record the PUT timestamp, status and request ID if available. Ask
+provider support for the rejected field/reason; do not replay a write to collect
+diagnostics or log the spec, raw response or encrypted settings. Read back pending
+and ACTIVE deployments before recovery. For a coordinated rollout require API and
+worker on the main digest and the private checker on its own digest, then check
+readiness and the selected website's live manifest. A healthy older API can return 200.
 
 ### Coordinated Vercel delivery
 
