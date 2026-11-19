@@ -12,12 +12,13 @@ inventory, not just the current page. **Filters** reveals file type, notebook an
 views for temporary uploads, files needing attention, chat-only files, Unfiled
 notes and earlier-version media. Active choices can be cleared individually;
 **Clear filters** keeps an explicit note/chat context, while **All uploads** exits it.
+When a search has no matches, **Reset file search** clears the search and filters. If a note or chat has no files, **Browse all uploads** opens the account’s file list.
 Notebook filtering includes notes directly in the selected notebook, not children.
 
 Each row shows its size, upload date, state and number of accessible locations.
 Expand with a click or keyboard for readable note labels, notebook paths and
 notebook links, chat links and authorized original downloads. Locations and files
-page independently in batches of30. Earlier-version media is labelled explicitly;
+page independently in batches of 30. Earlier-version media is labelled explicitly;
 original filenames were not stored for images/recordings, so those have generated
 names. Unconfirmed imports have no saved notebook yet. Uploads in Ask create no
 notes unless you explicitly save them.

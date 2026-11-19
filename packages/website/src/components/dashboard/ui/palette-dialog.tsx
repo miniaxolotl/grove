@@ -25,6 +25,7 @@ export function PaletteDialog({
         <SearchField
           {...search}
           className="palette-search"
+          clearLabel
           autoComplete="off"
           spellCheck={false}
         />

@@ -216,6 +216,17 @@ for (const target of ["chrome", "edge"])
         await checkbox.check();
         await localPage.locator(`mark.${off}`).waitFor();
       }
+      const guestHome = guestPanel.getByRole("button", {
+        name: "Home",
+        exact: true,
+      });
+      await guestHome.press("Enter");
+      await guestPanel.locator("#login").waitFor({ state: "visible" });
+      assert.equal(await guestPanel.locator("#workspace").isVisible(), false);
+      assert.equal(
+        await guestPanel.locator('[data-nav="search"]').isDisabled(),
+        true,
+      );
       await guestPanel.close();
       await worker.evaluate(async () => {
         const stored = (await chrome.storage.local.get("writing-browser:en"))[

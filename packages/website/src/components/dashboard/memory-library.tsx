@@ -129,6 +129,10 @@ export function MemoryLibrary({
         : "updated_desc"
       : preferredSort;
   const [error, setError] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [cancelledFilters, setCancelledFilters] =
+    useState<LibraryFilters | null>(null);
+  const searchCancelled = cancelledFilters === filters;
   const [failures, setFailures] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const [selectedId, selectId] = useState<string | null>(initialId ?? null);
@@ -187,6 +191,8 @@ export function MemoryLibrary({
   });
   const query = useInfiniteQuery({
     ...noteOptions,
+    enabled: !searchCancelled,
+    subscribed: !searchCancelled,
     refetchInterval: (q) =>
       q.state.data?.pages[0]?.visit?.ready === false ? 500 : false,
   });
@@ -508,6 +514,7 @@ export function MemoryLibrary({
             </button>
           )}
           <LibraryFilterBar
+            input={searchInput}
             value={filters}
             onChange={setFilters}
             projects={projects}
@@ -534,6 +541,8 @@ export function MemoryLibrary({
                     {items.length === 1 && !next ? "note" : "notes"}
                     {searchMode && search ? " found" : ""}
                   </>
+                ) : search ? (
+                  "Search results"
                 ) : (
                   "Your notes"
                 )}
@@ -545,9 +554,20 @@ export function MemoryLibrary({
                 )}
               </span>
               <span className="library-sync" role="status">
-                {query.data &&
-                readError &&
-                (view === "graph" || !query.isFetchNextPageError) ? (
+                {search && (searchCancelled || loading) ? (
+                  <button
+                    type="button"
+                    className="text-button whitespace-nowrap"
+                    onClick={() => {
+                      if (searchCancelled) searchInput.current?.focus();
+                      setCancelledFilters(searchCancelled ? null : filters);
+                    }}
+                  >
+                    {searchCancelled ? "Search again" : "Cancel search"}
+                  </button>
+                ) : query.data &&
+                  readError &&
+                  (view === "graph" || !query.isFetchNextPageError) ? (
                   <>
                     <span className="sr-only">
                       {staleSearch
@@ -600,12 +620,15 @@ export function MemoryLibrary({
           {currentError && (
             <LoadError
               title={
-                archive
-                  ? "Your archive couldn’t load"
-                  : "Your notes couldn’t load"
+                search && !error
+                  ? "Search couldn’t finish"
+                  : archive
+                    ? "Your archive couldn’t load"
+                    : "Your notes couldn’t load"
               }
               message={currentError}
               retry={() => {
+                if (search) searchInput.current?.focus();
                 setError("");
                 void query.refetch();
               }}
@@ -638,7 +661,12 @@ export function MemoryLibrary({
               </button>
             </div>
           )}
-          {loading && !items.length ? (
+          {searchCancelled ? (
+            <section className="app-empty library-empty" role="status">
+              <h2>Search cancelled</h2>
+              <p>Your search and filters are still selected.</p>
+            </section>
+          ) : loading && !items.length ? (
             <LibrarySkeleton archive={archive} showExcerpt={!!search} />
           ) : !items.length && showEmptyState ? (
             <section className="app-empty library-empty">
@@ -660,12 +688,13 @@ export function MemoryLibrary({
                 <button
                   type="button"
                   className="app-button secondary mt-6"
-                  onClick={() =>
+                  onClick={() => {
+                    searchInput.current?.focus();
                     setFilters((current) => ({
                       ...initialFilters(archive),
                       sort: current.sort,
-                    }))
-                  }
+                    }));
+                  }}
                 >
                   Clear filters
                 </button>

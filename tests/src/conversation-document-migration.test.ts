@@ -90,7 +90,11 @@ test("031→032 preserves notes, import drafts and chat history with isolated do
     await probeDatabase(runtime);
     assert.deepEqual(
       await Promise.all(tables.map((table) => owner(table))),
-      before,
+      before.map((rows, index) =>
+        tables[index] === "document_import_batches"
+          ? rows.map((row) => ({ ...row, initialDestination: null }))
+          : rows,
+      ),
     );
     const upgraded = await owner("conversations").first();
     assert.deepEqual(upgraded, { ...oldChat, documentsVersion: 0 });

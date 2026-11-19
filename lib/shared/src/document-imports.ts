@@ -19,7 +19,10 @@ export const importDestinationSchema = z.union([
   z.null(),
 ]);
 export type ImportDestination = z.infer<typeof importDestinationSchema>;
-export const importBatchCreateSchema = z.object({ id: z.uuid() }).strict();
+export const importPrepareSchema = z.object({ id: z.uuid() }).strict();
+export const importBatchCreateSchema = importPrepareSchema.extend({
+  destination: importDestinationSchema.default(null),
+});
 export const importDraftEditSchema = z
   .object({
     expectedVersion: z.number().int().positive(),
@@ -56,6 +59,7 @@ export const importSuggestionsSchema = z
   .strict();
 export type ImportBatch = {
   id: string;
+  initialDestination: ImportDestination;
   version: number;
   status: string;
   taskId: string | null;

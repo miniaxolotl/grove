@@ -41,11 +41,16 @@ export function NotebookExplorer() {
   const wide = useSyncExternalStore(subscribeDesktop, desktop, () => false);
   const id = useId();
   const bodyId = useId();
-  const [sectionCollapsed, setSectionCollapsed] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.localStorage.getItem("grove.sidebar.notebooks") === "1",
-  );
+  const [sectionCollapsed, setSectionCollapsed] = useState(() => {
+    try {
+      return (
+        typeof window !== "undefined" &&
+        window.localStorage.getItem("grove.sidebar.notebooks") === "1"
+      );
+    } catch {
+      return false;
+    }
+  });
   useEffect(() => {
     try {
       window.localStorage.setItem(

@@ -6,11 +6,11 @@ and Ask Grove. Viewing files never saves or shares them.
 
 Choose **Import notes** from **Notes → More**, **Notebook options**, or
 **Settings → Your data**. The adjacent **View files & storage** link opens the file ledger.
-Upload UTF-8 Markdown (`.md`, `.markdown`), plain text (`.txt`), DOCX or text-based PDF
-files. Choose an existing notebook, create a named notebook (optionally nested),
-or leave notes Unfiled. **Use for all notes** sets a batch destination; individual
-previews can override it. Notebook entry points preselect that notebook in the
-placement control; apply it explicitly before confirmation.
+**Import into** defaults to the current notebook, or **Unfiled** elsewhere, so
+you can add files right away. Before uploading you can pick another notebook or
+**New notebook…** (optionally nested). Every proposed note starts with that
+destination, even if you close the dialog and resume the import later. Upload UTF-8 Markdown (`.md`,
+`.markdown`), plain text (`.txt`), DOCX or text-based PDF files.
 
 ## Review before saving
 
@@ -20,7 +20,9 @@ placement control; apply it explicitly before confirmation.
    possible, with deterministic fallback splits within the 6,000-character note
    limit. No summary replaces the extracted text. Original bytes preserve material
    such as UTF-8 BOM and original line endings; extracted text normalizes line endings.
-3. Exclude unwanted notes, edit their content and choose destinations. Save or
+3. Review the destination shown on each note. **Use for all notes** replaces
+   all draft destinations; apply or discard a pending change before confirming.
+   You can also exclude notes, edit their content or change one destination. Save or
    discard local edits before opening Files & storage, cancelling the import,
    or closing the dialog. **Return to edit** at the top or bottom of the review
    opens and focuses the first note with unsaved edits. Unsaved local edits
@@ -159,9 +161,9 @@ conflict. Responses use the ordinary private/no-store envelope.
 
 | Method and route under `/v1`                     | Input/result                                                                                                 |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `POST /import-batches`                           | `{id}`; create one batch                                                                                     |
+| `POST /import-batches`                           | `{id,destination?}`; create a batch (default Unfiled). Reusing an ID with another destination conflicts.     |
 | `GET /import-batches`                            | Latest 20 accessible batches                                                                                 |
-| `GET /import-batches/:id?after=UUID`             | Status, files, 20 draft notes, next cursor, total/imported counts                                            |
+| `GET /import-batches/:id?after=UUID`             | Status, `initialDestination`, files, 20 draft notes, next cursor, total/imported counts                      |
 | `PUT /import-batches/:id/files/:fileId`          | Raw bytes; accurate `Content-Length`, percent-encoded `X-Grove-Filename`, lowercase `X-Grove-Content-Sha256` |
 | `POST /import-batches/:id/prepare`               | `{id}` task UUID; enqueue extraction                                                                         |
 | `PATCH /import-batches/:id/notes/:noteId`        | `{expectedVersion,content?,included?,destination?}`                                                          |
@@ -230,8 +232,10 @@ retained; current account/note tombstones and revoked grants still govern access
 
 ## Rollout and verification
 
-Apply `20261025_031_document_imports`, then `20261025_032_conversation_documents`
-for Ask attachments, after 030 using the [owner procedure](operations/schema.md).
+Apply forward migrations through `20261118_045_import_destination` using the
+[owner procedure](operations/schema.md). It adds the initial destination to the
+batch before upload or worker preparation. Older batches default to Unfiled;
+existing draft placements are preserved.
 Back up PostgreSQL and private originals together. Deploy matching API/worker before
 website. Keep original storage independent from expiring export/speech prefixes;
 no new source key/bucket is needed. Missing storage makes imports unavailable,
@@ -252,6 +256,11 @@ PDF/DOCX/UTF-8 parsing, integrity/limits, populated upgrades, non-owner isolatio
 private originals, no hidden library writes, citations, explicit Apply, concurrent
 acceptance/retry, removal/expiry and media-complete exports. Use only synthetic
 adversarial documents and [disposable services](development/testing.md).
+
+[Destination picker](design/screenshots/connections-search/import.png): synthetic
+1440 × 1000 Chromium dashboard fixture, based on `49022855` plus the import
+changes. The open menu shows all three placement choices before upload. The
+database-backed import tests separately verify the resulting saved notes.
 
 Build the website, set its disposable database URLs, then run the real journeys:
 
