@@ -6,6 +6,8 @@ import { appendFileSync } from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { resolveDecision } from "./selected-decision.mjs";
+import { assertCoordinatedStamp } from "./coordinated-stamp.mjs";
+import { resolveHeldDecision } from "./held-delivery.mjs";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const read = (ref, path) => JSON.parse(git("show", `${ref}:${path}`));
 const baseline = "6566c2dca78e7fde9c79357f8d07c5ad6f4cc7d5";
@@ -54,35 +56,7 @@ function routeBound(source, pr, released, io, admission) {
     io.git("rev-parse", `${source}^1`) !== merged
   )
     return "website-only";
-  const config = io.read(merged, "release-please-config.json").packages["."];
-  const fields = [
-    ["package.json", ["version"]],
-    [".release-please-manifest.json", ["."]],
-    ...config["extra-files"].map(({ path, jsonpath }) => [
-      path,
-      jsonpath.slice(2).replace("[0]", ".0").split("."),
-    ]),
-  ];
-  const allowed = new Set(["CHANGELOG.md", ...fields.map(([p]) => p)]);
-  const paths = io
-    .git("diff", "--name-only", "--no-renames", merged, source)
-    .split("\n");
-  assert(
-    paths.includes("CHANGELOG.md") && paths.every((p) => allowed.has(p)),
-    "Unreviewed changes in coordinated release stamp",
-  );
-  for (const [path, keys] of fields) {
-    const before = io.read(merged, path),
-      after = io.read(source, path);
-    let cursor = before;
-    for (const key of keys.slice(0, -1)) cursor = cursor[key];
-    cursor[keys.at(-1)] = admission.after;
-    assert.deepEqual(
-      after,
-      before,
-      `Unexpected coordinated version or contents: ${path}`,
-    );
-  }
+  assertCoordinatedStamp(merged, source, admission.after, io);
   return "coordinated";
 }
 if (
@@ -91,7 +65,17 @@ if (
 ) {
   const source = process.argv[2];
   const selected = resolveDecision(source, process.argv[3] === "released");
-  if (selected) {
+  const held = resolveHeldDecision(source, process.argv[3] === "released");
+  assert(
+    !(held && selected),
+    "Choose held coordinated publication or selected hosted delivery, never both",
+  );
+  if (held) {
+    appendFileSync(
+      process.env.GITHUB_OUTPUT,
+      `mode=coordinated\nchecker=false\nconfig=release-please-config.json\nservice=true\nwebsite=false\nheld=true\nheldDecision=${held.hash}\n`,
+    );
+  } else if (selected) {
     appendFileSync(
       process.env.GITHUB_OUTPUT,
       `mode=selected\nchecker=false\nconfig=release-please-website.json\nservice=${selected.manifest.deliver.includes("service")}\nwebsite=${selected.manifest.deliver.includes("website")}\ndecision=${selected.hash}\n`,

@@ -149,6 +149,10 @@ providers/dimensions never silently fall back. See [models](models.md).
 
 ### Read-only schema preflight
 
+Held-source delivery additionally requires the explicit
+[held lifecycle contract](development/held-release.md); its controls and current
+composition blockers are not an operator bypass for the ordinary rollout gates.
+
 Configure GitHub's protected production environment with `GROVE_API_DATABASE_URL`
 and `GROVE_WORKER_DATABASE_URL`, matching the actual provider API/worker runtime
 connections. Use the existing `grove_api`/`grove_jobs` non-owner logins, the same

@@ -1,0 +1,100 @@
+name: Held release continuation
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        type: choice
+        options: [held, lifecycle, approve, runtime, public, website]
+        required: true
+      publication_run:
+        type: string
+        required: true
+      publication_attempt:
+        type: string
+        required: true
+      previous_run:
+        type: string
+        required: false
+      previous_attempt:
+        type: string
+        required: false
+      command:
+        description: Sanitized exact owner command for approve/public; no secrets
+        type: string
+        required: false
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+jobs:
+  candidate:
+    if: github.repository == 'miniaxolotl/grove' && github.ref == 'refs/heads/production' && github.ref_protected == true && github.actor == 'miniaxolotl'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+      tag: ${{ steps.source.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+      - name: Require independent exact production CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/promotion.mjs wait-ci "$GITHUB_SHA"
+      - id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/promotion.mjs production "$GITHUB_SHA"
+  record:
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_SOURCE_SHA: ${{ needs.candidate.outputs.sha }}
+      RELEASE_TAG: ${{ needs.candidate.outputs.tag }}
+      HELD_PHASE: ${{ inputs.phase }}
+      HELD_PUBLICATION_RUN: ${{ inputs.publication_run }}
+      HELD_PUBLICATION_ATTEMPT: ${{ inputs.publication_attempt }}
+      HELD_PREVIOUS_RUN: ${{ inputs.previous_run }}
+      HELD_PREVIOUS_ATTEMPT: ${{ inputs.previous_attempt }}
+      HELD_COMMAND: ${{ inputs.command }}
+      DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327faadc3aaca23c76c1 # v6.0.0
+        with:
+          version: 10.33.0
+      - run: pnpm install --frozen-lockfile
+      - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f # v2.5.2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          version: 2.0.0
+      - id: record
+        run: node scripts/release/held-phase.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: held-${{ steps.record.outputs.phase }}-${{ github.run_attempt }}
+          path: held-state.json
+          if-no-files-found: error
+          retention-days: 90

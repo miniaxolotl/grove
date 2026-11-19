@@ -140,6 +140,11 @@ export async function probeDatabase(db: Knex) {
   await db.raw(
     "SELECT initial_destination FROM document_import_batches LIMIT 0",
   );
+  const lifecycle = await db.raw(
+    "SELECT to_regprocedure('public.grove_lifecycle_notify(text,text,text,text,text,bigint,boolean)') IS NOT NULL AND to_regprocedure('public.grove_lifecycle_release_approved(text,text)') IS NOT NULL AND to_regprocedure('public.grove_lifecycle_erase(uuid)') IS NOT NULL AS ready",
+  );
+  if (!lifecycle.rows[0]?.ready)
+    throw new Error("The lifecycle migration (048) is required");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */
