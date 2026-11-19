@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.11.30](https://github.com/miniaxolotl/grove/compare/v1.11.29...v1.11.30) (2026-11-19)
+
+
+### Bug Fixes
+
+* **ci:** fetch history for source-bound release tests ([56e973d](https://github.com/miniaxolotl/grove/commit/56e973dc212fd63c04a04fafe00c79f71fbb32ba))
+* **ci:** fetch history for source-bound release tests ([b4dd743](https://github.com/miniaxolotl/grove/commit/b4dd7433c33c0436b5c0de3279cfb70e2a20373b))
+* **deploy:** fence selected rollouts against provider drift ([eff6b29](https://github.com/miniaxolotl/grove/commit/eff6b290d879cc3f2debbdc07a199f61912b9be4))
+* **deploy:** fence selected rollouts against provider drift ([a9fa5dc](https://github.com/miniaxolotl/grove/commit/a9fa5dc230f3b35918a165452591675b404bdc0a))
+* **domain:** verify canonical Grove client artifacts ([24660d3](https://github.com/miniaxolotl/grove/commit/24660d38f909597e3f113af92f4c2392ebbe397e))
+* **release:** admit source-bound hosted delivery decisions ([44af151](https://github.com/miniaxolotl/grove/commit/44af151cb883d4c799389187ddabeb554c9c038a))
+* **release:** bind selected hosted delivery to reviewed source decisions ([e3f581a](https://github.com/miniaxolotl/grove/commit/e3f581a219cf339fb1b976c39663c86926615fd3))
+* **release:** compose held lifecycle delivery ([0d57526](https://github.com/miniaxolotl/grove/commit/0d5752696abcc9f3e2cede93898ed721a53b7826))
+* **release:** compose held lifecycle delivery ([f1362fc](https://github.com/miniaxolotl/grove/commit/f1362fc4961ac0a4b09b2d5ff2e69e0ae4b3b907))
+* **release:** exclude provider proposals from held publication ([ff68022](https://github.com/miniaxolotl/grove/commit/ff680220fa4db80e07fb06d062e90f730de6c511))
+* **release:** fence held startup and source-bound receipts ([b336ca2](https://github.com/miniaxolotl/grove/commit/b336ca257316e3e221411e1e5e290fe82dc30a3b))
+* **release:** fence last-moment instance drift ([bed5d25](https://github.com/miniaxolotl/grove/commit/bed5d25f36f0434b67442176c6bb2e018b3b4cea))
+* **release:** integrate reviewed provider state fences ([19f7183](https://github.com/miniaxolotl/grove/commit/19f7183d125852c40439a492333938a02622db5e))
+* **release:** integrate reviewed selected delivery contracts ([656e949](https://github.com/miniaxolotl/grove/commit/656e949911d557846a504200529778cbb01febdd))
+* **release:** persist narrow lifecycle reconciliation fences ([aa758e3](https://github.com/miniaxolotl/grove/commit/aa758e3727db4c707db7d388d29582cc18b08884))
+* **release:** supply scoped retry configuration and exercise workflow selection ([4bb1eaa](https://github.com/miniaxolotl/grove/commit/4bb1eaa4fc1bdb86c697a9afcb3cb9274712d834))
+* **website:** polish notebook demos and public layouts ([#315](https://github.com/miniaxolotl/grove/issues/315)) ([4b1a537](https://github.com/miniaxolotl/grove/commit/4b1a537f8a10542ec48d6a5dc3cf5da900c6826e))
+
 ## [1.11.29](https://github.com/miniaxolotl/grove/compare/v1.11.28...v1.11.29) (2026-11-19)
 
 
