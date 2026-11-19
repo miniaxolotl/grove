@@ -21,7 +21,7 @@ export const operations = [
 ] as const;
 export type Operation = (typeof operations)[number];
 export type Outcome = "success" | "unavailable" | "error";
-export const origin = "https://usegrove.cloud";
+export const origin = "https://grovenote.app";
 const publicRoutes = new Set([
   "/",
   "/install",
@@ -272,7 +272,7 @@ export function sanitizeEvent(
       environment: "production",
       $current_url: safePageUrl(currentUrl),
       $pathname: pagePath(currentUrl),
-      $host: "usegrove.cloud",
+      $host: "grovenote.app",
       $referring_domain: referringDomain(referrer),
       $referrer: referringDomain(referrer),
       $process_person_profile: false,

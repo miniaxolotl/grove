@@ -59,7 +59,7 @@
     {
       "file": "public/brand-kit/identity/primary/logos/domain.svg",
       "source": "identity-library/grove/01-forest/logos/domain.svg",
-      "sha256": "58bfdebbf6d082f8c18f51f243045a50d46cc2bea97f37dc6f2c15e403b97623"
+      "sha256": "9275184fa6273c4fb9d44e02dbafde5b55014528e04f14ad6fe2f09fd37952ef"
     },
     {
       "file": "public/brand-kit/identity/primary/wordmarks/wordmark.svg",
@@ -79,7 +79,7 @@
     {
       "file": "public/brand-kit/identity/inverse/logos/domain.svg",
       "source": "identity-library/grove/08-white/logos/domain.svg",
-      "sha256": "6964a4b50f5ad12dd67a4f5581e21ad8329e0d9c3ecc3bf0c46c6a67d868056e"
+      "sha256": "160a05531a2a9d2bbf539e0ee87202fc3c1a1d6935295e3e1602c40a542b75d4"
     },
     {
       "file": "public/brand-kit/identity/inverse/wordmarks/wordmark.svg",
@@ -149,7 +149,7 @@
     {
       "file": "design-kit/grove.pdf",
       "source": "guidelines/grove.pdf",
-      "sha256": "35bdcccbc24cdc1f3238f2290fe046fa7a9e224091c236b4862aafaa465ccf0a"
+      "sha256": "681e2ed500c896c68fa6dc3abf0e2742eb78f3e10e96c272456cfe8ff7a95123"
     }
   ]
 }

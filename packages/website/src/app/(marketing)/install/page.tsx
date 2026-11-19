@@ -5,8 +5,8 @@ import { ExtensionStoreLinks } from "@/components/extension-store-links";
 import { pageMetadata } from "@/lib/metadata";
 
 export const metadata = pageMetadata(
-  "Connect your AI tools to Grove",
-  "Use Grove in ChatGPT or Claude web, or connect OpenCode, Claude Code and Codex. Sign in and choose which notes each tool can use.",
+  "Grove integrations | Browser and AI tools",
+  "Use the browser extension or connect an AI tool. Both are optional; choose and revoke access to your notes.",
   "/install",
 );
 
@@ -22,14 +22,10 @@ export default async function InstallPage() {
           if you use Grove on the web.
         </p>
         <nav className="setup-jump" aria-label="Setup options">
-          <a href="#ai-tools">AI tool setup</a>
           <a href="#browser-extension">Browser extension setup</a>
+          <a href="#ai-tools">AI tool setup</a>
         </nav>
       </header>
-      <section aria-labelledby="ai-tools" className="setup-tools max-w-[68ch]">
-        <h2 id="ai-tools">Connect an AI tool</h2>
-        <Installation />
-      </section>
       <section
         id="browser-extension"
         className="setup-reference"
@@ -41,19 +37,19 @@ export default async function InstallPage() {
         >
           Browser extension
         </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-7">
+        <p className="mt-3 max-w-2xl text-base leading-7">
           Check spelling and grammar on your device in Chrome, Edge or Firefox.
           Sign in to save and search notes. Optional sentence rewrites require
           your consent.
         </p>
         <ExtensionStoreLinks />
-        <p className="mt-2 max-w-2xl text-sm leading-7">
-          To install locally in Chrome, download the{" "}
+        <p className="mt-2 max-w-2xl text-base leading-7">
+          For a local Chrome installation, choose a browser ZIP from the{" "}
           <a
             className="underline"
-            href="https://github.com/miniaxolotl/grove/releases/download/v1.11.21/grove-chrome.zip"
+            href="https://github.com/miniaxolotl/grove/releases"
           >
-            unsigned Chrome ZIP (v1.11.21)
+            release assets
           </a>{" "}
           and follow the{" "}
           <a
@@ -64,6 +60,10 @@ export default async function InstallPage() {
           </a>
           .
         </p>
+      </section>
+      <section aria-labelledby="ai-tools" className="setup-tools max-w-[68ch]">
+        <h2 id="ai-tools">Connect an AI tool</h2>
+        <Installation />
       </section>
       <nav className="setup-jump" aria-label="Related setup guides">
         <Link href="/docs/server#memory-and-notebook-tools">

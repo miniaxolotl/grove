@@ -6,6 +6,7 @@ import {
   MemoryService,
   sessionPrincipal,
   Tasks,
+  resolveExportReady,
   exportHandlers,
   importHandlers,
   enqueueConnectorSync,
@@ -461,7 +462,7 @@ test("exports page notes and history into private artifacts; source changes, can
   try {
     const store = localArtifacts(root),
       tasks = new Tasks(service, true),
-      handlers = exportHandlers(worker, store);
+      handlers = exportHandlers(worker, store, null, true);
     const project = await service.project(principal, {
       identity: "export",
       name: "Export",
@@ -515,6 +516,9 @@ test("exports page notes and history into private artifacts; source changes, can
       includeDescendants: true,
     });
     assert.equal((await tasks.export(principal, request)).id, task.id);
+    const notices = () =>
+      admin("transactional_emails").where({ exportTaskId: task.id });
+    assert.equal((await notices()).length, 0);
     // Each export stage checkpoints independently, including chat sources.
     for (let i = 0; i < 40; i++)
       if (!(await runTask(worker, handlers, { id: task.id }))) break;
@@ -524,6 +528,14 @@ test("exports page notes and history into private artifacts; source changes, can
       JSON.stringify(await tasks.get(principal, task.id)),
     );
     const artifact = await tasks.artifact(principal, task.id);
+    const [notice] = await notices();
+    assert.equal((await notices()).length, 1);
+    assert.deepEqual(await resolveExportReady(worker, notice), {
+      taskId: task.id,
+      expiresAt: task.expiresAt,
+    });
+    assert.equal(await runTask(worker, handlers, { id: task.id }), false);
+    assert.equal((await notices()).length, 1);
     const chunks = [];
     for await (const chunk of await store.read(artifact.key))
       chunks.push(chunk);
@@ -540,6 +552,13 @@ test("exports page notes and history into private artifacts; source changes, can
       3,
     );
     const stranger = await fixture();
+    assert.equal(
+      await resolveExportReady(worker, {
+        ...notice,
+        accountId: stranger.accountId,
+      }),
+      null,
+    );
     const strangerAccount = await admin("accounts")
       .where({ id: stranger.accountId })
       .first();
@@ -554,12 +573,80 @@ test("exports page notes and history into private artifacts; source changes, can
       items: [{ id: other.id, expectedVersion: other.version }],
     });
     assert.equal((await tasks.get(principal, task.id)).error, "export_changed");
+    assert.equal(await resolveExportReady(worker, notice), null);
     await assert.rejects(tasks.artifact(principal, task.id));
     await tasks.action(principal, task.id, "retry");
     await runTask(worker, handlers, { id: task.id });
     await tasks.action(principal, task.id, "cancel");
     assert.equal(await runTask(worker, handlers, { id: task.id }), false);
     assert.equal((await tasks.get(principal, task.id)).status, "cancelled");
+    assert.equal((await notices()).length, 1);
+    await tasks.action(principal, task.id, "retry");
+    for (let i = 0; i < 40; i++)
+      if (!(await runTask(worker, handlers, { id: task.id }))) break;
+    const events = await notices();
+    assert.equal(events.length, 2);
+    const fresh = events.find((event) => event.id !== notice.id);
+    assert.notEqual(fresh.exportPreparationId, notice.exportPreparationId);
+    assert.equal(await resolveExportReady(worker, notice), null);
+    assert.ok(await resolveExportReady(worker, fresh));
+    await admin("background_tasks")
+      .where({ id: task.id })
+      .update({ expiresAt: admin.fn.now() });
+    assert.equal(await resolveExportReady(worker, fresh), null);
+    assert.equal((await tasks.get(principal, task.id)).downloadable, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("account export publishes a single notice atomically, fenced against cancellation during assembly", async () => {
+  const f = await fixture();
+  const account = await admin("accounts").where({ id: f.accountId }).first();
+  const principal = sessionPrincipal(f.accountId, account.clerkSubject);
+  const tasks = new Tasks(new MemoryService(api, "queue-tests"), true);
+  const root = await mkdtemp("/tmp/opencode/grove-export-email-");
+  try {
+    const store = localArtifacts(root);
+    const job = await tasks.export(principal, {
+      id: randomUUID(),
+      includeDescendants: false,
+    });
+    // Start at final assembly to exercise the lifecycle race, not page traversal.
+    await admin("background_tasks")
+      .where({ id: job.id })
+      .update({ cursor: { stage: 100 } });
+    const notices = () =>
+      admin("transactional_emails").where({ exportTaskId: job.id });
+    await runTask(
+      worker,
+      exportHandlers(
+        worker,
+        {
+          ...store,
+          async write(...args) {
+            await store.write(...args);
+            await tasks.action(principal, job.id, "cancel");
+          },
+        },
+        null,
+        true,
+      ),
+      { id: job.id },
+    );
+    assert.equal((await notices()).length, 0);
+    assert.equal((await tasks.get(principal, job.id)).status, "cancelled");
+    await tasks.action(principal, job.id, "retry");
+    const handlers = exportHandlers(worker, store, null, true);
+    for (let i = 0; i < 40; i++)
+      if (!(await runTask(worker, handlers, { id: job.id }))) break;
+    const events = await notices();
+    assert.equal(events.length, 1);
+    assert.ok(await resolveExportReady(worker, events[0]));
+    await admin("accounts")
+      .where({ id: f.accountId })
+      .update({ status: "disabled" });
+    assert.equal(await resolveExportReady(worker, events[0]), null);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

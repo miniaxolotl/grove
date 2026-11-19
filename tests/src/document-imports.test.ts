@@ -861,6 +861,72 @@ test("expired staging is cleared without deleting retained originals or imported
   );
 });
 
+for (const mode of ["existing", "new", "unfiled"] as const)
+  test(`initial ${mode} destination survives resume and applies to every imported note`, async () => {
+    const f = await fixture(),
+      id = randomUUID();
+    const project = await f.service.project(f.principal, {
+      name: "Research",
+      identity: randomUUID(),
+    });
+    const destination =
+      mode === "new"
+        ? { name: "Field journal", parentId: project.id }
+        : mode === "existing"
+          ? { projectId: project.id, version: project.version }
+          : null;
+    await f.subject.create(f.principal, { id, destination });
+    await f.subject.create(f.principal, { id, destination });
+    await assert.rejects(
+      f.subject.create(f.principal, {
+        id,
+        destination:
+          mode === "unfiled" ? { name: "Other", parentId: null } : null,
+      }),
+      /changed/i,
+    );
+    const resumed = new imports.DocumentImports(f.service);
+    assert.deepEqual(
+      (await resumed.get(f.principal, id)).initialDestination,
+      destination,
+    );
+    await resumed.upload(
+      f.principal,
+      id,
+      randomUUID(),
+      "journal.md",
+      Buffer.from("Observations\n\n".repeat(800)),
+    );
+    const prep = await resumed.prepare(f.principal, id, randomUUID());
+    await f.drain(prep.taskId);
+    const batch = await resumed.get(f.principal, id);
+    assert(batch.notes.length > 1);
+    for (const note of batch.notes)
+      assert.deepEqual(note.destination, destination);
+    const apply = await resumed.confirm(f.principal, id, {
+      id: randomUUID(),
+      expectedVersion: batch.version,
+    });
+    assert.equal((await f.drain(apply.taskId)).status, "succeeded");
+    const filed =
+      mode === "new"
+        ? (
+            await admin("projects")
+              .where({
+                accountId: f.account.id,
+                parentId: project.id,
+                name: "Field journal",
+              })
+              .first()
+          ).id
+        : mode === "existing"
+          ? project.id
+          : null;
+    const saved = await admin("memories").where({ accountId: f.account.id });
+    assert.equal(saved.length, batch.total);
+    for (const note of saved) assert.equal(note.projectId, filed);
+  });
+
 test("bulk placement changes only reviewed destinations and preserves every draft body", async () => {
   const f = await fixture(),
     id = randomUUID();

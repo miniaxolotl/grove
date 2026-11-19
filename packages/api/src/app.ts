@@ -16,6 +16,7 @@ import {
 } from "@lib/shared/conversation-documents";
 import {
   importBatchCreateSchema,
+  importPrepareSchema,
   importDraftEditSchema,
   importBatchConfirmSchema,
   importPlacementSchema,
@@ -24,7 +25,11 @@ import { readMediaBytes } from "./media-input.ts";
 import { Billing } from "./billing.ts";
 import { AdminAccounts, type AdminDirectory } from "./system-admin.ts";
 export { Billing };
-export { FlagPricing, MonthlyPricing, YearlyPricing } from "./billing-pricing.ts";
+export {
+  FlagPricing,
+  MonthlyPricing,
+  YearlyPricing,
+} from "./billing-pricing.ts";
 import { PassThrough, Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { accountIdentity, type Reporter } from "@lib/telemetry";
@@ -46,7 +51,9 @@ import {
 } from "@lib/shared/notebook-organization";
 import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { searchConversationHistory } from "@lib/memory";
-import { Webhook } from "svix";
+import { createLifecycleIngress } from "./lifecycle-ingress.ts";
+import { approvedReleaseControl, heldIdentityHash } from "./release-hold.ts";
+import { createPrivateProof } from "./lifecycle-proof.ts";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createMemoryMcp, type ToolName } from "@lib/integration-core/mcp";
 import {
@@ -128,7 +135,10 @@ import {
   defaultAskTools,
 } from "@lib/shared/conversations";
 
+import { prepareDeletionReceipt } from "./deletion-recipient.ts";
+
 export type AppDependencies = {
+  deletionReceipt?: Parameters<typeof prepareDeletionReceipt>[1];
   adminDirectory?: AdminDirectory;
   billing?: Billing;
   media?: MediaStore | null;
@@ -162,6 +172,30 @@ type Environment = {
 
 export function createApp(deps: AppDependencies) {
   const app = new Hono<Environment>();
+  app.use("*", async (c, next) => {
+    const approved = approvedReleaseControl();
+    const lifecycle =
+      c.req.method === "POST" &&
+      ["/v1/webhooks/clerk", "/v1/webhooks/stripe"].includes(c.req.path);
+    if (
+      approved?.role === "api" &&
+      !lifecycle &&
+      c.req.path !== "/health/live" &&
+      c.req.path !== "/_grove/release/runtime"
+    ) {
+      try {
+        const allowed = await deps.memories.db.raw(
+          "SELECT grove_lifecycle_public_allowed(?,?) AS allowed",
+          [heldIdentityHash(approved.identity), approved.approval],
+        );
+        if (!allowed.rows[0].allowed)
+          return c.json({ status: "release_held" }, 503);
+      } catch {
+        return c.json({ status: "release_held" }, 503);
+      }
+    }
+    return next();
+  });
   const proofing = new ProofingConsents(deps.memories);
   const checkParagraph = languageTool(deps.languageToolUrl);
   const proofingLane = new Admission(1, 0, 0);
@@ -397,6 +431,28 @@ export function createApp(deps: AppDependencies) {
     return c.text(deps.openaiAppsChallenge);
   });
   app.get("/health/live", (c) => c.json({ status: "ok" }));
+  const approved = approvedReleaseControl();
+  const privateRuntime =
+    approved?.role === "api"
+      ? createPrivateProof({
+          mode: "runtime",
+          role: "api",
+          identity: approved.identity,
+          approval: approved.approval,
+          secret: deps.memories.cursorSecret,
+          ready: deps.ready,
+          evidence: async () =>
+            (
+              await deps.memories.db.raw(
+                "SELECT grove_lifecycle_status_approved(?,?) AS evidence",
+                [heldIdentityHash(approved.identity), approved.approval],
+              )
+            ).rows[0].evidence,
+        })
+      : null;
+  app.get("/_grove/release/runtime", (c) =>
+    privateRuntime ? privateRuntime(c.req.raw) : c.notFound(),
+  );
   app.get("/health/ready", async (c) => {
     await deps.ready();
     return c.json({
@@ -404,49 +460,26 @@ export function createApp(deps: AppDependencies) {
       semantic: deps.memories.embedder ? "enabled" : "disabled",
     });
   });
-  app.post("/v1/webhooks/clerk", async (c) => {
-    let event: unknown;
-    try {
-      event = new Webhook(deps.webhookSecret).verify(await c.req.text(), {
-        "svix-id": c.req.header("svix-id") ?? "",
-        "svix-timestamp": c.req.header("svix-timestamp") ?? "",
-        "svix-signature": c.req.header("svix-signature") ?? "",
-      });
-    } catch {
-      throw new GroveError(
-        "invalid_signature",
-        "Invalid webhook signature",
-        400,
-      );
-    }
-    const payload = z
-      .object({
-        type: z.string(),
-        timestamp: z.number().int(),
-        data: z.object({
-          id: z.string().min(1),
-          banned: z.boolean().optional(),
-          locked: z.boolean().optional(),
-        }),
-      })
-      .parse(event);
-    await deps.memories.db.transaction(async (trx) => {
-      await trx.raw("SELECT grove_webhook(?, ?, ?, ?)", [
-        c.req.header("svix-id")!,
-        payload.type,
-        payload.data.id,
-        payload.timestamp,
-      ]);
-      if (payload.type === "user.created" || payload.type === "user.updated") {
-        await trx.raw("SELECT grove_user_state(?, ?, ?)", [
-          payload.data.id,
-          payload.timestamp,
-          !!(payload.data.banned || payload.data.locked),
-        ]);
-      }
+  const lifecycleIngress =
+    deps.billing?.lifecycleIngress(deps.webhookSecret) ??
+    createLifecycleIngress({
+      clerkSecret: deps.webhookSecret,
+      accept: async (event) => {
+        await deps.memories.db.raw(
+          "SELECT grove_lifecycle_notify(?,?,?,?,?,?,?)",
+          [
+            event.provider,
+            event.id,
+            event.fingerprint,
+            event.type,
+            event.subject,
+            event.eventAt,
+            event.disabled,
+          ],
+        );
+      },
     });
-    return c.json({ success: true });
-  });
+  app.post("/v1/webhooks/clerk", (c) => lifecycleIngress(c.req.raw));
   const authorize = async (
     c: import("hono").Context<Environment>,
     next: () => Promise<void>,
@@ -562,15 +595,7 @@ export function createApp(deps: AppDependencies) {
       data: await admin.administration.audit(c.get("principal")),
     }),
   );
-  app.post("/v1/webhooks/stripe", async (c) => {
-    if (!deps.billing)
-      throw new GroveError("billing_disabled", "Billing is unavailable", 503);
-    await deps.billing.webhook(
-      await c.req.text(),
-      c.req.header("stripe-signature") ?? "",
-    );
-    return c.json({ success: true });
-  });
+  app.post("/v1/webhooks/stripe", (c) => lifecycleIngress(c.req.raw));
   const billing = () => {
     if (!deps.billing)
       throw new GroveError("billing_disabled", "Billing is unavailable", 404);
@@ -579,6 +604,30 @@ export function createApp(deps: AppDependencies) {
   app.get("/v1/billing", async (c) =>
     c.json({ success: true, data: await billing().status(c.get("principal")) }),
   );
+  app.get("/v1/billing/reconciliation", async (c) =>
+    c.json({
+      success: true,
+      data: await billing().reconciliation(c.get("principal")),
+    }),
+  );
+  app.post("/v1/billing/reconciliation/:id/retry", async (c) => {
+    const id = uuidSchema.parse(c.req.param("id"));
+    const input = z
+      .object({ operationId: uuidSchema })
+      .strict()
+      .parse(await c.req.json());
+    return c.json(
+      {
+        success: true,
+        data: await billing().retryReconciliation(
+          c.get("principal"),
+          id,
+          input.operationId,
+        ),
+      },
+      202,
+    );
+  });
   app.post("/v1/billing/checkout", async (c) => {
     const input = z
       .object({
@@ -622,19 +671,24 @@ export function createApp(deps: AppDependencies) {
   ) => schema.parse(await c.req.json());
   const configured = !!proofingEndpoint(deps.languageToolUrl);
   function requireChecker() {
-    if (!configured) throw new GroveError('proofing_disabled','Enhanced grammar is not configured.',503);
+    if (!configured)
+      throw new GroveError(
+        "proofing_disabled",
+        "Enhanced grammar is not configured.",
+        503,
+      );
   }
-  app.get('/v1/proofing/consent',async c => {
-    const consent = await proofing.settings(c.get('principal'));
-    return c.json(configured ? consent : {...consent, available:false});
+  app.get("/v1/proofing/consent", async (c) => {
+    const consent = await proofing.settings(c.get("principal"));
+    return c.json(configured ? consent : { ...consent, available: false });
   });
-  app.put('/v1/proofing/consent', async c => {
+  app.put("/v1/proofing/consent", async (c) => {
     const value = await body(c, proofingConsentSchema);
     if (value.enabled) requireChecker();
-    const consent = await proofing.settings(c.get('principal'),value);
-    return c.json(configured ? consent : {...consent, available:false});
+    const consent = await proofing.settings(c.get("principal"), value);
+    return c.json(configured ? consent : { ...consent, available: false });
   });
-  app.post('/v1/proofing/check',async c => {
+  app.post("/v1/proofing/check", async (c) => {
     requireChecker();
     const principal = c.get("principal"),
       input = await body(c, proofingCheckSchema);
@@ -926,7 +980,7 @@ export function createApp(deps: AppDependencies) {
         data: await documentImports.prepare(
           c.get("principal"),
           uuidSchema.parse(c.req.param("id")),
-          (await body(c, importBatchCreateSchema)).id,
+          (await body(c, importPrepareSchema)).id,
         ),
       },
       202,
@@ -2093,7 +2147,16 @@ export function createApp(deps: AppDependencies) {
       z.object({ confirm: z.literal("delete my account") }).strict(),
     );
     return c.json(
-      { success: true, data: await service.deleteAccount(c.get("principal")) },
+      {
+        success: true,
+        data: await service.deleteAccount(
+          c.get("principal"),
+          await prepareDeletionReceipt(
+            c.get("principal"),
+            deps.deletionReceipt,
+          ),
+        ),
+      },
       202,
     );
   });

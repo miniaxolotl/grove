@@ -13,8 +13,8 @@ per destination, see [Preview release impact](development/release-impact.md).
 For offline rehearsal of a release PR's manifest edits and npm publication list,
 see [Stage a selective release PR locally](development/selected-release-writer.md).
 
-- Website: `https://usegrove.cloud`, Next.js on Vercel; production branch `production`.
-- API: `https://api.usegrove.cloud`, Hono REST `/v1` and Streamable HTTP `/mcp`.
+- Website: `https://grovenote.app`, Next.js on Vercel; production branch `production`.
+- API: `https://api.grovenote.app`, Hono REST `/v1` and Streamable HTTP `/mcp`.
 - Worker: same Node 24 image, separate `node dist/worker.js` command and database login.
 - Database: PostgreSQL 17 with pgvector; migration owner separate from non-owner
   API/worker roles. Runtime rejects superuser, BYPASSRLS and table-owner credentials.
@@ -35,8 +35,8 @@ existing encrypted provider settings; they do not install missing keys or enable
 API configuration uses `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_ISSUER`,
 `CLERK_WEBHOOK_SIGNING_SECRET`, exact `SITE_URL` and `API_ORIGIN`. Website uses
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `GROVE_API_URL`, `SITE_URL`,
-and sign-in/up routes `/sign-in` and `/sign-up`. Production issuer is
-`https://clerk.usegrove.cloud`; development uses a separate instance.
+and sign-in/up routes `/sign-in` and `/sign-up`. The target production issuer is
+`https://clerk.grovenote.app`; development uses a separate instance.
 
 Configure Clerk webhook delivery to `/v1/webhooks/clerk` for `user.created`,
 `user.updated`, `user.deleted`, `session.revoked`, `session.ended`, `session.removed`.
@@ -52,9 +52,35 @@ scopes do not grant note access: Grove Connections grants remain mandatory. See
 
 Private pages/BFF responses stay uncached and unindexed; public sharing stays outside
 Clerk/analytics. Redact capability paths in edge/provider logs, not only application
-telemetry. Keep Cloudflare email obfuscation **off** for `usegrove.cloud`: rewriting
+telemetry. Keep Cloudflare email obfuscation **off** for `grovenote.app`: rewriting
 contact text before hydration can break legal pages. Review them in a real browser
 after edge changes.
+
+### Domain cutover
+
+1. Attach `api.grovenote.app` to the existing DigitalOcean app as an alias and
+   publish its DNS-only CNAME. Verify TLS and `/health/ready` on both API hosts.
+   A healthy alias alone does not change OAuth discovery or token audiences.
+2. On the **existing** Clerk production instance, move the primary domain,
+   verify its DNS and TLS, and coordinate the exact callbacks with Google,
+   GitHub, Microsoft and Apple (including private relay). Record the previous
+   settings for rollback. Do not create a new instance or change Apple or
+   Firefox application IDs. Communicate the need to sign in again.
+3. Coordinate the production Doppler configs, DigitalOcean API/worker origins
+   and issuer, Clerk publishable keys, and Vercel production environment. Remove
+   the redirect **from** `grovenote.app` so release preflight can read the existing
+   deployment directly. Keep legacy website hosts serving it during verification.
+   Rebuild the website with the new origin and key. Verify sign-in, an authenticated API
+   read, an existing share, and a new MCP authorization with the exact resource
+   `https://api.grovenote.app/mcp`. Existing agent grants may require reconnecting.
+4. Verify the new apex serves the admitted release, then configure one-hop
+   308 redirects on `usegrove.cloud`, `usegrove.ca`, `usegrove.one` and their
+   `www` names, and on `www.grovenote.app`. Check an install or support path with
+   a query string from each. Do not redirect API, Clerk, mail or preview hosts
+   to the website. Check clients with a cached redirect from the old rollout.
+5. If a gate fails, keep or restore the working host before redirecting traffic.
+   Restore the matching provider origins, keys and website build together; never
+   configure reciprocal redirects. Leave old API DNS in service during migration.
 
 ## Self-hosted Compose
 
@@ -82,7 +108,12 @@ providers/dimensions never silently fall back. See [models](models.md).
 
 ## Release and rollout
 
-1. Merge feature PRs into protected `development`. Merge the Release Please PR,
+1. Merge feature PRs into protected `development`. For website-only admission,
+   CI fetches the candidate and each distinct receipt ancestor's frozen pnpm
+   dependencies into one store, then builds fresh archives with offline installs.
+   Missing inputs, unreviewed fingerprints or changed service artifacts block
+   this route. An earlier coordinated exception cannot authorize a new source.
+   Merge the Release Please PR,
    then wait for its immutable source tag and independent full-source CI.
 2. Dispatch **Select Release Candidate** on development with that exact tag. It
    opens frozen `promote/production/vX.Y.Z`; later development commits are excluded.
@@ -118,6 +149,10 @@ providers/dimensions never silently fall back. See [models](models.md).
 
 ### Read-only schema preflight
 
+Held-source delivery additionally requires the explicit
+[held lifecycle contract](development/held-release.md); its controls and current
+composition blockers are not an operator bypass for the ordinary rollout gates.
+
 Configure GitHub's protected production environment with `GROVE_API_DATABASE_URL`
 and `GROVE_WORKER_DATABASE_URL`, matching the actual provider API/worker runtime
 connections. Use the existing `grove_api`/`grove_jobs` non-owner logins, the same
@@ -141,8 +176,44 @@ readiness, or infer that this source change migrated the live database.
 Five bundled packages/native-marketplace pins share one Release Please-owned version.
 Do not hand-bump versions or publish changed bytes under an existing version.
 `node scripts/publish.mjs --dry-run` preflights without publishing. For partial
-publication rerun Deploy on the same current production commit: identical artifacts
-are reused; conflicts need a new release. Never move a tag/frozen head.
+publication, recheck the protected production head, frozen source and observed
+predecessor before each authorized batch. Match the main image on GHCR and Docker
+Hub, private checker digest, five npm integrities and release ZIP checksums against
+the admitted build. Once the rejection is resolved, an authorized retry of Deploy
+on the same current production commit can reuse identical artifacts. Conflicting
+bytes require a new reviewed release. Never move a tag/frozen head. ZIPs do not
+establish store delivery.
+
+A successful DigitalOcean proposal followed by a rejected app update is not a
+deployment. Record the PUT timestamp, status and request ID if available. Ask
+provider support for the rejected field/reason; do not replay a write to collect
+diagnostics or log the spec, raw response or encrypted settings. Read back pending
+and ACTIVE deployments before recovery. For a coordinated rollout require API and
+worker on the main digest and the private checker on its own digest, then check
+readiness and the selected website's live manifest. A healthy older API can return 200.
+
+### Expected-state provider fence
+
+Selected hosted delivery can pass `--expected-app-state <sha256>` to
+`scripts/deploy-digitalocean.mjs`. Its exported `appStateFingerprint(app)` returns
+64 lowercase hex characters: SHA-256 of canonical JSON containing the app ID,
+complete desired spec, and active/pending/in-progress generation IDs and phases.
+Object keys are sorted recursively; array order is preserved. Missing generations
+and null generations are equivalent. Specs and encrypted settings stay in memory;
+do not log them or treat the fingerprint as authorization.
+
+With this flag, the first app GET and the final pre-PUT GET must match that
+fingerprint. Both reads also require an ACTIVE generation, no pending/in-progress
+generation, identical desired and active specs, and only the existing `api` service
+and `worker`. Extra services, jobs, static sites, functions and databases are held;
+creation and checker options are rejected. Drift fails closed and requires a new
+authorized preflight, not a blind retry. An already-ACTIVE exact spec/image is a
+no-op before proposal or PUT, including with `--wait`.
+
+Without the flag, existing provisioning and rollout behavior is unchanged. This
+client-side read fence is not an atomic provider compare-and-swap and does not
+remove the need for serialized authorized writers or post-write verification.
+It neither diagnoses nor repairs the historical proposal-success/HTTP-400 rejection.
 
 ### Coordinated Vercel delivery
 
@@ -178,8 +249,8 @@ Change only the owning guide when a feature's rollout changes:
 ## Operating checks and rollback
 
 ```sh
-curl --fail https://api.usegrove.cloud/health/ready
-curl -i https://api.usegrove.cloud/v1/me
+curl --fail https://api.grovenote.app/health/ready
+curl -i https://api.grovenote.app/v1/me
 # Without credentials: 401 and private, no-store.
 ```
 

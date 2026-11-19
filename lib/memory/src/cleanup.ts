@@ -151,7 +151,11 @@ export function cleanupHandlers(
       await trx("accounts")
         .where({ id: task.accountId })
         .update({ status: "deleted", providerDeletedAt: trx.fn.now() });
-      return { complete: true };
+      const erased = await trx.raw(
+        "SELECT grove_lifecycle_erase(?) AS cleared",
+        [task.accountId],
+      );
+      return { complete: Number(erased.rows[0].cleared) < 1000 };
     });
   };
   const retention_cleanup: TaskHandler = async (task, signal) => {

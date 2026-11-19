@@ -22,6 +22,10 @@
   outline: 2px solid var(--color-leaf);
   outline-offset: -2px;
 }
+.app-sidebar .sidebar-create:focus-visible {
+  /* This ring sits inside a filled primary action, not on the pale rail. */
+  outline-color: currentColor;
+}
 .app-sidebar-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

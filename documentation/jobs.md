@@ -107,6 +107,24 @@ or deletion invalidate an export; Retry prepares a fresh copy. This avoids holdi
 a database snapshot for the whole job. Deleted records are excluded. Downloads
 expire after one day.
 
+With export-ready email enabled, a completed account or notebook export sends
+one notice for that preparation. **View export** opens the exact task in
+Settings → Your data, even after it leaves recent history. Sign in with the
+requesting account, then choose **Download export**. Opening the link does not
+download or prepare a file. If the file expired or the notes changed, choose
+**Prepare a fresh export** to retry the same scope. The notice shows the actual
+expiry; it contains no notebook name, attachment or storage URL.
+
+For operators: apply `20261119_046_export_ready_email` and deploy compatible
+workers and website before enabling `EMAIL_EXPORT_READY_ENABLED=true` on bulk
+and email workers (default: false). Only the sending worker needs sender
+credentials. No backfill runs.
+The fenced final checkpoint commits the result and outbox row together. A new
+preparation of the same task has a distinct event; delivery retries reuse the
+existing event. Before sending, the worker rechecks the active owner, exact
+preparation, source version and expiry against the download predicate. See
+[transactional email](background-services.md) for sender setup and rollout.
+
 Configure the **same store** on API and workers:
 
 - Self-hosting defaults to `EXPORT_STORAGE=local`, `EXPORT_DIRECTORY=./data/exports`.
@@ -189,6 +207,46 @@ vectors, expired export files and operational scratch may be removed. Account
 deletion revokes access immediately; cleanup progresses independently of identity
 provider outages. Recovery replays tombstones and invalidates restored tasks and
 downloads without erasing retained authored records.
+
+### Account deletion receipts
+
+When enabled, a confirmed request in Settings can produce one email acknowledging
+that access ended. No email confirmation is needed. The API checks the signed-in
+owner's verified primary Clerk address before the deletion transaction, with a
+1.2-second lookup limit. If lookup or staging fails, deletion still proceeds.
+Clerk-initiated cleanup does not create a receipt. A receipt never announces
+physical erasure or requires the owner to sign back in.
+
+Migration `047` creates a separate tenant-scoped receipt table. The API can
+insert encrypted snapshots, but cannot read them back. Only this receipt type
+can be dispatched or claimed for a deleting/deleted account; ordinary mail
+requires an active account. The existing email lane carries opaque IDs and
+uses the same worker capacity with or without the broker. A receipt retries at
+most five times within 23 hours; a changed payload stops retries. `accepted_at`
+means Resend accepted the request, not that it reached the inbox. Operators can
+inspect `attempts`, `due_at`, `accepted_at`, `failed_at` and `error_code` without
+selecting `snapshot`.
+
+**Enablement and custody.** Apply `046` and `047` first. Keep
+`EMAIL_DELETION_RECEIPT_ENABLED=false` until sender verification, tracking
+settings, support monitoring and backup retention have been reviewed. Store a
+fresh 32-byte random hex `DELETION_RECEIPT_KEY` in the API/worker secret store,
+separate from database credentials, backups and other encryption keys. Restrict
+key access to those processes and authorized operators. AES-256-GCM binds the
+snapshot to the receipt, account and purpose. Configure all workers consistently,
+enable consumers before the API producer, and keep the Resend key worker-only.
+
+The worker clears the ciphertext and retry fingerprint on acceptance or terminal
+failure. At 23 hours the receipt is no longer claimable; an independent worker
+sweep clears expired snapshots even with sending disabled. Keep a worker running
+for erasure; an outage delays the physical cleanup until it resumes. To pause or
+rotate, disable production of receipts first, pause all receipt workers and let
+the disabled worker sweep discard pending rows before removing/replacing the key.
+Check for zero rows with `snapshot IS NOT NULL`; restarting must not release a
+backlog. Logical backups, WAL and physical snapshots may retain ciphertext until
+their own retention period ends. Keep keys out of those archives and reconcile
+any offline restore before starting workers: recovery discards the entire receipt
+table's contents and never copies snapshots from authority.
 
 ## Local capacity evidence
 

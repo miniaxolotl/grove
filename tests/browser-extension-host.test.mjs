@@ -59,7 +59,7 @@ for (const target of ["chrome", "edge"])
       if (process.env.EXTENSION_PUBLIC_NETWORK === "1") {
         const publicHosts = await worker.evaluate(async () => {
           const metadata = await fetch(
-            "https://api.usegrove.cloud/.well-known/oauth-protected-resource/mcp",
+            "https://api.grovenote.app/.well-known/oauth-protected-resource/mcp",
             {
               credentials: "omit",
               cache: "no-store",
@@ -71,7 +71,7 @@ for (const target of ["chrome", "edge"])
             throw new Error(`Public API discovery status ${metadata.status}`);
           const resource = await metadata.json();
           const discovery = await fetch(
-            "https://clerk.usegrove.cloud/.well-known/openid-configuration",
+            "https://clerk.grovenote.app/.well-known/openid-configuration",
             {
               credentials: "omit",
               cache: "no-store",
@@ -89,11 +89,11 @@ for (const target of ["chrome", "edge"])
             issuer: (await discovery.json()).issuer,
           };
         });
-        assert.equal(publicHosts.resource, "https://api.usegrove.cloud/mcp");
-        assert.deepEqual(publicHosts.issuers, ["https://clerk.usegrove.cloud"]);
+        assert.equal(publicHosts.resource, "https://api.grovenote.app/mcp");
+        assert.deepEqual(publicHosts.issuers, ["https://clerk.grovenote.app"]);
         assert.equal(
           new URL(publicHosts.issuer).origin,
-          "https://clerk.usegrove.cloud",
+          "https://clerk.grovenote.app",
         );
         console.info(
           `${target} privileged public API/issuer discovery passed (no credentials or mutations)`,
@@ -216,6 +216,17 @@ for (const target of ["chrome", "edge"])
         await checkbox.check();
         await localPage.locator(`mark.${off}`).waitFor();
       }
+      const guestHome = guestPanel.getByRole("button", {
+        name: "Home",
+        exact: true,
+      });
+      await guestHome.press("Enter");
+      await guestPanel.locator("#login").waitFor({ state: "visible" });
+      assert.equal(await guestPanel.locator("#workspace").isVisible(), false);
+      assert.equal(
+        await guestPanel.locator('[data-nav="search"]').isDisabled(),
+        true,
+      );
       await guestPanel.close();
       await worker.evaluate(async () => {
         const stored = (await chrome.storage.local.get("writing-browser:en"))[
@@ -326,7 +337,7 @@ for (const target of ["chrome", "edge"])
         async ({ accountId, connectionId }) => {
           const browser = globalThis.chrome;
           const currentWindow = await browser.windows.getCurrent();
-          const key = `oauth:https://api.usegrove.cloud|https://clerk.usegrove.cloud|${browser.identity.getRedirectURL()}`;
+          const key = `oauth:https://api.grovenote.app|https://clerk.grovenote.app|${browser.identity.getRedirectURL()}`;
           await browser.storage.session.set({
             [`entryError:${currentWindow.id}`]:
               "Synthetic capture was rejected before the panel opened.",
@@ -538,7 +549,7 @@ for (const target of ["chrome", "edge"])
                   includeDescendants: false,
                   duration: body.duration,
                   expiresAt: null,
-                  url: `https://usegrove.cloud/s/gsh_${"A".repeat(43)}`,
+                  url: `https://grovenote.app/s/gsh_${"A".repeat(43)}`,
                 });
                 if (globalThis.fixtureShareLost) {
                   globalThis.fixtureShareLost = false;
@@ -754,7 +765,7 @@ for (const target of ["chrome", "edge"])
         "installed warm local-check latency regression; this is not a universal frame-time guarantee",
       );
       await page.locator("#note").fill("");
-      const permittedSite = "https://api.usegrove.cloud";
+      const permittedSite = "https://api.grovenote.app";
       const sourcePage = await context.newPage();
       await sourcePage.route(`${permittedSite}/__writing_fixture`, (route) =>
         route.fulfill({

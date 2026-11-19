@@ -88,12 +88,12 @@ button,
   cursor: pointer;
   font-weight: 600;
 }
-button:hover,
-.button:hover {
+button:where(:enabled):hover,
+.button:where(a):hover {
   background: var(--raised);
 }
-button:active,
-.button:active {
+button:where(:enabled):active,
+.button:where(a):active {
   transform: translateY(1px);
 }
 button:disabled {
@@ -105,7 +105,7 @@ button:disabled {
   border-color: var(--ink);
   color: var(--surface);
 }
-.primary:hover {
+.primary:where(:not(:disabled)):hover {
   background: var(--signal);
   border-color: var(--signal);
 }
@@ -935,7 +935,7 @@ dialog .title-row button {
 }
 @media (prefers-reduced-motion: reduce) {
   button:active,
-  .button:active {
+  .button:where(a):active {
     transform: none;
   }
 }

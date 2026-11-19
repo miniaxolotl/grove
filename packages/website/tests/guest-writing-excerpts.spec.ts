@@ -91,8 +91,11 @@ for (const width of [320, 390, 1440]) {
     await input.fill("Please bring the the notebok.");
     await input.press("Tab");
     const submit = page.getByRole("button", { name: "Check writing" });
+    const status = page.locator(".guest-writing-form").getByRole("status");
     await expect(submit).toBeFocused();
     await page.keyboard.press("Enter");
+    // Worker startup has the same bounded budget as the webapp writing checks.
+    await expect(status).toHaveText("2 issues found.", { timeout: 30000 });
     const issues = page
       .getByRole("list", { name: "Writing suggestions" })
       .getByRole("listitem");
@@ -108,6 +111,9 @@ for (const width of [320, 390, 1440]) {
     await input.fill(`Hello,world. Read  &<note> and ${long}.`);
     await expect(issues).toHaveCount(0);
     await submit.click();
+    // The long synthetic typo can outlast the default locator timeout under
+    // contention. Wait for the real check to finish before reviewing excerpts.
+    await expect(status).toHaveText("3 issues found.", { timeout: 30000 });
     await expect(
       issues.filter({ hasText: "Missing space before “world”" }),
     ).toContainText("Check spacing");

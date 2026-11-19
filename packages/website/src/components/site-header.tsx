@@ -1,4 +1,4 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, UserRound } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { MobileNavigation } from "@/components/mobile-navigation";
@@ -17,8 +17,22 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="header-actions">
-          <Link href="/app" className="button-primary navigation-account">
-            Your Grove <ArrowUpRight size={15} aria-hidden="true" />
+          <Link
+            href="/app"
+            className="button-primary navigation-account"
+            aria-label="Your Grove"
+          >
+            <span className="header-account-label">Your Grove</span>
+            <ArrowUpRight
+              className="header-account-arrow"
+              size={15}
+              aria-hidden="true"
+            />
+            <UserRound
+              className="header-account-icon"
+              size={18}
+              aria-hidden="true"
+            />
           </Link>
           <MobileNavigation />
         </div>

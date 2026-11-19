@@ -5,18 +5,30 @@ import { probeDatabase } from "@lib/database";
 import { createApp } from "./app.ts";
 import { Authentication, clerkVerifier } from "./auth.ts";
 import { createRuntime } from "./runtime.ts";
+import { clerkDeletionRecipient } from "./deletion-recipient.ts";
 import { clerkAdminDirectory } from "./system-admin.ts";
 import { accountIdentity, closeTelemetry, telemetry } from "@lib/telemetry";
 import { requestCollectionAllowed } from "@lib/telemetry/context";
+import { releaseEntry } from "./release-hold.ts";
 import { configureSpeech } from "@lib/memory";
 
 export async function startServer() {
+  return releaseEntry("api", startRuntimeServer);
+}
+
+async function startRuntimeServer() {
   const runtime = await createRuntime();
   const { env, db, memories } = runtime;
   await configureSpeech(db, runtime.speech);
   const reporter = telemetry("api");
   const app = createApp({
     adminDirectory: clerkAdminDirectory(env.CLERK_SECRET_KEY),
+    deletionReceipt: env.EMAIL_DELETION_RECEIPT_ENABLED
+      ? {
+          key: env.DELETION_RECEIPT_KEY,
+          recipient: clerkDeletionRecipient(env.CLERK_SECRET_KEY),
+        }
+      : undefined,
     memories,
     models: runtime.models,
     artifacts: runtime.artifacts,

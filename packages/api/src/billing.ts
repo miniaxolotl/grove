@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
+import { createLifecycleIngress } from "./lifecycle-ingress.ts";
 import type { FlagPricing } from "./billing-pricing.ts";
 import { tenant, type Knex } from "@lib/database";
 import {
@@ -30,6 +31,7 @@ type Options = {
   pricing?: Partial<Record<"month" | "year", FlagPricing>>;
   portalConfigurationId?: string;
   enabled: (subject: string) => Promise<boolean>;
+  livemode?: boolean;
   proLimits?: PlanLimits;
   proResources?: ResourceLimits;
 };
@@ -123,32 +125,20 @@ export class Billing {
   }
 
   async cancelForDeletion(accountId: string, transaction?: Knex.Transaction) {
-    const cancel = async (trx: Knex.Transaction) => {
-      const row = await trx("billing_customers").where({ accountId }).first();
-      if (!row?.customerId) return;
-      if (row.checkoutId || row.checkoutPrice) {
-        const session = await this.checkoutSession(accountId, row);
-        if (session.status === "open")
-          await this.options.stripe.checkout.sessions.expire(session.id);
-      }
-      const subscriptions = await this.options.stripe.subscriptions.list({
-        customer: row.customerId,
-        status: "all",
-        limit: 100,
-      });
-      if (subscriptions.has_more)
-        throw new GroveError(
-          "billing_unavailable",
-          "Subscription review is required before deleting this account",
-          503,
-        );
-      for (const subscription of subscriptions.data.filter((s) =>
-        ongoing(s.status),
-      ))
-        await this.options.stripe.subscriptions.cancel(subscription.id);
-    };
-    if (transaction) await cancel(transaction);
-    else await tenant(this.service.db, accountId, cancel);
+    const request = async (trx: Knex.Transaction) =>
+      (await trx.raw("SELECT grove_lifecycle_request(?) AS ready", [accountId]))
+        .rows[0].ready;
+    if (transaction) {
+      await request(transaction);
+      return;
+    }
+    const ready = await tenant(this.service.db, accountId, request);
+    if (!ready)
+      throw new GroveError(
+        "billing_reconciliation_pending",
+        "Billing cancellation is pending reconciliation; cleanup remains held",
+        503,
+      );
   }
 
   private async price(interval: "month" | "year") {
@@ -691,56 +681,85 @@ export class Billing {
   }
 
   async webhook(body: string, signature: string) {
-    let event: Stripe.Event;
-    try {
-      event = this.options.stripe.webhooks.constructEvent(
+    const response = await this.lifecycleIngress()(
+      new Request("https://localhost/v1/webhooks/stripe", {
+        method: "POST",
         body,
-        signature,
-        this.options.webhookSecret,
-      );
-    } catch {
+        headers: {
+          "content-type": "application/json",
+          "stripe-signature": signature,
+        },
+      }),
+    );
+    if (response.status >= 400)
       throw new GroveError(
-        "invalid_signature",
-        "Invalid webhook signature",
-        400,
+        response.status === 400 ? "invalid_signature" : "billing_unavailable",
+        "Billing lifecycle acceptance failed",
+        response.status,
       );
-    }
-    if (
-      !/^(customer\.subscription\.(created|updated|deleted)|checkout\.session\.(completed|async_payment_succeeded|async_payment_failed)|invoice\.(paid|payment_failed))$/.test(
-        event.type,
-      )
-    )
-      return;
-    const object = event.data.object as {
-      customer?: string | { id: string } | null;
-    };
-    const customerId =
-      typeof object.customer === "string"
-        ? object.customer
-        : object.customer?.id;
-    if (!customerId) return;
-    const {
-      rows: [lookup],
-    } = await this.service.db.raw("SELECT grove_billing_account(?) AS id", [
-      customerId,
-    ]);
-    if (!lookup?.id) return;
-    await tenant(this.service.db, lookup.id, async (trx) => {
-      await trx("billing_customers")
-        .where({ accountId: lookup.id })
-        .forUpdate()
-        .first();
-      if (await trx("billing_events").where({ id: event.id }).first()) return;
-      const account = await trx("accounts")
-        .where({ id: lookup.id })
-        .first("status");
-      if (account?.status !== "active")
-        await this.cancelForDeletion(lookup.id, trx);
-      await this.sync(trx, lookup.id, customerId);
-      await trx("billing_events").insert({
-        id: event.id,
-        accountId: lookup.id,
-      });
+  }
+
+  lifecycleIngress(clerkSecret?: string) {
+    return createLifecycleIngress({
+      clerkSecret,
+      stripe: this.options.stripe,
+      stripeSecret: this.options.webhookSecret,
+      livemode: this.options.livemode ?? false,
+      accept: async (event) => {
+        await this.service.db.raw(
+          "SELECT grove_lifecycle_notify(?,?,?,?,?,?,?)",
+          [
+            event.provider,
+            event.id,
+            event.fingerprint,
+            event.type,
+            event.subject,
+            event.eventAt,
+            event.disabled,
+          ],
+        );
+      },
+    });
+  }
+
+  async reconciliation(principal: Principal) {
+    return this.service.access(
+      principal,
+      "admin",
+      async ({ trx, account }) =>
+        (await trx("background_tasks")
+          .where({ accountId: account.id, kind: "billing_reconcile" })
+          .orderByRaw("(payload->>'generation')::bigint DESC")
+          .first(
+            "id",
+            "status",
+            "attempts",
+            "errorCode",
+            "updatedAt",
+            "leaseUntil",
+          )) ?? null,
+    );
+  }
+
+  async retryReconciliation(
+    principal: Principal,
+    id: string,
+    operation: string,
+  ) {
+    return this.service.access(principal, "admin", async ({ trx }) => {
+      try {
+        const result = await trx.raw(
+          "SELECT grove_lifecycle_retry(?,?) AS id",
+          [id, operation],
+        );
+        return { id: result.rows[0].id, status: "pending" as const };
+      } catch {
+        throw new GroveError(
+          "reconciliation_conflict",
+          "This reconciliation is not available for scoped recovery",
+          409,
+        );
+      }
     });
   }
 }

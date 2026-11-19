@@ -74,6 +74,7 @@ export function createBilling(env: ServerEnvironment, service: MemoryService) {
   const billing = new Billing(service, {
     stripe,
     webhookSecret: env.STRIPE_WEBHOOK_SECRET!,
+    livemode: /^(sk|rk)_live_/.test(env.STRIPE_SECRET_KEY!),
     siteUrl: env.SITE_URL,
     prices,
     enabled,

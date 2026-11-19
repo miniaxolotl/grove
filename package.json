@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "author": "Bramble Labs Inc.",
-  "version": "1.11.28",
+  "version": "1.11.31",
   "description": "Self-hosted memory for AI agents by Bramble Labs Inc.",
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
@@ -11,7 +11,7 @@
     "type": "git",
     "url": "https://github.com/miniaxolotl/grove.git"
   },
-  "homepage": "https://usegrove.cloud",
+  "homepage": "https://grovenote.app",
   "keywords": [
     "mcp",
     "memory",

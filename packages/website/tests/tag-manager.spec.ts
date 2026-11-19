@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-const origin = "https://usegrove.cloud";
+const origin = "https://grovenote.app";
 
 test("cookie Settings stays readable through hover, press and keyboard focus", async ({
   page,

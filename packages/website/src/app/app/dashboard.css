@@ -164,6 +164,16 @@
 .app-button.danger:hover:not(:disabled) {
   background: #f8e8e2;
 }
+/* Destructive action inside a list: quiet until hovered or focused. */
+.app-button.quiet-danger {
+  background: transparent;
+  border-color: transparent;
+  color: #833323;
+}
+.app-button.quiet-danger:is(:hover, :focus-visible):not(:disabled) {
+  background: #fff4f0;
+  border-color: #e4c7bd;
+}
 .app-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -410,10 +420,18 @@
   min-height: 28px;
   gap: 6px;
 }
-.app-footer a:hover {
+.app-footer a:hover,
+.app-footer nav button:hover:not(:disabled) {
   color: #326349;
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+/* Shared marketing controls render underlined; inside the app footer they
+   match the neighbouring links. */
+.app-footer nav button {
+  min-height: 28px;
+  font-size: inherit;
+  text-decoration: none;
 }
 .app-search button {
   min-height: 36px;

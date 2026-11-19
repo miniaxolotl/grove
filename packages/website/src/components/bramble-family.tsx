@@ -17,7 +17,7 @@ const products = [
     id: "grove",
     name: "Grove",
     detail: "A private notebook",
-    url: "https://usegrove.cloud",
+    url: "https://grovenote.app",
   },
 ];
 

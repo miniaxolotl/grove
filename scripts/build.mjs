@@ -26,6 +26,9 @@ const selected =
       : process.argv[2]
         ? [process.argv[2]]
         : Object.keys(targets);
+const productVersion = JSON.parse(
+  await readFile("package.json", "utf8"),
+).version;
 for (const name of selected) {
   const target = targets[name];
   if (!target) throw new Error(`Unknown target ${name}`);
@@ -41,6 +44,13 @@ for (const name of selected) {
   const component =
     name === "api" ? "api" : name === "opencode" ? "opencode" : "cli";
   const telemetry = telemetryBuild(process.env, pkg.version, component);
+  if (
+    process.env.GROVE_HELD_RELEASE_BUILD !== undefined &&
+    !["true", "false"].includes(process.env.GROVE_HELD_RELEASE_BUILD)
+  )
+    throw new Error("Invalid held image build control");
+  const holdRequired =
+    name === "api" && process.env.GROVE_HELD_RELEASE_BUILD === "true";
   await build({
     entryPoints: target.entries.map(
       (entry) => `${target.directory}/src/${entry}.ts`,
@@ -51,7 +61,10 @@ for (const name of selected) {
     mainFields: ["module", "main"],
     target: "node22",
     format: "esm",
-    define: { __GROVE_TELEMETRY__: JSON.stringify(telemetry) },
+    define: {
+      __GROVE_TELEMETRY__: JSON.stringify(telemetry),
+      __GROVE_HELD_RELEASE_BUILD__: JSON.stringify(holdRequired),
+    },
     sourcemap: true,
     banner: {
       js: 'import { createRequire as __groveCreateRequire } from "node:module"; const require = __groveCreateRequire(import.meta.url);',
@@ -66,6 +79,8 @@ for (const name of selected) {
       revision: telemetry.revision,
       version: telemetry.version,
       component,
+      holdRequired,
+      productVersion,
     }) + "\n",
   );
   if (name === "mcp") {

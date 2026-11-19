@@ -344,6 +344,7 @@ try {
       assert.equal(reopened.turns[0].result.documentStatements.length, 0);
       if (width === 320) {
         await page.goto(`http://127.0.0.1:${port}/app`);
+        await page.getByRole("button", { name: "More note actions" }).click();
         await page
           .getByRole("button", { name: "Import notes", exact: true })
           .click();
@@ -352,12 +353,16 @@ try {
           exact: true,
         });
         await upload
-          .getByLabel("Upload notes and PDFs")
-          .setInputFiles({
-            name: "Handoff.txt",
-            mimeType: "text/plain",
-            buffer: Buffer.from("Private source for a follow-up question."),
-          });
+          .getByRole("combobox", { name: "Destination notebook" })
+          .click();
+        await page
+          .getByRole("option", { name: "Unfiled", exact: true })
+          .click();
+        await upload.getByLabel("Upload notes and PDFs").setInputFiles({
+          name: "Handoff.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from("Private source for a follow-up question."),
+        });
         await expect(
           upload.getByRole("button", {
             name: "Ask about these documents",

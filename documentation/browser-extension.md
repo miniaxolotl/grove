@@ -4,10 +4,10 @@ Install Grove from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/gr
 or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
 The [Chrome Web Store item](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa)
 is not yet publicly available. For local setup, download the unsigned Chrome ZIP
-from the [install page](https://usegrove.cloud/install#browser-extension) or build from source.
-Install and Settings → Connections show all three official items. On a recognized
-desktop browser the matching link is marked **Your browser**; this does not change
-its availability or redirect you. Local packages are
+from the [install page](https://grovenote.app/install#browser-extension) or build from source.
+Install lists all three official items and marks a recognized desktop browser. In
+**Settings → Connections**, choose **Add to Firefox**, **Add to Edge**, or the
+**Chrome setup guide** for manual installation. Local packages are
 also available for Firefox and Edge. The
 [design](design/browser-extension.md) retains the release requirements and deferred scope.
 
@@ -516,6 +516,14 @@ on installation and removes legacy optional-site registrations.
 
 ## Build and verification
 
+Cloud builds use `https://grovenote.app` for the website,
+`https://api.grovenote.app` for the API and `https://clerk.grovenote.app` for OAuth.
+Artifact checks inspect each Chrome/Edge/Firefox ZIP's homepage, permissions and
+compiled background configuration. Keep Firefox's existing `grove@usegrove.cloud`
+add-on ID: it is a stable installation identity, not a network endpoint. A merged
+default change does not update already-issued ZIPs or store installations; those
+still require the coordinated release and the browser/store's normal update flow.
+
 ```sh
 pnpm build:extension
 pnpm test:extension
@@ -612,7 +620,7 @@ Use screenshots of the version being submitted, led by a spelling or grammar
 correction and followed by saving and finding study notes. Do not reuse older UI
 captures as current screenshots or imply flashcards, quizzes, full-page import,
 offline search, Safari/mobile or store availability before approval.
-The product homepage is `https://usegrove.cloud`; legal/privacy declarations and
+The product homepage is `https://grovenote.app`; legal/privacy declarations and
 store-owned support fields need operator review before submission.
 
 | Permission             | Purpose                                                                                 |

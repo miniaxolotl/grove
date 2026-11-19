@@ -15,11 +15,15 @@ export default function DocsPage() {
     <main id="main" className={`page-container ${styles.page}`}>
       <header className={styles.heading}>
         <h1>Grove documentation</h1>
+        <p>
+          Start a notebook, connect a tool, or find a reference. Pick the task
+          you need.
+        </p>
       </header>
       <div className={styles.directory}>
         <section>
           <h2>Use your notebook</h2>
-          <p>All you need is a browser and your Grove account.</p>
+          <p>Write a note, ask a question, then check its source.</p>
           <ul>
             <li>
               <Link href="/docs/notebook#your-first-saved-note">
@@ -40,7 +44,7 @@ export default function DocsPage() {
         </section>
         <section>
           <h2>Connect an app</h2>
-          <p>Choose a setup guide. Web chats use custom connections.</p>
+          <p>Optional connections, with access you choose and can revoke.</p>
           <ul className={styles.apps}>
             {clientOptions.map(({ value, label, guide }) => (
               <li key={value}>

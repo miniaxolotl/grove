@@ -37,7 +37,7 @@ export function initializeDiagnostics() {
       sendClientReports: false,
       integrations: [Sentry.browserTracingIntegration()],
       tracesSampleRate: 0.1,
-      tracePropagationTargets: [/^https:\/\/usegrove\.cloud\/api\/grove\//],
+      tracePropagationTargets: [/^https:\/\/grovenote\.app\/api\/grove\//],
       beforeBreadcrumb: () => null,
       beforeSend: (event) => (telemetryAllowed() ? sanitizeError(event) : null),
       beforeSendSpan: sanitizeSpan,

@@ -1,15 +1,75 @@
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import process from "node:process";
 import { test } from "node:test";
+import { URL } from "node:url";
+import * as provider from "../scripts/deploy-digitalocean.mjs";
 import {
   createAppSpec,
   findDeployment,
   updateImageSpec,
   assertUnchangedApp,
   assertActiveDeployment,
+  readProviderResponse,
 } from "../scripts/deploy-digitalocean.mjs";
 
+test("provider errors preserve safe support correlation, never body text", async () => {
+  const id = "7c9ab35e-d354-410a-8c67-24b445021713";
+  for (const [body, header, expected] of [
+    [
+      JSON.stringify({
+        id: "invalid_argument",
+        request_id: id,
+        message: "secret",
+      }),
+      null,
+      `invalid_argument, request ${id}`,
+    ],
+    ["<html>secret", id, `unknown, request ${id}`],
+    [JSON.stringify({ request_id: "secret" }), id, `unknown, request ${id}`],
+    [
+      JSON.stringify({ id: "secret", request_id: "secret" }),
+      "secret",
+      "unknown",
+    ],
+  ]) {
+    const response = new globalThis.Response(body, {
+      status: 400,
+      headers: header ? { "x-request-id": header } : {},
+    });
+    await assert.rejects(
+      readProviderResponse(response, "PUT", "/apps/fixture"),
+      {
+        message: `DigitalOcean PUT /apps/fixture failed (HTTP 400, ${expected})`,
+      },
+    );
+  }
+});
+
 const { structuredClone } = globalThis;
+test("successful provider responses never quote malformed private JSON", async () => {
+  await assert.rejects(
+    readProviderResponse(
+      new globalThis.Response("private app data"),
+      "GET",
+      "/apps/fixture",
+    ),
+    {
+      message:
+        "DigitalOcean GET /apps/fixture returned invalid JSON (HTTP 200)",
+    },
+  );
+  assert.deepEqual(
+    await readProviderResponse(
+      globalThis.Response.json({ app: {} }),
+      "GET",
+      "/apps/fixture",
+    ),
+    { app: {} },
+  );
+});
 const digest = `sha256:${"a".repeat(64)}`;
 const ltDigest = `sha256:${"c".repeat(64)}`;
 const env = {
@@ -20,7 +80,7 @@ const env = {
   MIGRATION_DATABASE_URL:
     "postgresql://grove_owner:owner-password@db.example/grove",
   CLERK_SECRET_KEY: "sk_live_test_fixture",
-  CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from("clerk.usegrove.cloud$").toString("base64")}`,
+  CLERK_PUBLISHABLE_KEY: `pk_live_${Buffer.from("clerk.grovenote.app$").toString("base64")}`,
   CLERK_WEBHOOK_SIGNING_SECRET: "whsec_test_fixture",
   CURSOR_SECRET: "test-cursor-secret".repeat(3),
   SHARE_LINK_KEY: "ab".repeat(32),
@@ -29,6 +89,251 @@ const env = {
   EXA_API_KEY: "exa-fixture",
   TAVILY_API_KEY: "tavily-fixture",
 };
+
+function settledApp(target = digest) {
+  const spec = updateImageSpec(createAppSpec(env), target);
+  return {
+    id: "00000000-0000-4000-8000-000000000001",
+    spec,
+    active_deployment: { id: "baseline", phase: "ACTIVE", spec },
+  };
+}
+
+// Exercise the actual CLI with an isolated, in-memory transport. No real fetch
+// is reachable, and request logs contain only method/path, never settings.
+function runProvider(apps, args = [], target = ltDigest, fenced = true) {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      new URL("./fixtures/digitalocean-transport.mjs", import.meta.url).href,
+      "scripts/deploy-digitalocean.mjs",
+      ...(fenced
+        ? ["--expected-app-state", provider.appStateFingerprint(apps[0])]
+        : []),
+      ...args,
+    ],
+    {
+      cwd: new URL("..", import.meta.url),
+      env: {
+        DIGITALOCEAN_ACCESS_TOKEN: "fixture-token",
+        DIGITALOCEAN_APP_ID: apps[0].id,
+        GROVE_IMAGE_DIGEST: target,
+        FIXTURE_APPS: JSON.stringify(apps),
+      },
+      encoding: "utf8",
+      timeout: 10000,
+    },
+  );
+  assert.ifError(result.error);
+  for (const secret of [
+    env.CLERK_SECRET_KEY,
+    env.CURSOR_SECRET,
+    "api-password",
+    "fixture-token",
+  ])
+    assert.ok(
+      !(result.stdout + result.stderr).includes(secret),
+      "Provider output must not contain synthetic secrets",
+    );
+  const calls = JSON.parse(
+    result.stdout.split("FIXTURE_CALLS=")[1]?.split("\n")[0] ?? "null",
+  );
+  assert.ok(calls, "Fixture request log missing");
+  return { ...result, calls };
+}
+
+test("app state fingerprint is canonical, scoped and contains no plaintext", () => {
+  assert.equal(typeof provider.appStateFingerprint, "function");
+  const app = {
+    id: "fixture-app",
+    spec: { z: "synthetic-private-value", a: [{ y: 2, x: 1 }] },
+    active_deployment: { id: "one", phase: "ACTIVE" },
+  };
+  const expected = createHash("sha256")
+    .update(
+      '{"active":{"id":"one","phase":"ACTIVE"},"id":"fixture-app","inProgress":null,"pending":null,"spec":{"a":[{"x":1,"y":2}],"z":"synthetic-private-value"}}',
+    )
+    .digest("hex");
+  assert.equal(provider.appStateFingerprint(app), expected);
+  assert.equal(
+    provider.appStateFingerprint({
+      active_deployment: { phase: "ACTIVE", id: "one", progress: { steps: 2 } },
+      spec: { a: [{ x: 1, y: 2 }], z: "synthetic-private-value" },
+      id: app.id,
+      pending_deployment: null,
+      updated_at: "irrelevant-readback-time",
+    }),
+    expected,
+  );
+  for (const change of [
+    { id: "another-app" },
+    { spec: { ...app.spec, z: "changed-private-value" } },
+    { active_deployment: { id: "two", phase: "ACTIVE" } },
+    { active_deployment: { id: "one", phase: "ERROR" } },
+    { pending_deployment: { id: "pending", phase: "PENDING_BUILD" } },
+    { in_progress_deployment: { id: "running", phase: "DEPLOYING" } },
+  ])
+    assert.notEqual(
+      provider.appStateFingerprint({ ...app, ...change }),
+      expected,
+    );
+});
+
+test("fenced CLI validates expected fingerprint and first read before proposal", () => {
+  const app = settledApp();
+  for (const [expected, methods, error] of [
+    ["not-a-hash", [], /Invalid expected provider state fingerprint/],
+    ["0".repeat(64), ["GET"], /Provider app state changed/],
+  ]) {
+    const result = runProvider(
+      [app],
+      ["--expected-app-state", expected],
+      ltDigest,
+      false,
+    );
+    assert.equal(result.status, 1);
+    assert.deepEqual(
+      result.calls.map((call) => call.method),
+      methods,
+    );
+    assert.match(result.stderr, error);
+    assert.doesNotMatch(result.stderr, /api-password|EV\[/);
+  }
+});
+
+test("fenced first read rejects unsettled, mismatched and expanded topology", () => {
+  for (const mutate of [
+    (app) => {
+      app.pending_deployment = { id: "pending" };
+    },
+    (app) => {
+      app.in_progress_deployment = { id: "progress" };
+    },
+    (app) => {
+      app.active_deployment.phase = "DEPLOYING";
+    },
+    (app) => {
+      app.active_deployment.spec.services[0].instance_count = 2;
+    },
+    (app) => {
+      app.spec = updateImageSpec(app.spec, digest, ltDigest);
+      app.active_deployment.spec = app.spec;
+    },
+    (app) => {
+      app.spec.jobs = [{ name: "extra-job" }];
+      app.active_deployment.spec = app.spec;
+    },
+    (app) => {
+      app.spec.services.push(structuredClone(app.spec.services[0]));
+    },
+    (app) => {
+      app.active_deployment.spec.workers[0].image.repository = "other";
+    },
+  ]) {
+    const app = structuredClone(settledApp());
+    // Separate desired and active documents as on a JSON provider response.
+    app.active_deployment.spec = structuredClone(app.spec);
+    mutate(app);
+    const result = runProvider([app]);
+    assert.equal(result.status, 1);
+    assert.deepEqual(
+      result.calls.map((c) => c.method),
+      ["GET"],
+    );
+    assert.doesNotMatch(result.stderr, /api-password|EV\[/);
+  }
+});
+
+test("fenced final read rejects post-proposal state races without PUT", () => {
+  const initial = settledApp();
+  for (const mutate of [
+    (app) => {
+      app.pending_deployment = { id: "pending" };
+    },
+    (app) => {
+      app.in_progress_deployment = { id: "progress" };
+    },
+    (app) => {
+      app.active_deployment.id = "new-active";
+    },
+    (app) => {
+      app.active_deployment.phase = "ERROR";
+    },
+    (app) => {
+      app.spec.services[0].instance_count = 2;
+    },
+    (app) => {
+      app.active_deployment.spec.services[0].instance_count = 2;
+    },
+  ]) {
+    const changed = structuredClone(initial);
+    changed.active_deployment.spec = structuredClone(changed.spec);
+    mutate(changed);
+    const result = runProvider([initial, changed]);
+    assert.equal(result.status, 1);
+    assert.deepEqual(
+      result.calls.map((c) => c.method),
+      ["GET", "POST", "GET"],
+    );
+    assert.doesNotMatch(result.stderr, /api-password|EV\[/);
+  }
+});
+
+test("fenced settled rollout preserves legacy PUT and rejects checker options", () => {
+  const app = settledApp();
+  const result = runProvider([app, app]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    result.calls.map((c) => c.method),
+    ["GET", "POST", "GET", "PUT"],
+  );
+  for (const args of [
+    ["--create"],
+    ["--languagetool-digest", `sha256:${"d".repeat(64)}`],
+    ["--coordinated-checker", `sha256:${"d".repeat(64)}`],
+  ]) {
+    const rejected = runProvider([app], args);
+    assert.equal(rejected.status, 1);
+    assert.ok(
+      !rejected.calls.some((c) => c.method === "POST" || c.method === "PUT"),
+    );
+  }
+});
+
+test("already-active fenced retries issue no proposal or PUT, even with --wait", () => {
+  const app = settledApp(ltDigest);
+  for (const args of [[], ["--wait"]]) {
+    const result = runProvider([app], args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /"action":"already-active"/);
+    assert.deepEqual(
+      result.calls.map((c) => c.method),
+      ["GET"],
+    );
+  }
+});
+
+test("fenced --wait verifies the newly applied generation without a duplicate PUT", () => {
+  const app = settledApp();
+  const result = runProvider([app], ["--wait"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    result.calls.map((c) => c.method),
+    ["GET", "POST", "GET", "PUT", "GET", "GET"],
+  );
+  assert.match(result.stdout, /"phase":"ACTIVE"/);
+});
+
+test("legacy unflagged callers retain existing update behavior", () => {
+  const app = settledApp(ltDigest);
+  const result = runProvider([app], [], ltDigest, false);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    result.calls.map((c) => c.method),
+    ["GET", "POST", "GET", "PUT"],
+  );
+});
 
 test("rollout pre-write readback rejects changed configuration and deployment identity", () => {
   const original = {
@@ -57,6 +362,13 @@ test("rollout pre-write readback rejects changed configuration and deployment id
 test("initial spec isolates runtime secrets and never deploys the migration owner", () => {
   const spec = createAppSpec(env);
   const json = JSON.stringify(spec);
+  assert.equal(spec.domains[0].domain, "api.grovenote.app");
+  for (const component of [...spec.services, ...spec.workers]) {
+    assert.equal(
+      component.envs.find(({ key }) => key === "SITE_URL").value,
+      "https://grovenote.app",
+    );
+  }
   assert(!json.includes("owner-password"));
   assert(!json.includes("MIGRATION_DATABASE_URL"));
   for (const [component, url] of [

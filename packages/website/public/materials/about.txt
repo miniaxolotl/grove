@@ -3,7 +3,7 @@ Grove
 
 Grove is a private notebook. Write notes, keep a journal and group pages into notebooks. Search by meaning and explore related notes. Connect OpenCode, Claude Code or Codex to the context you choose.
 
-Website: https://usegrove.cloud/
+Website: https://grovenote.app/
 
 Brand assets
 Use the supplied logo at its original proportions. Keep clear space around it.

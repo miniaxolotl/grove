@@ -215,9 +215,7 @@ test("empty and invalid file filters offer a safe path back to all uploads", asy
   await page
     .getByRole("link", { name: "View all uploads", exact: true })
     .click();
-  await expect(
-    page.getByText("No matching uploads", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("No uploads yet", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Open Ask Grove", exact: true }),
   ).toBeVisible();
@@ -233,6 +231,14 @@ test("empty and invalid file filters offer a safe path back to all uploads", asy
       },
     ),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Open Ask Grove", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Reset file search" }).click();
+  await expect(
+    page.getByRole("searchbox", { name: "Search files" }),
+  ).toHaveValue("");
+  await expect(page.getByText("No uploads yet", { exact: true })).toBeVisible();
 });
 test("Ask Grove, imports and settings expose the shared files destination", async ({
   page,

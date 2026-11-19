@@ -43,7 +43,7 @@ export const documentation = [
   {
     slug: "models",
     source: "models.md",
-    title: "Models and organized memory",
+    title: "Models and memory",
     sections: [
       ["Self-hosted configuration", "self-hosted-configuration"],
       ["Account AI preferences", "account-ai-preferences"],

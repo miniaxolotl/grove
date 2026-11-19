@@ -19,11 +19,8 @@ export function SiteFooter() {
           </div>
           <nav className="footer-links" aria-label="Resources">
             <p className="mb-3">Explore</p>
-            <Link href="/#features" className="footer-link">
-              Why Grove
-            </Link>
-            <Link href="/app" className="footer-link">
-              Your notebook
+            <Link href="/examples" className="footer-link">
+              Try the notebook
             </Link>
             <Link href="/pricing" className="footer-link">
               Pricing
@@ -33,9 +30,6 @@ export function SiteFooter() {
             </Link>
             <Link href="/docs" className="footer-link">
               Documentation
-            </Link>
-            <Link href="/self-host" className="footer-link">
-              Self-host Grove
             </Link>
           </nav>
           <div className="footer-links">
@@ -55,7 +49,7 @@ export function SiteFooter() {
                 rel="noopener noreferrer"
                 aria-label="Share Grove on X (opens a new tab)"
               >
-                X <ArrowUpRight size={12} aria-hidden="true" />
+                X
               </a>
               <a
                 className="footer-link"
@@ -64,7 +58,7 @@ export function SiteFooter() {
                 rel="noopener noreferrer"
                 aria-label="Share Grove on LinkedIn (opens a new tab)"
               >
-                LinkedIn <ArrowUpRight size={12} aria-hidden="true" />
+                LinkedIn
               </a>
               <a
                 className="footer-link"
@@ -73,7 +67,7 @@ export function SiteFooter() {
                 rel="noopener noreferrer"
                 aria-label="Share Grove on Bluesky (opens a new tab)"
               >
-                Bluesky <ArrowUpRight size={12} aria-hidden="true" />
+                Bluesky
               </a>
             </div>
           </div>

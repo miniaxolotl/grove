@@ -1,6 +1,6 @@
 # Grove website design kit
 
-Collection 04, 20 October 2026. Canonical home: https://usegrove.cloud.
+Collection 04, 20 October 2026. Canonical home: https://grovenote.app.
 
 ## Files
 

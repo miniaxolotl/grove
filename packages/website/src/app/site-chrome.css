@@ -128,6 +128,9 @@
   background: var(--brand-paper);
   box-shadow: 0 12px 20px -20px var(--brand-ink);
 }
+.site-header .header-account-icon {
+  display: none;
+}
 .site-header .header-menu nav > a {
   display: flex;
   align-items: center;
@@ -280,9 +283,11 @@
   }
 }
 @media (max-width: 359px) {
-  .site-header .site-brand > img {
-    width: 102px;
-    height: auto;
+  .site-header :is(.header-account-label, .header-account-arrow) {
+    display: none;
+  }
+  .site-header .header-account-icon {
+    display: block;
   }
 }
 @media (pointer: coarse) {

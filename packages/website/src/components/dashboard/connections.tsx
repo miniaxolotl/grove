@@ -2,20 +2,23 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { KeyRound, Plug } from "lucide-react";
+import { Clock3, KeyRound, Plug, Puzzle } from "lucide-react";
 import {
   capabilities,
   type Grant,
   type ConnectAttempt,
 } from "@lib/shared/contracts";
-import { errorMessage, type Project } from "@/lib/dashboard-api";
+import {
+  DashboardApiError,
+  errorMessage,
+  type Project,
+} from "@/lib/dashboard-api";
 import { useWorkspaceApi, useWorkspaceCache } from "./workspace-cache";
-import { Dialog } from "./dialog";
+import { Dialog, useDialogBusy } from "./dialog";
 import { LoadError } from "./load-error";
 import { AgentSetup } from "@/components/installation";
 import { ExtensionStoreLinks } from "@/components/extension-store-links";
 import { Button } from "./ui/button";
-import { Disclosure } from "./ui/disclosure";
 import { useNotebooks } from "./notebooks-provider";
 import { notebookOptions } from "@/lib/notebooks";
 import { useWorkspaceNavigationState } from "./workspace-navigation-state";
@@ -62,6 +65,7 @@ export function Connections({ origin }: { origin: string }) {
   const [actionError, setError] = useState("");
   const error = actionError || (query.error ? errorMessage(query.error) : "");
   const [selected, setSelected] = useState<Connection | "new" | null>(null);
+  const [agentOpen, setAgentOpen] = useState(false);
   const [secret, setSecret] = useState("");
   const [notice, setNotice] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
@@ -97,6 +101,8 @@ export function Connections({ origin }: { origin: string }) {
     );
   }
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<Connection | null>(null);
+  const [revokeError, setRevokeError] = useState("");
   const revokeLock = useRef(false);
   const reload = () => {
     setError("");
@@ -106,15 +112,17 @@ export function Connections({ origin }: { origin: string }) {
   async function revoke(id: string) {
     if (revokeLock.current) return;
     revokeLock.current = true;
+    setRevokeError("");
     setRevoking(id);
     try {
       await api(`/connections/${id}`, undefined, "DELETE");
+      setRevokeTarget(null);
       setError("");
       setNotice(
         "Connection revoked. Future Grove requests are denied; text already delivered to a chat cannot be retracted.",
       );
     } catch (e) {
-      setError(errorMessage(e));
+      setRevokeError(errorMessage(e));
     } finally {
       revokeLock.current = false;
       setRevoking(null);
@@ -128,53 +136,59 @@ export function Connections({ origin }: { origin: string }) {
       <p className="settings-section-description">
         Choose which notes each connection can read, save or delete.
       </p>
-      <section className="mb-4" aria-labelledby="get-browser-extension">
-        <h3 id="get-browser-extension" className="text-sm font-semibold">
-          Get the browser extension
-        </h3>
-        <ExtensionStoreLinks />
-      </section>
-      <details className="connection-setup">
-        <summary>
-          <Plug size={17} />
-          Connect an agent
-        </summary>
-        <section className="app-panel">
-          <div className="flex items-center gap-3">
-            <Plug size={20} />
-            <h2 className="font-editorial text-2xl">Connect an agent</h2>
-          </div>
-          <p className="mt-3 text-sm leading-7 text-muted">
-            Choose an app, sign in and approve its access. No terminal or API
-            key needed. You can change or revoke access here.
-          </p>
-          <div className="mt-4">
-            <AgentSetup origin={origin || undefined} />
-          </div>
-        </section>
-      </details>
-      <Disclosure
-        title="Advanced: API keys & headless clients"
-        className="connection-advanced"
+      <section
+        className="connection-methods mb-6"
+        aria-label="Add a connection"
       >
-        <p>
-          Use a named, scoped API key for automation or clients that cannot open
-          a browser. Both methods use the same memory permissions. Give each
-          integration its own key so you can revoke it independently.
-        </p>
-        <Button variant="secondary" onClick={() => setSelected("new")}>
-          <KeyRound size={16} />
-          Create API key
-        </Button>
-        <p>
-          For terminal setup, run <code>grove login --key-stdin</code> and
-          provide the key through standard input.
-        </p>
-      </Disclosure>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs leading-6 text-muted">
-          Just connected an app? Refresh to review its access.
-        </p>
+        <div className="connection-method">
+          <Puzzle size={18} aria-hidden="true" />
+          <div>
+            <h3>Browser extension</h3>
+            <p>Save and find notes in your desktop browser.</p>
+            <div className="mt-3">
+              <ExtensionStoreLinks settings />
+            </div>
+          </div>
+        </div>
+        <div className="connection-method">
+          <Plug size={18} aria-hidden="true" />
+          <div>
+            <h3>Agent or chat app</h3>
+            <p>Use your notes in ChatGPT, Claude or a coding agent.</p>
+          </div>
+          <Button
+            variant="secondary"
+            aria-haspopup="dialog"
+            onClick={() => setAgentOpen(true)}
+          >
+            Connect an agent
+          </Button>
+        </div>
+        <div className="connection-method">
+          <KeyRound size={18} aria-hidden="true" />
+          <div>
+            <h3>API key</h3>
+            <p>Give a script its own access to your notes.</p>
+          </div>
+          <Button
+            variant="secondary"
+            aria-haspopup="dialog"
+            onClick={() => setSelected("new")}
+          >
+            Create API key
+          </Button>
+        </div>
+      </section>
+      {agentOpen && (
+        <Dialog title="Connect an agent" close={() => setAgentOpen(false)}>
+          <AgentSetup origin={origin || undefined} />
+        </Dialog>
+      )}
+      <div className="connection-list-heading">
+        <div>
+          <h3>Your connections</h3>
+          <p>Revoke a connection to stop its access.</p>
+        </div>
         <Button
           variant="secondary"
           onClick={reload}
@@ -219,6 +233,43 @@ export function Connections({ origin }: { origin: string }) {
           )}
         </>
       )}
+      {revokeTarget && (
+        <Dialog
+          title="Revoke connection?"
+          close={() => setRevokeTarget(null)}
+          busy={!!revoking}
+        >
+          <p className="text-sm leading-6">
+            <strong className="break-words">{revokeTarget.name}</strong> will
+            lose access to Grove.{" "}
+            {revokeTarget.clientId
+              ? "To reconnect, approve access and sign in again from the app."
+              : "This API key cannot be used again."}
+          </p>
+          {revokeError && (
+            <p role="alert" className="app-error">
+              {revokeError}
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Button
+              variant="secondary"
+              data-autofocus
+              disabled={!!revoking}
+              onClick={() => setRevokeTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              disabled={!!revoking}
+              onClick={() => void revoke(revokeTarget.id)}
+            >
+              {revoking ? "Revoking…" : "Revoke access"}
+            </Button>
+          </div>
+        </Dialog>
+      )}
       {selected && (
         <Dialog
           title={
@@ -231,13 +282,15 @@ export function Connections({ origin }: { origin: string }) {
             projects={projects}
             done={(value) => {
               setNotice(
-                selected !== "new" &&
-                  selected.clientId &&
-                  !selected.capabilities.length
-                  ? "Access approved. Return to your chat, refresh or retry Grove, then ask it to save and recall a note to verify the connection."
-                  : selected === "new"
-                    ? ""
-                    : "Access updated.",
+                selected !== "new" && selected.revokedAt
+                  ? "Access reapproved. Sign in again from the app to use this connection."
+                  : selected !== "new" &&
+                      selected.clientId &&
+                      !selected.capabilities.length
+                    ? "Access approved. Return to your chat, refresh or retry Grove, then ask it to save and recall a note to verify the connection."
+                    : selected === "new"
+                      ? ""
+                      : "Access updated.",
               );
               setSelected(null);
               setSecret(value ?? "");
@@ -251,6 +304,10 @@ export function Connections({ origin }: { origin: string }) {
           <p className="text-sm leading-7 text-muted">
             Copy this key to your credential manager now. It will not be shown
             again.
+          </p>
+          <p className="mt-2 text-sm text-muted">
+            For terminal setup, pass the key to{" "}
+            <code>grove login --key-stdin</code> through standard input.
           </p>
           <textarea
             className="mt-5 w-full rounded-lg border border-line bg-white p-4 font-mono text-xs"
@@ -270,28 +327,76 @@ export function Connections({ origin }: { origin: string }) {
   function renderRows(rows: Connection[], hidden: boolean) {
     if (!rows.length) return null;
     return (
-      <ul className="space-y-3">
-        {rows.map((item) => (
-          <li
-            key={item.id}
-            id={`connection-${item.id}`}
-            className="app-panel connection-grant"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h2 className="font-medium">{item.name}</h2>
-                <p className="mt-2 text-xs text-muted">
-                  {item.revokedAt
-                    ? "Revoked"
-                    : item.expiresAt && new Date(item.expiresAt) < new Date()
-                      ? "Expired"
-                      : item.capabilities.length
-                        ? "Approved"
-                        : "Awaiting approval"}{" "}
-                  · {item.clientId ? "Browser OAuth" : "API key"}
+      <ul className="connection-list">
+        {rows.map((item) => {
+          const status = item.revokedAt
+            ? "Revoked"
+            : item.expiresAt && new Date(item.expiresAt) < new Date()
+              ? "Expired"
+              : item.capabilities.length
+                ? "Approved"
+                : "Awaiting approval";
+          return (
+            <li
+              key={item.id}
+              id={`connection-${item.id}`}
+              className="connection-grant"
+            >
+              <div className="connection-grant-main">
+                <div className="connection-grant-title">
+                  <h4>{item.name}</h4>
+                  <span className="connection-status" data-status={status}>
+                    {status}
+                  </span>
+                </div>
+                <p className="connection-grant-meta">
+                  <span>{item.clientId ? "Browser sign-in" : "API key"}</span>
+                  {!item.revokedAt && (
+                    <>
+                      <span>{accessSummary(item.capabilities)}</span>
+                      <span>{scopeSummary(item)}</span>
+                    </>
+                  )}
+                  <span className="connection-last-use">
+                    <Clock3 size={13} aria-hidden="true" />
+                    {item.lastUsedAt ? (
+                      <span>
+                        Last used{" "}
+                        <time dateTime={item.lastUsedAt}>
+                          {formatDate(item.lastUsedAt)}
+                        </time>
+                      </span>
+                    ) : (
+                      "Not used yet"
+                    )}
+                  </span>
                 </p>
+                {item.revokedAt && (
+                  <p className="connection-grant-note">
+                    {item.clientId
+                      ? "Reapprove access here, then sign in again from the app."
+                      : "This key cannot be used again. Create a new key if needed."}
+                  </p>
+                )}
+                <details className="connection-grant-details">
+                  <summary>Connection details</summary>
+                  <dl>
+                    {item.clientId && (
+                      <>
+                        <dt>Client</dt>
+                        <dd className="font-mono">{item.clientId}</dd>
+                      </>
+                    )}
+                    <dt>Created</dt>
+                    <dd>
+                      <time dateTime={item.createdAt}>
+                        {formatDate(item.createdAt)}
+                      </time>
+                    </dd>
+                  </dl>
+                </details>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="connection-grant-actions">
                 {item.setup?.status === "pending" && !item.revokedAt ? (
                   <Link
                     className="app-button secondary"
@@ -299,21 +404,30 @@ export function Connections({ origin }: { origin: string }) {
                   >
                     Continue setup
                   </Link>
-                ) : (
+                ) : !item.revokedAt || item.clientId ? (
                   <button
                     className="app-button secondary"
+                    aria-haspopup="dialog"
                     onClick={() => {
                       setNotice("");
                       setSelected(item);
                     }}
                   >
-                    {item.capabilities.length ? "Edit scope" : "Approve"}
+                    {item.revokedAt
+                      ? "Review reapproval"
+                      : item.capabilities.length
+                        ? "Edit scope"
+                        : "Approve"}
                   </button>
-                )}
+                ) : null}
                 {!item.revokedAt && (
                   <button
-                    className="app-button danger"
-                    onClick={() => revoke(item.id)}
+                    className="app-button quiet-danger"
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      setRevokeError("");
+                      setRevokeTarget(item);
+                    }}
                     disabled={revoking !== null}
                   >
                     {revoking === item.id ? "Revoking…" : "Revoke"}
@@ -330,37 +444,41 @@ export function Connections({ origin }: { origin: string }) {
                     </button>
                   )}
               </div>
-            </div>
-            <p className="mt-4 text-xs leading-6 text-muted">
-              {item.capabilities
-                .map((capability) => capabilityLabels[capability])
-                .join(" · ") || "No note access until approved"}
-              <br />
-              {item.personal
-                ? "Personal memories"
-                : "No personal access"} ·{" "}
-              {item.allProjects
-                ? "All notebooks"
-                : `${item.projectIds.length} selected notebooks`}
-            </p>
-            {item.clientId && (
-              <p className="mt-2 break-all font-mono text-[10px] text-muted">
-                Client: {item.clientId}
-              </p>
-            )}
-            <p className="mt-2 text-[10px] text-muted">
-              Created: {new Date(item.createdAt).toLocaleString()}
-              <br />
-              Last contact:{" "}
-              {item.lastUsedAt
-                ? new Date(item.lastUsedAt).toLocaleString()
-                : "Not yet"}
-            </p>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     );
   }
+}
+
+const accessVerbs = {
+  "memory:read": "read",
+  "memory:write": "save",
+  "memory:delete": "delete",
+};
+function accessSummary(capabilities: Connection["capabilities"]) {
+  if (!capabilities.length) return "No access until approved";
+  const verbs = capabilities.map((capability) => accessVerbs[capability]);
+  const text = verbs.join(", ");
+  return text[0].toUpperCase() + text.slice(1);
+}
+
+function scopeSummary(item: Connection) {
+  const notebooks = item.allProjects
+    ? "All notebooks"
+    : item.projectIds.length
+      ? `${item.projectIds.length} notebook${item.projectIds.length === 1 ? "" : "s"}`
+      : "";
+  if (notebooks) return item.personal ? `${notebooks} + personal` : notebooks;
+  return item.personal ? "Personal notes only" : "No notes";
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 export function BrowserConnectionApproval({ id }: { id: string }) {
@@ -478,30 +596,56 @@ function GrantForm({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
+  const setDialogBusy = useDialogBusy();
+  const [conflict, setConflict] = useState(false);
+  const canApproveAll =
+    !!connection?.state && !connection.revokedAt && !browserSetup;
+  const unavailable = conflict || (!!connection && !connection.state);
+  const invalidSelection =
+    !selected.length ||
+    (browserSetup &&
+      (!selected.some(
+        (cap) => cap === "memory:read" || cap === "memory:write",
+      ) ||
+        (!personal && !allProjects && !projectIds.length)));
   return (
     <form
       className="app-form"
       onSubmit={async (event) => {
         event.preventDefault();
-        if (submitting.current) return;
+        if (submitting.current || unavailable) return;
+        const all =
+          (event.nativeEvent as SubmitEvent).submitter?.getAttribute(
+            "value",
+          ) === "all-scopes";
+        if (all ? !canApproveAll : invalidSelection) return;
         submitting.current = true;
         setBusy(true);
+        setDialogBusy(true);
         setError("");
         try {
           const data = await api<{ secret?: string }>(
             connection ? `/connections/${connection.id}` : "/keys",
             {
               name,
-              capabilities: selected,
-              personal,
-              allProjects,
-              projectIds,
+              capabilities: all ? [...capabilities] : selected,
+              personal: all || personal,
+              allProjects: all || allProjects,
+              projectIds: all ? [] : projectIds,
               ...(connection?.clientId
-                ? { writingEnabled, sharingEnabled }
+                ? {
+                    writingEnabled: all || writingEnabled,
+                    sharingEnabled: all || sharingEnabled,
+                  }
                 : {}),
               ...(connection?.state ? { expectedState: connection.state } : {}),
               ...(expiry
-                ? { expiresAt: new Date(`${expiry}T23:59:59Z`).toISOString() }
+                ? {
+                    expiresAt:
+                      expiry === connection?.expiresAt?.slice(0, 10)
+                        ? connection.expiresAt
+                        : new Date(`${expiry}T23:59:59Z`).toISOString(),
+                  }
                 : {}),
             },
             connection ? "PATCH" : "POST",
@@ -509,9 +653,16 @@ function GrantForm({
           done(data.secret);
         } catch (e) {
           setError(errorMessage(e));
+          if (
+            e instanceof DashboardApiError &&
+            (e.code === "connection_conflict" ||
+              e.code === "connection_revoked")
+          )
+            setConflict(true);
         } finally {
           submitting.current = false;
           setBusy(false);
+          setDialogBusy(false);
         }
       }}
     >
@@ -663,6 +814,11 @@ function GrantForm({
           />
         </label>
       )}
+      {connection && !connection.state && (
+        <p role="alert" className="app-error">
+          Refresh Connections to load the current permissions before approving.
+        </p>
+      )}
       {error && (
         <p role="alert" className="app-error">
           {error}
@@ -670,18 +826,40 @@ function GrantForm({
       )}
       <button
         className="app-button"
-        disabled={
-          busy ||
-          !selected.length ||
-          (browserSetup &&
-            (!selected.some(
-              (cap) => cap === "memory:read" || cap === "memory:write",
-            ) ||
-              (!personal && !allProjects && !projectIds.length)))
-        }
+        disabled={busy || unavailable || invalidSelection}
       >
-        {busy ? "Saving…" : connection ? "Approve access" : "Create key"}
+        {busy
+          ? "Saving…"
+          : connection?.revokedAt
+            ? "Reapprove selected access"
+            : connection
+              ? "Approve access"
+              : "Create key"}
       </button>
+      {canApproveAll && (
+        <div className="border-t border-line pt-3">
+          <p
+            id="all-scopes-description"
+            className="mb-2 text-xs leading-5 text-muted"
+          >
+            Approving all scopes grants read, save and delete access to personal
+            notes and all current and future notebooks
+            {connection.clientId
+              ? ", plus AI writing tools and sharing links"
+              : ""}
+            , regardless of the boxes checked above.
+          </p>
+          <Button
+            type="submit"
+            value="all-scopes"
+            variant="secondary"
+            disabled={busy || unavailable}
+            aria-describedby="all-scopes-description"
+          >
+            Approve all scopes
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
+import { isDeepStrictEqual } from "node:util";
 import { InferenceError, type Source } from "@lib/ai";
 import { budgetedInference } from "./processing.ts";
 import { words } from "./notebook-relationships.ts";
@@ -27,6 +28,7 @@ import { taskTransaction, TaskError, type TaskHandler } from "./task-runner.ts";
 
 type BatchRow = {
   id: string;
+  initialDestination: ImportDestination;
   version: number;
   status: string;
   taskId: string | null;
@@ -160,11 +162,18 @@ export async function expireDocumentDrafts(trx: Knex.Transaction) {
 export class DocumentImports {
   constructor(private service: MemoryService) {}
   async create(principal: Principal, raw: unknown) {
-    const { id } = importBatchCreateSchema.parse(raw);
+    const { id, destination: initialDestination } =
+      importBatchCreateSchema.parse(raw);
     return this.service.access(principal, "admin", async ({ trx, account }) => {
       await expireDocumentDrafts(trx);
-      if (await trx("document_import_batches").where({ id }).first())
+      const previous = await trx<BatchRow>("document_import_batches")
+        .where({ id })
+        .first("initialDestination");
+      if (previous) {
+        if (!isDeepStrictEqual(previous.initialDestination, initialDestination))
+          throw changed();
         return { id };
+      }
       const active = await trx("document_import_batches")
         .where((q) =>
           q
@@ -182,9 +191,11 @@ export class DocumentImports {
           "Finish or cancel your current import first.",
           409,
         );
+      await destination(trx, initialDestination);
       await trx("document_import_batches").insert({
         id,
         accountId: account.id,
+        initialDestination: JSON.stringify(initialDestination),
       });
       return { id };
     });
@@ -385,6 +396,7 @@ export class DocumentImports {
         .select("destination");
       return {
         id: batch.id,
+        initialDestination: batch.initialDestination,
         version: batch.version,
         status: batch.status,
         taskId: batch.taskId,
@@ -855,6 +867,7 @@ export function documentImportHandlers(
               id: stableId([batchId, file.id, ordinal]),
               ordinal,
               content: part.content,
+              destination: JSON.stringify(batch.initialDestination),
               pageStart: part.pageStart,
               pageEnd: part.pageEnd,
               sourceStart: part.start,

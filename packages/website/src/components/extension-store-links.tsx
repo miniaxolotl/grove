@@ -20,8 +20,13 @@ const stores = [
   ],
 ] as const;
 
-// Marketing and Settings share the same neutral HTML. Only mark a store when
-// the browser identifies itself, not merely its underlying Chromium engine.
+const setupLabels = {
+  firefox: "Add to Firefox",
+  edge: "Add to Edge",
+  chrome: "Chrome setup guide",
+};
+
+// Recommend a store for a supported desktop browser, not its underlying engine.
 function desktopBrowser() {
   const ua = navigator.userAgent;
   const hints = (
@@ -50,8 +55,39 @@ function desktopBrowser() {
 const subscribe = () => () => {};
 const neutral = () => null;
 
-export function ExtensionStoreLinks() {
+export function ExtensionStoreLinks({
+  settings = false,
+}: { settings?: boolean } = {}) {
   const detected = useSyncExternalStore(subscribe, desktopBrowser, neutral);
+  if (settings)
+    return (
+      <div>
+        <ul
+          aria-label="Browser extension stores"
+          className="flex flex-wrap gap-2"
+        >
+          {stores.map(([browser, , href]) => (
+            <li key={browser}>
+              <a
+                className={`app-button ${detected === browser ? "primary" : "secondary"}`}
+                href={
+                  browser === "chrome" ? "/install#browser-extension" : href
+                }
+              >
+                {setupLabels[browser]}
+                {detected === browser && (
+                  <span className="sr-only"> (your browser)</span>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-xs text-muted">
+          For Chrome, follow the manual setup guide until the store listing is
+          available.
+        </p>
+      </div>
+    );
   return (
     <ul
       aria-label="Browser extension stores"

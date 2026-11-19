@@ -49,13 +49,26 @@ export async function preflightDatabases(env, dependencies) {
         await db.transaction(async (trx) => {
           await trx.raw("SET TRANSACTION READ ONLY");
           await probe(trx);
+          if (name === "worker") {
+            // LIMIT 0 checks shape and read grants without reading recipients or
+            // invoking queue/mail effects. regprocedure casts only resolve names.
+            await trx.raw(
+              "SELECT fingerprint, export_task_id, export_preparation_id FROM transactional_emails LIMIT 0",
+            );
+            await trx.raw(
+              "SELECT id, account_id, snapshot, due_at, attempts, lease_id, lease_until, dispatched_at, dispatch_id, dispatch_until, fingerprint, accepted_at, provider_id, failed_at, error_code FROM deletion_receipts LIMIT 0",
+            );
+            await trx.raw(
+              "SELECT 'public.grove_dispatch_receipts()'::regprocedure, 'public.grove_mark_receipt_dispatched(uuid,uuid)'::regprocedure, 'public.grove_claim_receipt(uuid)'::regprocedure, 'public.grove_sweep_receipts(boolean)'::regprocedure",
+            );
+          }
         });
       } finally {
         await db.destroy();
       }
     } catch {
       throw new Error(
-        `Production ${name} schema preflight failed. Verify connectivity and runtime grants, then have the migration owner apply the admitted source's pending forward migrations before retrying. Migration 033 provides action_usage.units; migration 044 provides proofing_consents. No migrations were run by this check.`,
+        `Production ${name} schema preflight failed. Verify connectivity and runtime grants, then have the migration owner apply the admitted source's pending forward migrations before retrying. Migrations 045–048 provide import destination, email fingerprints, deletion receipts and lifecycle reconciliation. No migrations were run by this check.`,
       );
     }
   }

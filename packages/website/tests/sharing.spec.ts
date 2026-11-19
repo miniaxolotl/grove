@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
+import { newShareToken } from "./fixtures/share-token";
 
 const token = (letter: string) => `gsh_${letter.repeat(43)}`;
 const fixture = `http://127.0.0.1:${process.env.SHARING_TEST_PORT || 4378}`;
@@ -26,7 +27,7 @@ test("configured authentication stays off public readers and marketing pages", a
     if (identity.test(request.url())) requests.push(request.url());
   });
   await page.route(identity, (route) => route.abort());
-  const failure = token("E");
+  const failure = newShareToken();
   await request.post(`${fixture}/_fixture/${failure}`, {
     data: { failed: true },
   });
@@ -41,6 +42,11 @@ test("configured authentication stays off public readers and marketing pages", a
       "/privacy",
     ]) {
       await page.goto(path);
+      if (path === `/s/${failure}`) {
+        await expect(
+          page.getByRole("heading", { name: "Could not open this link" }),
+        ).toBeVisible();
+      }
       await page.waitForLoadState("networkidle");
       expect(requests, path).toEqual([]);
       await expect(page.locator("script[data-clerk-js-script]")).toHaveCount(0);
@@ -121,7 +127,7 @@ test.describe("server-rendered sharing", () => {
     request,
   }) => {
     await page.setViewportSize({ width: 320, height: 720 });
-    const key = token("Q");
+    const key = newShareToken();
     const response = await request.post(`${fixture}/_fixture/${key}`, {
       data: {
         title: "Library notes",
@@ -151,7 +157,7 @@ test.describe("server-rendered sharing", () => {
     page,
     request,
   }) => {
-    const key = token("F");
+    const key = newShareToken();
     const heading = `${"A long heading worth keeping in full ".repeat(5)}THE_END`;
     await request.post(`${fixture}/_fixture/${key}`, {
       data: {
@@ -203,7 +209,7 @@ test("saved edits are live and revoked links cannot be revived by reload or hist
   page,
   request,
 }) => {
-  const key = token("C");
+  const key = newShareToken();
   await request.post(`${fixture}/_fixture/${key}`, { data: {} });
   await page.goto(`/s/${key}`);
   await expect(page.getByText("Keep the useful details.")).toBeVisible();
@@ -235,7 +241,7 @@ test("missing links and temporary upstream failures have distinct recoverable st
   await expect(
     page.getByRole("heading", { name: "This link is unavailable" }),
   ).toBeVisible();
-  const key = token("D");
+  const key = newShareToken();
   for (const failure of ["failed", "malformed", "invalidSchema"]) {
     await request.post(`${fixture}/_fixture/${key}`, {
       data: { [failure]: true },
