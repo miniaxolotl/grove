@@ -44,11 +44,21 @@ approval/revocation enqueue generic transactional notifications atomically with
 the account change. Existing accounts are not backfilled with welcome emails.
 Clerk continues to handle authentication email.
 
-The worker resolves only the current verified primary Clerk email, checks the
+For ordinary mail the worker resolves only the current verified primary Clerk email, checks the
 account is active, and sends HTML plus plain text without note content. A stable
 Resend idempotency key protects retries. Transient failures retry up to five times;
 delivery stops after23 hours, within Resend's24-hour deduplication window. Recovery
-discards restored pending mail.
+discards restored pending mail. The optional [account deletion receipt](jobs.md#account-deletion-receipts)
+uses a short-lived encrypted snapshot from before access ended.
+
+Retries pin a keyed request fingerprint before contacting Resend. If a recipient,
+sender, template, site origin or sending key changes after the first attempt,
+delivery stops with `email_payload_changed` instead of changing the payload under
+the same idempotency key. Inspect that state before considering a manual resend;
+the first request may already have been accepted. The snapshot is not a copy of
+the message body or recipient address. Optional export notices are enabled with
+`EMAIL_EXPORT_READY_ENABLED=true` on the worker only after sender validation;
+the default is off. See [exports](jobs.md#exports-and-storage).
 
 Cloud's intended From domain is `grovenote.app`. Verify **its own** Resend DNS
 records, sending-key authorization and DMARC alignment before changing the
@@ -64,11 +74,13 @@ synthetic data. Provider acceptance is not proof of inbox delivery.
 
 ## Rollout and checks
 
-Back up the database, stop API/worker, apply forward migrations
-`20261020_006_memory_lifetimes` and `20261020_007_background_services`, then deploy
-the matching API/worker before the website. Keep the same model configuration on
-both processes. Earlier clients can omit retention fields and preserve existing
-expiry when editing.
+Use the [owner migration procedure](operations/schema.md) to back up and drain
+the current API/worker before applying pending forward migrations. This email
+release requires `20261119_046_export_ready_email` and
+`20261119_047_deletion_receipt`. Do not repeat already-applied historical migrations.
+Deploy compatible readers/workers before enabling new producers and then deploy
+the website. Both new email types default off; enable separately after validating
+the sender and, for deletion receipts, encryption key and retention controls.
 
 Inspect `broker_connected`, `broker_retry`, `organization_scheduled`, and
 `worker_retry` log codes; check database `jobs` and `transactional_emails` status,

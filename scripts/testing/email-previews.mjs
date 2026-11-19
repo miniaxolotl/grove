@@ -1,3 +1,7 @@
+/* global fetch, AbortSignal */
+import process from "node:process";
+import console from "node:console";
+import { setTimeout as delay } from "node:timers/promises";
 // Offline by default. The same synthetic letters can be submitted to an explicitly
 // selected review inbox; no application database or customer account is used.
 import { mkdir, writeFile } from "node:fs/promises";
@@ -36,7 +40,7 @@ for (const event of events) {
     continue;
   }
   const body = JSON.stringify({
-    from: "Grove <notifications@grovenote.app>",
+    from: `Grove <${process.env.EMAIL_FROM || "notifications@grovenote.app"}>`,
     to: [target],
     ...message,
   });
@@ -58,5 +62,5 @@ for (const event of events) {
   if (!id) throw Error("Resend acceptance unknown: missing message ID");
   console.log(`${event.kind}: accepted (${id})`);
   // Stay below the provider's default per-second rate limit.
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await delay(600);
 }
