@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 50
     outputs:
       mode: ${{ steps.scope.outputs.mode }}
+      checker: ${{ steps.scope.outputs.checker }}
       sha: ${{ steps.candidate.outputs.sha }}
       tag: ${{ steps.candidate.outputs.tag }}
       version: ${{ steps.candidate.outputs.version }}
@@ -161,8 +162,9 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Publish or verify the approved private checker image
         id: checker
+        if: needs.candidate.outputs.checker == 'true'
         run: bash scripts/release/checker-image.sh
-      - name: Validate approved three-service proposal before npm publication
+      - name: Validate the admitted topology before npm publication
         env:
           GROVE_IMAGE_DIGEST: ${{ steps.existing.outputs.digest || steps.build.outputs.digest }}
           CHECKER_DIGEST: ${{ steps.checker.outputs.digest }}
@@ -172,7 +174,11 @@ jobs:
           tag="miniaxolotl/grove:sha-$RELEASE_SOURCE_SHA"
           docker buildx imagetools create --prefer-index=false --tag "$tag" "ghcr.io/miniaxolotl/grove@$GROVE_IMAGE_DIGEST"
           test "$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')" = "$GROVE_IMAGE_DIGEST"
-          node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --propose
+          if [[ -n "$CHECKER_DIGEST" ]]; then
+            node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --propose
+          else
+            node scripts/deploy-digitalocean.mjs --propose
+          fi
       - name: Publish all coordinated npm artifacts
         run: node scripts/publish.mjs
       - id: image
@@ -235,7 +241,12 @@ jobs:
       - name: Deploy the verified image to API and worker
         env:
           CHECKER_DIGEST: ${{ needs.publish.outputs.checker }}
-        run: node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --wait
+        run: |
+          if [[ -n "$CHECKER_DIGEST" ]]; then
+            node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --wait
+          else
+            node scripts/deploy-digitalocean.mjs --wait
+          fi
       - name: Verify production API readiness
         run: curl --fail --retry 5 --max-time 30 https://api.grovenote.app/health/ready
 
