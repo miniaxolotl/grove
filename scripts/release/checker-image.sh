@@ -8,7 +8,7 @@ tag="$repo:languagetool-sha-$RELEASE_SOURCE_SHA"
 err=$(mktemp); trap 'rm -f "$err"' EXIT
 if ! digest=$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}' 2>"$err"); then
   grep -Eqi 'not found|manifest unknown|no such manifest' "$err" || { cat "$err" >&2; exit 1; }
-  docker buildx build --platform linux/amd64 --provenance --sbom --push --tag "$tag" \
+  docker buildx build --platform linux/amd64 --provenance=mode=max --sbom=true --push --tag "$tag" \
     --label "org.opencontainers.image.revision=$RELEASE_SOURCE_SHA" \
     --label org.opencontainers.image.source=https://github.com/miniaxolotl/grove \
     --label org.opencontainers.image.title=grove-private-languagetool \
