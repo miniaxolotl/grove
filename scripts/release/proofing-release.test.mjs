@@ -3,11 +3,11 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { route } from "./proofing-release.mjs";
 import { updateImageSpec, findDeployment } from "../deploy-digitalocean.mjs";
-const base = "1a03079f088612c7d0333ff169197d58508c3a86",
+const base = "947a4e62c5c84a4c34ef540a0dacfa7ebe06b187",
   merged = "a".repeat(40),
   stamp = "b".repeat(40);
 const pr = {
-  number: 282,
+  number: 289,
   base: { ref: "development" },
   merged: true,
   merge_commit_sha: merged,
@@ -22,7 +22,7 @@ function fixture(extra = "", edit = () => {}) {
           ? base
           : merged,
     read: (ref, path) => {
-      const ver = ref === merged ? "1.11.25" : "1.11.26";
+      const ver = ref === merged ? "1.11.26" : "1.11.27";
       const value =
         path === "release-please-config.json"
           ? globalThis.structuredClone(manifest)
