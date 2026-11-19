@@ -151,7 +151,10 @@ test("website publishes only after build and current-ref checks, then verifies e
 
 test("website-only delivery requires exact scope and live backend verification before deployment", () => {
   const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
-  assert.match(workflow, /website:\n\s+needs: \[candidate, website-scope, deploy\]/);
+  assert.match(
+    workflow,
+    /website:\n\s+needs: \[candidate, website-scope, publish, deploy\]/,
+  );
   const website = workflow.split("\n  website:\n")[1];
   assert.doesNotMatch(website, /always\(\)|continue-on-error/);
   assert.match(website, /ref: \$\{\{ needs.candidate.outputs.sha \}\}/);

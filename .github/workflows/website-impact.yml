@@ -45,6 +45,24 @@ jobs:
           bash scripts/release/hydrate-impact.sh "$EXPECTED_SOURCE"
           pnpm install --offline --frozen-lockfile
           node scripts/release/select-website.mjs
+      - if: steps.scope.outputs.mode == 'selected'
+        name: Verify owner-selected source and every unchanged installer before any write
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SOURCE: ${{ inputs.source }}
+          npm_config_store_dir: ${{ runner.temp }}/grove-impact-store
+        run: |
+          node scripts/release/selected-decision.mjs prepare "$EXPECTED_SOURCE"
+          bash scripts/release/hydrate-impact.sh "$EXPECTED_SOURCE" selected-receipts.json
+          pnpm install --offline --frozen-lockfile
+          node scripts/release/selected-decision.mjs verify "$EXPECTED_SOURCE"
+      - if: steps.scope.outputs.mode == 'selected'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: selected-decision-${{ inputs.source }}-${{ github.run_attempt }}
+          path: selected-decision.json
+          if-no-files-found: error
+          retention-days: 90
       - if: steps.scope.outputs.mode == 'website-only'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

@@ -4,9 +4,16 @@ import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { assertCurrentRef, workflowContext } from "../ci/current-ref.mjs";
 import { readGitHubJson } from "../ci/github-json.mjs";
-const receipts = JSON.parse(
-  readFileSync("scripts/release/impact-receipts.json"),
-).targets;
+import { resolveDecision } from "./selected-decision.mjs";
+import { selectedServiceReadback } from "./selected-retry.mjs";
+const selected = process.env.RELEASE_DECISION_HASH
+  ? resolveDecision(process.env.RELEASE_SOURCE_SHA, true)
+  : null;
+if (process.env.RELEASE_DECISION_HASH)
+  assert.equal(selected?.hash, process.env.RELEASE_DECISION_HASH);
+const receipts =
+  selected?.manifest.receipts ??
+  JSON.parse(readFileSync("scripts/release/impact-receipts.json")).targets;
 async function json(url, token) {
   const response = await globalThis.fetch(url, {
     redirect: "error",
@@ -30,9 +37,13 @@ const { app } = await json(
   env.DIGITALOCEAN_ACCESS_TOKEN,
 );
 assert.equal(app.id, env.DIGITALOCEAN_APP_ID);
-assert.equal(app.active_deployment.id, service.deploymentId);
-assert.equal(app.active_deployment.phase, "ACTIVE");
-assert(!app.in_progress_deployment && !app.pending_deployment);
+const completedService = selectedServiceReadback(
+  app,
+  service,
+  selected?.manifest.deliver.includes("service")
+    ? env.GROVE_SELECTED_IMAGE_DIGEST || null
+    : null,
+);
 for (const [role, name] of [
   ["services", "api"],
   ["workers", "worker"],
@@ -42,7 +53,10 @@ for (const [role, name] of [
   assert.equal(entries[0].name, name);
   assert.equal(entries[0].image.registry, "miniaxolotl");
   assert.equal(entries[0].image.repository, "grove");
-  assert.equal(entries[0].image.digest, service.imageDigest);
+  assert.equal(
+    entries[0].image.digest,
+    completedService ? env.GROVE_SELECTED_IMAGE_DIGEST : service.imageDigest,
+  );
 }
 const repo = "miniaxolotl/grove";
 const download = receipts.downloads;
