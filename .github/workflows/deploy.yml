@@ -208,6 +208,7 @@ jobs:
         if: needs.candidate.outputs.checker == 'true'
         run: bash scripts/release/checker-image.sh
       - name: Validate the admitted topology before npm publication
+        if: needs.candidate.outputs.held != 'true'
         env:
           GROVE_IMAGE_DIGEST: ${{ steps.existing.outputs.digest || steps.build.outputs.digest }}
           CHECKER_DIGEST: ${{ steps.checker.outputs.digest }}

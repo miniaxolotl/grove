@@ -57,3 +57,11 @@ test("held builds and durable pending/publication receipts precede any effect re
     /resolveHeldDecision/,
   );
 });
+test("publication-only held runs never invoke the legacy provider proposal POST", () => {
+  const step = workflow
+    .split(
+      "      - name: Validate the admitted topology before npm publication\n",
+    )[1]
+    .split("      - name: Publish all coordinated npm artifacts")[0];
+  assert.match(step, /if: needs\.candidate\.outputs\.held != 'true'/);
+});
