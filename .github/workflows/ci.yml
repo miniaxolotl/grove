@@ -249,6 +249,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm exec eslint ops/held-operator
+      - name: Verify isolated held-operator authority and process regressions
+        run: |
+          shopt -s nullglob
+          operator_tests=()
+          for file in ops/held-operator/*.test.mjs; do
+            [[ "$file" != ops/held-operator/fixture.test.mjs ]] || continue
+            operator_tests+=("$file")
+          done
+          test "${#operator_tests[@]}" -gt 0
+          node --test --test-concurrency=1 "${operator_tests[@]}"
       - run: node --test tests/digitalocean.test.mjs
       - run: node --test scripts/release/*.test.mjs
       - run: pnpm check-types

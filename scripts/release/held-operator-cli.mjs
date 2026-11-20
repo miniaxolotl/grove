@@ -34,6 +34,13 @@ import {
   readProviderResponse,
 } from "../deploy-digitalocean.mjs";
 import { readGitHubJson } from "../ci/github-json.mjs";
+import { qualifyIndependent } from "./held-operator-qualification.mjs";
+import { validateCompleteInstanceInventory } from "./held-instance-inventory.mjs";
+import { createProviderDispatch } from "./held-operator-provider-io.mjs";
+import {
+  verifyOperatorRoot,
+  readTrustedPin,
+} from "./held-operator-bootstrap.mjs";
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const phaseFor = {
   restore: "published_held",
@@ -50,17 +57,26 @@ try {
   const [verb, ...args] = process.argv.slice(2);
   if (!verb) {
     process.stdout.write(
-      "Usage: node scripts/release/held-operator-cli.mjs plan|execute|reconcile --operator-root <qualified independent directory> --request <private scoped JSON>\n",
+      "Usage: node scripts/release/held-operator-cli.mjs plan|execute|reconcile|resolve|resolve-idle --operator-root <qualified independent directory> --request <private scoped JSON>\n",
     );
   } else {
-    assert(["plan", "execute", "reconcile"].includes(verb));
+    assert(
+      ["plan", "execute", "reconcile", "resolve", "resolve-idle"].includes(
+        verb,
+      ),
+    );
     assert.equal(args.length, 4);
     assert.equal(args[0], "--operator-root");
     assert.equal(args[2], "--request");
-    const root = pathToFileURL(resolve(args[1]) + "/");
+    const root = pathToFileURL(
+      (await verifyOperatorRoot(resolve(args[1]), await readTrustedPin())) +
+        "/",
+    );
     const control = await import(new URL("operator-control.mjs", root).href),
       plans = await import(new URL("operator-plan.mjs", root).href);
-    const manifest = await plans.operatorManifest();
+    const manifest = await plans.operatorManifest({
+      readOnly: verb !== "execute",
+    });
     if (!manifest.executionAdmitted || manifest.hardBlock) {
       process.stdout.write(
         JSON.stringify({
@@ -128,7 +144,7 @@ try {
         parent,
         command,
         Date.now(),
-        verb === "reconcile",
+        verb !== "execute" && verb !== "plan",
       );
       current();
       const backupReceipt = await control.readPrivate(request.backupReceipt);
@@ -139,8 +155,12 @@ try {
       });
       validateBackupCustody(command, backupReceipt, backupJournal, ciphertext);
       const external = await import(new URL("operator-io.mjs", root).href);
-      const token = await external.secret("DIGITALOCEAN_ACCESS_TOKEN"),
-        appId = await external.secret("DIGITALOCEAN_APP_ID");
+      const token = await external.secret("DIGITALOCEAN_ACCESS_TOKEN", {
+          readOnly: verb !== "execute",
+        }),
+        appId = await external.secret("DIGITALOCEAN_APP_ID", {
+          readOnly: verb !== "execute",
+        });
       assert.equal(appId, p.evidence.baseline.app);
       const remote = async (path, body) => {
         const response = await globalThis.fetch(
@@ -151,7 +171,14 @@ try {
               Authorization: `Bearer ${token}`,
               ...(body ? { "Content-Type": "application/json" } : {}),
             },
-            ...(body ? { body: JSON.stringify({ spec: body }) } : {}),
+            ...(body
+              ? {
+                  body: JSON.stringify({
+                    spec: body,
+                    update_all_source_versions: false,
+                  }),
+                }
+              : {}),
             redirect: "error",
             signal: globalThis.AbortSignal.timeout(30000),
           },
@@ -161,12 +188,7 @@ try {
       const getApp = async () => (await remote(`/v2/apps/${appId}`)).app;
       const getInstances = async () => {
         const page = await remote(`/v2/apps/${appId}/instances`);
-        assert(
-          Array.isArray(page.instances) &&
-            !page.links?.pages?.next &&
-            !page.meta?.next_cursor,
-        );
-        return page.instances;
+        return validateCompleteInstanceInventory(page);
       };
       const observe = async () => {
         const app = await getApp();
@@ -189,7 +211,7 @@ try {
       };
       if (
         command.action === "restore" &&
-        verb !== "reconcile" &&
+        ["execute", "plan"].includes(verb) &&
         (await observe()).settings !== command.proposed
       ) {
         const hosted = await import(new URL("operator-hosted.mjs", root).href);
@@ -206,7 +228,7 @@ try {
         );
         const lifecycle = await control.readPrivate(request.lifecycleCustody),
           remote = await control.readPrivate(request.remoteCustody);
-        backup.validateCustody({
+        await backup.validateCustody({
           lifecycle,
           remote,
           held,
@@ -219,38 +241,91 @@ try {
         getInstances,
         probe: (scope) => probeConsole(scope),
       };
+      let providerSubmitted = false;
       const io = {
-        qualify: async () => {
-          current();
-          const fresh = await plans.operatorManifest();
-          assert.equal(fresh.hash, manifest.hash);
-          validateBackupCustody(
-            command,
-            await control.readPrivate(request.backupReceipt),
-            await control.readJournal(request.backupJournal),
-            await control.readPrivate(request.backupCiphertext, {
-              json: false,
-              max: 256 * 1024 * 1024,
-            }),
-          );
-          return { ...fresh, manifest: fresh.hash, custody: command.custody };
-        },
+        qualify: (scope) =>
+          qualifyIndependent(
+            {
+              current,
+              plans,
+              manifest,
+              command,
+              external,
+              validateCustody: async () =>
+                validateBackupCustody(
+                  command,
+                  await control.readPrivate(request.backupReceipt),
+                  await control.readJournal(request.backupJournal),
+                  await control.readPrivate(request.backupCiphertext, {
+                    json: false,
+                    max: 256 * 1024 * 1024,
+                  }),
+                ),
+            },
+            scope,
+          ),
         journal: (id, initial) =>
           control.openJournal(request.journalDirectory, id, initial),
         readJournal: (id) =>
           control.readJournal(`${request.journalDirectory}/${id}.jsonl`),
         getState: observe,
-        verify: observe,
-        specFingerprint: (spec) => appStateFingerprint({ id: appId, spec }),
-        put: async (spec) => {
-          current();
-          await remote(`/v2/apps/${appId}`, spec);
+        verify: async () => {
+          const state = await observe();
+          if (verb === "execute" && providerSubmitted)
+            await external.finishProviderWrite(command, state, {
+              digest: p.release.digest,
+            });
+          else if (verb === "reconcile")
+            await external.readbackProviderWrite(command, state, {
+              digest: p.release.digest,
+            });
+          return state;
         },
+        specFingerprint: (spec) => appStateFingerprint({ id: appId, spec }),
+        put: createProviderDispatch({
+          observe,
+          current,
+          external,
+          command,
+          digest: p.release.digest,
+          validate: () =>
+            validateOperatorCommand(p, parent, command, Date.now()),
+          submit: async (spec) => {
+            providerSubmitted = true;
+            await remote(`/v2/apps/${appId}`, spec);
+          },
+        }),
+        assertExclusiveWindow: (approved, state) =>
+          external.assertExclusiveWindow(approved, state, {
+            digest: p.release.digest,
+          }),
       };
-      if (["admit", "handoff", "open-public"].includes(command.action)) {
-        const { createDatabase, probeDatabase } = await import("@lib/database");
+      if (verb === "resolve-idle") {
+        await io.qualify({
+          source: manifest.source,
+          publication: receiptHash(p),
+          command: receiptHash(command),
+          action: command.action,
+          consume: false,
+        });
+        await external.resolveIdleWrite(command, await observe(), {
+          digest: p.release.digest,
+        });
+        process.stdout.write(
+          JSON.stringify({
+            authorityOnly: true,
+            resolved: true,
+            reopen: false,
+          }) + "\n",
+        );
+      } else if (["admit", "handoff", "open-public"].includes(command.action)) {
+        const { createDatabase } = await external.databaseLibrary({
+          readOnly: verb !== "execute",
+        });
         const sql = await import(new URL("window-db.mjs", root).href);
-        const url = await external.secret("MIGRATION_DATABASE_URL");
+        const url = await external.secret("MIGRATION_DATABASE_URL", {
+          readOnly: verb !== "execute",
+        });
         sql.assertOwnerTarget(url);
         db = createDatabase(url, {
           ssl: true,
@@ -258,7 +333,11 @@ try {
           acquireTimeoutMs: 10000,
           statementTimeoutMs: 10000,
         });
-        await probeDatabase(db);
+        await sql.verifyOwnerDatabase(db);
+        io.prepareDatabaseWrite = (...values) =>
+          external.prepareDatabaseWrite(...values);
+        io.finishDatabaseWrite = (...values) =>
+          external.finishDatabaseWrite(...values);
         io.applyDatabase = (...values) =>
           applyLifecycleTransition(db, sql.boundedTransaction, ...values);
         io.verifyDatabase = (...values) =>
@@ -272,18 +351,33 @@ try {
               execution: false,
             }) + "\n",
           );
-        else if (verb === "reconcile") {
+        else if (verb === "reconcile" || verb === "resolve") {
+          await io.qualify({
+            source: manifest.source,
+            publication: receiptHash(p),
+            command: receiptHash(command),
+            action: command.action,
+            consume: false,
+          });
           const journal = await io.readJournal(command.id);
           assert(
             !journal.requiresReconciliation &&
               journal.records[0]?.approvalHash === receiptHash(command),
           );
-          await verifyLifecycleTransition(db, p, parent, command);
+          const proof = await verifyLifecycleTransition(db, p, parent, command);
+          await external.readbackDatabaseWrite(command, await observe(), proof);
+          if (verb === "resolve")
+            await external.resolveDatabaseWrite(
+              command,
+              await observe(),
+              proof,
+            );
           process.stdout.write(
             JSON.stringify({
               action: command.action,
               verified: true,
-              readOnly: true,
+              readOnly: verb === "reconcile",
+              authorityOnly: verb === "resolve",
             }) + "\n",
           );
         } else {
@@ -297,9 +391,13 @@ try {
           );
         }
       } else {
-        if (verb === "reconcile")
+        if (verb === "reconcile" || verb === "resolve") {
           await reconcileProviderTransition(p, parent, command, io);
-        else {
+          if (verb === "resolve")
+            await external.resolveProviderWrite(command, await observe(), {
+              digest: p.release.digest,
+            });
+        } else {
           const before = await observe();
           let spec;
           const params = [before.app, before.instances, p, parent];
