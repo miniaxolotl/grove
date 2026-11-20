@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.32](https://github.com/miniaxolotl/grove/compare/v1.11.31...v1.11.32) (2026-11-20)
+
+
+### Bug Fixes
+
+* **release:** qualify durable operator authority and fences ([#322](https://github.com/miniaxolotl/grove/issues/322)) ([2aae1a3](https://github.com/miniaxolotl/grove/commit/2aae1a3bd88f63e1d2e99eed25041dc00193a81a))
+
 ## [1.11.31](https://github.com/miniaxolotl/grove/compare/v1.11.30...v1.11.31) (2026-11-19)
 
 
