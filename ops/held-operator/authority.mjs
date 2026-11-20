@@ -1,13 +1,14 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath, URL } from "node:url";
 import { need, hashJSON } from "./operator-control.mjs";
+import { pythonExecutable, isolatedPythonArgs } from "./python.mjs";
 const script = fileURLToPath(new URL("./authority.py", import.meta.url));
 export async function authorityRequest(
   request,
   { crashAfterCommit = false } = {},
 ) {
   return new Promise((resolve, reject) => {
-    const p = spawn("/usr/bin/python3", ["-I", script], {
+    const p = spawn(pythonExecutable, isolatedPythonArgs(script), {
       stdio: ["pipe", "pipe", "ignore"],
       env: crashAfterCommit
         ? { GROVE_AUTHORITY_FIXTURE_CRASH: "after_commit" }

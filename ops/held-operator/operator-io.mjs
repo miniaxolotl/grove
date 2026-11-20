@@ -7,6 +7,7 @@ import { need } from "./operator-control.mjs";
 import { assertOwnerTarget } from "./window-db.mjs";
 import { pinDirectory } from "./pinned-path.mjs";
 import { fileURLToPath, URL } from "node:url";
+import { pythonExecutable, isolatedPythonArgs } from "./python.mjs";
 export const IMAGE =
   "sha256:034acfb28d52ed83fe284f4d5309b4bbfd090c9d374148e82e05b4dc20afd9d8";
 export const CA = "/etc/ssl/certs/ca-certificates.crt";
@@ -23,8 +24,10 @@ export async function runProcess(
     const env = { ...process.env };
     delete env.NODE_TEST_CONTEXT;
     const p = spawn(
-      "/usr/bin/python3",
-      ["-I", "-B", fileURLToPath(new URL("./subprocess.py", import.meta.url))],
+      pythonExecutable,
+      isolatedPythonArgs(
+        fileURLToPath(new URL("./subprocess.py", import.meta.url)),
+      ),
       {
         detached: true,
         stdio: ["pipe", "pipe", "ignore"],

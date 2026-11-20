@@ -16,6 +16,7 @@ import { createControl } from "./operator-control.mjs";
 import { createQualifier } from "./qualification.mjs";
 import { hashJSON } from "./operator-control.mjs";
 import { runProcess } from "./operator-io.mjs";
+import { pythonExecutable, isolatedPythonArgs } from "./python.mjs";
 import { fileURLToPath, URL } from "node:url";
 import { setTimeout as wait } from "node:timers/promises";
 const api = await import("./authority.mjs").catch((e) => {
@@ -287,13 +288,14 @@ test("existing authority in the wrong journal mode is rejected without repair or
       id: randomUUID(),
       custodyId: randomUUID(),
     });
-    await runProcess("/usr/bin/python3", [
-      "-I",
-      "-B",
-      "-c",
-      'import sqlite3,sys;d=sqlite3.connect(sys.argv[1]);assert d.execute("PRAGMA journal_mode=DELETE").fetchone()[0]=="delete";d.close()',
-      d.root + "/authority.sqlite3",
-    ]);
+    await runProcess(
+      pythonExecutable,
+      isolatedPythonArgs(
+        "-c",
+        'import sqlite3,sys;d=sqlite3.connect(sys.argv[1]);assert d.execute("PRAGMA journal_mode=DELETE").fetchone()[0]=="delete";d.close()',
+        d.root + "/authority.sqlite3",
+      ),
+    );
     const bytes = await readFile(d.root + "/authority.sqlite3");
     await assert.rejects(api.openAuthority(d).status(), /WAL_REQUIRED/);
     assert.deepEqual(await readFile(d.root + "/authority.sqlite3"), bytes);
@@ -315,14 +317,15 @@ test("reservation expiring while queued on the real cross-process authority lock
       id: randomUUID(),
       custodyId: randomUUID(),
     });
-    locker = runProcess("/usr/bin/python3", [
-      "-I",
-      "-B",
-      "-c",
-      'import fcntl,sys,time;f=open(sys.argv[1],"rb");fcntl.flock(f,fcntl.LOCK_EX);open(sys.argv[2],"w").write("locked");time.sleep(0.5)',
-      d.root + "/authority.sqlite3",
-      base + "/locked",
-    ]);
+    locker = runProcess(
+      pythonExecutable,
+      isolatedPythonArgs(
+        "-c",
+        'import fcntl,sys,time;f=open(sys.argv[1],"rb");fcntl.flock(f,fcntl.LOCK_EX);open(sys.argv[2],"w").write("locked");time.sleep(0.5)',
+        d.root + "/authority.sqlite3",
+        base + "/locked",
+      ),
+    );
     let locked = false;
     for (let i = 0; i < 200; i++) {
       try {

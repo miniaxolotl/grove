@@ -17,6 +17,7 @@ import { need, sha } from "./operator-control.mjs";
 import { runProcess } from "./operator-io.mjs";
 import { verifySource } from "./qualification.mjs";
 import { pinDirectory } from "./pinned-path.mjs";
+import { pythonExecutable, isolatedPythonArgs } from "./python.mjs";
 
 export async function stageTrustedInstall({
   repository,
@@ -191,22 +192,21 @@ export async function stageTrustedInstall({
     const script = fileURLToPath(new URL("./authority.py", import.meta.url));
     const toolchain = JSON.parse(
       (
-        await runProcess("/usr/bin/python3", [
-          "-I",
-          "-B",
-          script,
-          "--toolchain",
-        ])
+        await runProcess(
+          pythonExecutable,
+          isolatedPythonArgs(script, "--toolchain"),
+        )
       ).toString(),
     );
     const supervisorToolchain = JSON.parse(
       (
-        await runProcess("/usr/bin/python3", [
-          "-I",
-          "-B",
-          fileURLToPath(new URL("./subprocess.py", import.meta.url)),
-          "--toolchain",
-        ])
+        await runProcess(
+          pythonExecutable,
+          isolatedPythonArgs(
+            fileURLToPath(new URL("./subprocess.py", import.meta.url)),
+            "--toolchain",
+          ),
+        )
       ).toString(),
     );
     const toolFiles = [];

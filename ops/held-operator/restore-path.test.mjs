@@ -56,7 +56,8 @@ test("socket-leaf replacement after mount verification cannot redirect PG connec
     peers = [],
     queries = [],
     dockerCalls = [];
-  let fixture, leaf, mountSource, originalHandle, replacementHandle;
+  let fixture, leaf, mountSource, originalHandle, replacementHandle, policy;
+  let started = false;
   async function serve(handle, identity) {
     // The test servers also bind through their own retained handles, so test
     // teardown cannot accidentally unlink a replacement leaf's socket.
@@ -73,6 +74,7 @@ test("socket-leaf replacement after mount verification cannot redirect PG connec
   }
   class SocketClient {
     constructor(options) {
+      assert(started, "bootstrap clients must wait for verified inert release");
       this.options = options;
     }
     on() {
@@ -119,7 +121,23 @@ test("socket-leaf replacement after mount verification cannot redirect PG connec
           leaf = await realpath(mountSource);
           originalHandle = await open(leaf, "r");
           handles.push(originalHandle);
-          await serve(originalHandle, "original");
+          policy = {
+            HostConfig: {
+              LogConfig: { Type: "none" },
+              NetworkMode: "none",
+              Tmpfs: {
+                "/var/lib/postgresql/data": "rw,noexec,nosuid,size=768m",
+              },
+            },
+            Mounts: [
+              {
+                Type: "bind",
+                Source: mountSource,
+                Destination: "/socket",
+                RW: true,
+              },
+            ],
+          };
           return Buffer.from("fixture-container");
         }
         if (args[0] === "exec" && args[2] === "stat") {
@@ -135,7 +153,16 @@ test("socket-leaf replacement after mount verification cannot redirect PG connec
           replacementHandle = await open(leaf, "r");
           handles.push(replacementHandle);
           await serve(replacementHandle, "replacement");
-          return Buffer.from("none");
+          return Buffer.from(JSON.stringify(policy));
+        }
+        if (
+          args[0] === "exec" &&
+          args[2] === "sh" &&
+          args[4].includes("printf")
+        ) {
+          started = true;
+          // The mounted inode survives replacement of the physical source path.
+          await serve(originalHandle, "original");
         }
         return Buffer.alloc(0);
       },
@@ -189,15 +216,16 @@ test("socket-leaf replacement after mount verification cannot redirect PG connec
       queries.every((q) => q.peer === "original"),
       "SQL reached the replacement socket",
     );
-    assert.match(
-      mountSource,
-      /^\/proc\/\d+\/fd\/\d+$/,
-      "daemon must bind the child handle itself",
-    );
     assert.equal(
-      fixture.socketPath,
       mountSource,
-      "every returned PG socket path must use the same pinned child",
+      leaf,
+      "daemon binds the physical directory only while inert",
+    );
+    assert(!mountSource.startsWith("/proc/"));
+    assert.match(
+      fixture.socketPath,
+      /^\/proc\/\d+\/fd\/\d+$/,
+      "every returned PG socket path must retain the original child inode",
     );
     assert(
       dockerCalls.some((args) => args[0] === "stop") &&

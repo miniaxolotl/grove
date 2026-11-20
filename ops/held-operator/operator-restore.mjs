@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { Buffer } from "node:buffer";
 import { createRequire } from "node:module";
-import { open, mkdir, unlink, rmdir, lstat } from "node:fs/promises";
+import { open, mkdir, unlink, rmdir, lstat, realpath } from "node:fs/promises";
 import { constants } from "node:fs";
 import { IMAGE, runProcess } from "./operator-io.mjs";
 import { need, hashJSON } from "./operator-control.mjs";
@@ -18,6 +18,12 @@ const equal = (a, b) =>
   need(hashJSON(a) === hashJSON(b), "RESTORE_METADATA_DRIFT");
 const fixtureDatabases = new WeakMap();
 const ownedFixtures = new WeakMap();
+const dataTmpfs = "rw,noexec,nosuid,size=768m";
+// PID 1 must not invoke the image entrypoint or touch /socket until its mount
+// and isolation policy have been verified. Only this container's private FIFO
+// can release it; the random token is a positional argument, never shell text.
+const inertEntrypoint =
+  'set -eu; umask 077; mkdir /tmp/grove-start; mkfifo /tmp/grove-start/start; IFS= read -r token < /tmp/grove-start/start; [ "$token" = "$1" ] || exit 1; rm /tmp/grove-start/start; rmdir /tmp/grove-start; shift; exec /usr/local/bin/docker-entrypoint.sh "$@"';
 export const isFixtureDatabase = (db) =>
   fixtureDatabases.get(db)?.alive() === true;
 export const isOwnedFixture = (fixture) =>
@@ -158,16 +164,21 @@ export function createRestorer({
         socketLeaf,
         constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
       );
-      // From this point onward, daemon mounts and ALL PG clients address the
-      // socket directory inode itself, never its replaceable child basename.
+      // ALL PG clients address the socket directory inode itself, never its
+      // replaceable basename. runc cannot portably bind a procfd source, so the
+      // daemon uses a physical path while the container remains inert below.
       socketPath = `/proc/${process.pid}/fd/${socketHandle.fd}`;
       need(
         Buffer.byteLength(socketPath + "/.s.PGSQL.5432") < 108,
         "FIXTURE_SOCKET_PATH_TOO_LONG",
       );
       await socketHandle.chmod(0o777);
+      const mountSource = await realpath(socketPath),
+        startToken = randomUUID();
+      need(!/[,\r\n]/.test(mountSource), "FIXTURE_MOUNT_PATH_REJECTED");
       await stable();
-      // The daemon binds this live child dirfd, not a re-resolved socket leaf.
+      // A leaf swap before daemon mount is safe: the inert container cannot
+      // initialize PG or write to the wrong mount, and identity vetoes release.
       owned = true;
       await run("docker", [
         "run",
@@ -185,9 +196,11 @@ export function createRestorer({
         "--memory",
         "1g",
         "--tmpfs",
-        "/var/lib/postgresql/data:rw,noexec,nosuid,size=768m",
+        "/var/lib/postgresql/data:" + dataTmpfs,
         "--mount",
-        `type=bind,src=${socketPath},dst=/socket`,
+        `type=bind,src=${mountSource},dst=/socket`,
+        "--entrypoint",
+        "/bin/sh",
         "-e",
         "POSTGRES_HOST_AUTH_METHOD=trust",
         "-e",
@@ -197,6 +210,11 @@ export function createRestorer({
         "-e",
         "POSTGRES_INITDB_ARGS=--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C.UTF-8",
         IMAGE,
+        "-c",
+        inertEntrypoint,
+        "grove-inert-restore",
+        startToken,
+        "postgres",
         "-c",
         "unix_socket_directories=/var/run/postgresql,/socket",
         "-c",
@@ -219,18 +237,56 @@ export function createRestorer({
           .trim() === `${socketIdentity.dev}:${socketIdentity.ino}`,
         "FIXTURE_MOUNT_IDENTITY_CHANGED",
       );
-      need(
+      const policy = JSON.parse(
         (
-          await run("docker", [
-            "inspect",
-            name,
-            "--format",
-            "{{.HostConfig.LogConfig.Type}}",
-          ])
-        )
-          .toString()
-          .trim() === "none",
+          await run("docker", ["inspect", name, "--format", "{{json .}}"])
+        ).toString(),
+      );
+      need(
+        policy.HostConfig?.LogConfig?.Type === "none",
         "PRIVATE_LOGGING_REJECTED",
+      );
+      need(
+        policy.HostConfig?.NetworkMode === "none" &&
+          hashJSON(policy.HostConfig?.Tmpfs) ===
+            hashJSON({ "/var/lib/postgresql/data": dataTmpfs }) &&
+          Array.isArray(policy.Mounts) &&
+          policy.Mounts.filter((m) => m.Destination === "/socket").length ===
+            1 &&
+          policy.Mounts.every((m) =>
+            m.Destination === "/socket"
+              ? m.Type === "bind" && m.Source === mountSource && m.RW === true
+              : m.Type === "tmpfs" &&
+                m.Destination === "/var/lib/postgresql/data",
+          ),
+        "FIXTURE_ISOLATION_REJECTED",
+      );
+      await run(
+        "docker",
+        [
+          "exec",
+          name,
+          "sh",
+          "-c",
+          "for i in $(seq 1 10); do test -p /tmp/grove-start/start && exit 0; sleep 1; done; exit 1",
+        ],
+        undefined,
+        { timeoutMs: 15000 },
+      );
+      await stable();
+      await run(
+        "docker",
+        [
+          "exec",
+          name,
+          "sh",
+          "-c",
+          'printf "%s\\n" "$1" > /tmp/grove-start/start',
+          "grove-release-restore",
+          startToken,
+        ],
+        undefined,
+        { timeoutMs: 15000 },
       );
       await run(
         "docker",

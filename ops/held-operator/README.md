@@ -23,6 +23,11 @@ production-qualified installation**. In particular:
   fail, never repair/reset. Query-only readback uses a private WAL index,
   no checkpoint-on-close and no clock update. Python 3 with `setconfig`, Linux
   procfs/flock/pidfds and the reviewed OS toolchain are required.
+- Authority/supervisor launches and both toolchain probes use the same fixed
+  `/usr/bin/python3 -I -S -B` boundary. `-I` alone still initializes global
+  `site`/`sitecustomize`; `-S` excludes those hooks before script execution or pin
+  discovery. These scripts use only the standard library. The `/usr/`-only,
+  immutable OS-tool closure checks remain unchanged; site hooks are not whitelisted.
 - One externally pinned app database survives source/custody/code changes.
   Registered installation descriptors bind each source, code closure, custody
   UUID and work-root identity separately. Installing another source must register
@@ -107,10 +112,15 @@ bytes use pipes, never argv, logs or plaintext files. Restore uses a pinned imag
 network-none/tmpfs and disabled Docker/PostgreSQL logging. Runtime roles are never
 elevated; temporary extension bootstrap exists only in an empty disposable cluster.
 Scratch/staging roots are pinned with directory handles; replacement is rejected
-before mount, extraction or import. The daemon bind, every PG client and the
-returned socket path use the socket leaf's own retained directory handle, not
-its replaceable basename. Cleanup uses that basename only after an inode check;
-a replaced leaf fails closed without changing the replacement. Subprocesses
+before mount, extraction or import. Docker binds the socket directory's physical
+path while PID 1 remains inert behind a private container-only FIFO. Before
+releasing the official PostgreSQL entrypoint, the operator verifies the mounted
+directory's device/inode against its retained handle and checks logging, network,
+tmpfs and mount policy. A mismatched mount is stopped/removed without PostgreSQL
+initialization. Every host PG client, returned socket path and owner database URL
+uses the socket leaf's own retained directory handle, not its replaceable basename.
+Cleanup uses that basename only after an inode check; a replaced leaf fails closed
+without changing the replacement. Subprocesses
 run beneath a Linux subreaper with pidfd-fenced descendant cleanup, including
 new sessions/double forks. Timeout or uncertain cleanup is failure, never success.
 GPG agents are scoped to the pinned private homedir; no host-wide kill is used.
