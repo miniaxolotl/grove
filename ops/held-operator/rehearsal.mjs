@@ -42,6 +42,54 @@ import {
   reconcileProviderTransition,
 } from "../../scripts/release/held-operator.mjs";
 
+// Shared with the dependency-resolution regression; returns actual subprocess
+// evidence, never admission or caller-supplied pass flags.
+export async function runRehearsalToolTests({
+  repository,
+  outputParent,
+  tests,
+} = {}) {
+  const toolTests =
+    tests ??
+    [
+      "authority.test.mjs",
+      "authority-window.test.mjs",
+      "authority-registration.test.mjs",
+      "authority-sql.test.mjs",
+      "window.test.mjs",
+      "trusted-install.test.mjs",
+      "process.test.mjs",
+      "pinned-path.test.mjs",
+      "restore-path.test.mjs",
+      "rehearsal-path.test.mjs",
+      "installation.test.mjs",
+      "qualification.test.mjs",
+    ].map((name) => fileURLToPath(new URL("./" + name, import.meta.url)));
+  if (!tests)
+    toolTests.push(
+      ...[
+        "held-instance-inventory.test.mjs",
+        "held-operator-provider-io.test.mjs",
+        "held-operator.test.mjs",
+      ].map((name) =>
+        fileURLToPath(
+          new URL("../../scripts/release/" + name, import.meta.url),
+        ),
+      ),
+    );
+  const evidence = await runProcess(
+    process.execPath,
+    ["--test", "--test-concurrency=1", ...toolTests],
+    undefined,
+    { cwd: resolve(repository), maxBytes: 2 * 1024 * 1024, timeoutMs: 120000 },
+  );
+  await createControl(outputParent).durableWrite(
+    outputParent + "/authority-window-install.tap",
+    evidence,
+  );
+  return evidence;
+}
+
 export async function rehearse({
   repository,
   source,
@@ -99,40 +147,10 @@ export async function rehearse({
       { max: 1, statementTimeoutMs: 10000 },
     );
   try {
-    const toolTests = [
-      "authority.test.mjs",
-      "authority-window.test.mjs",
-      "authority-registration.test.mjs",
-      "authority-sql.test.mjs",
-      "window.test.mjs",
-      "trusted-install.test.mjs",
-      "process.test.mjs",
-      "pinned-path.test.mjs",
-      "restore-path.test.mjs",
-      "installation.test.mjs",
-      "qualification.test.mjs",
-    ].map((name) => fileURLToPath(new URL("./" + name, import.meta.url)));
-    toolTests.push(
-      ...[
-        "held-instance-inventory.test.mjs",
-        "held-operator-provider-io.test.mjs",
-        "held-operator.test.mjs",
-      ].map((name) =>
-        fileURLToPath(
-          new URL("../../scripts/release/" + name, import.meta.url),
-        ),
-      ),
-    );
-    const toolEvidence = await runProcess(
-      process.execPath,
-      ["--test", "--test-concurrency=1", ...toolTests],
-      undefined,
-      { cwd: outputParent, maxBytes: 2 * 1024 * 1024, timeoutMs: 120000 },
-    );
-    await control.durableWrite(
-      root + "/authority-window-install.tap",
-      toolEvidence,
-    );
+    const toolEvidence = await runRehearsalToolTests({
+      repository,
+      outputParent: root,
+    });
     artifacts[root + "/authority-window-install.tap"] = sha(toolEvidence);
     cases.sqlite_authority = "pass";
     cases.cooperating_window = "pass";

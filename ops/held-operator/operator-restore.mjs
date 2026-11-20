@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { Buffer } from "node:buffer";
 import { createRequire } from "node:module";
-import { open, mkdir, chmod, unlink, rmdir, lstat } from "node:fs/promises";
+import { open, mkdir, unlink, rmdir, lstat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { IMAGE, runProcess } from "./operator-io.mjs";
 import { need, hashJSON } from "./operator-control.mjs";
@@ -27,10 +27,12 @@ export function createRestorer({
   sourceRoot,
   crypt,
   run = runProcess,
+  clientFactory,
 }) {
   const { Client } = createRequire(sourceRoot + "/lib/database/package.json")(
     "pg",
   );
+  const makeClient = clientFactory ?? ((options) => new Client(options));
   async function createRestoreFixture(before, { secondDatabase = false } = {}) {
     await control.assertIdentity();
     const rootPin = await pinDirectory(control.root);
@@ -49,12 +51,8 @@ export function createRestorer({
     const started = Date.now(),
       id = randomUUID(),
       name = "grove-qualified-restore-" + id,
-      socketPath = rootPin.path + "/r-" + id.slice(0, 8),
+      socketLeaf = rootPin.path + "/r-" + id.slice(0, 8),
       leasePath = rootPin.path + "/fixture.lock";
-    need(
-      Buffer.byteLength(socketPath + "/.s.PGSQL.5432") < 108,
-      "FIXTURE_SOCKET_PATH_TOO_LONG",
-    );
     let lease;
     try {
       await stable();
@@ -74,13 +72,14 @@ export function createRestorer({
     let owned = false,
       socketOwned = false,
       closed = false;
-    let socketHandle;
+    let socketHandle, socketPath;
     const clients = new Set();
     const connect = (
       database = "grove_restore",
       user = "cloud_admin",
       readOnly = false,
     ) => {
+      need(!closed && socketHandle && socketPath, "FIXTURE_CLOSED");
       need(
         ["grove_restore", "grove_backup_restore"].includes(database) &&
           ["cloud_admin", "grove_owner", "grove_api", "grove_jobs"].includes(
@@ -88,7 +87,7 @@ export function createRestorer({
           ),
         "FIXTURE_TARGET_REJECTED",
       );
-      const c = new Client({
+      const c = makeClient({
         host: socketPath,
         user,
         database,
@@ -116,7 +115,7 @@ export function createRestorer({
         }
         if (socketOwned) {
           const s = await socketHandle.stat(),
-            actual = await lstat(socketPath);
+            actual = await lstat(socketLeaf);
           need(
             s.dev === actual.dev &&
               s.ino === actual.ino &&
@@ -124,7 +123,7 @@ export function createRestorer({
             "FIXTURE_SCRATCH_CHANGED",
           );
           await socketHandle.chmod(0o700);
-          await rmdir(socketPath);
+          await rmdir(socketLeaf);
         }
         await unlink(leasePath);
       } finally {
@@ -153,15 +152,22 @@ export function createRestorer({
           .trim() === IMAGE,
         "TOOLCHAIN_DRIFT",
       );
-      await mkdir(socketPath, { mode: 0o777 });
+      await mkdir(socketLeaf, { mode: 0o777 });
       socketOwned = true;
       socketHandle = await open(
-        socketPath,
+        socketLeaf,
         constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
       );
-      await chmod(socketPath, 0o777);
+      // From this point onward, daemon mounts and ALL PG clients address the
+      // socket directory inode itself, never its replaceable child basename.
+      socketPath = `/proc/${process.pid}/fd/${socketHandle.fd}`;
+      need(
+        Buffer.byteLength(socketPath + "/.s.PGSQL.5432") < 108,
+        "FIXTURE_SOCKET_PATH_TOO_LONG",
+      );
+      await socketHandle.chmod(0o777);
       await stable();
-      // The daemon resolves a live parent dirfd, not a re-resolved mutable root.
+      // The daemon binds this live child dirfd, not a re-resolved socket leaf.
       owned = true;
       await run("docker", [
         "run",

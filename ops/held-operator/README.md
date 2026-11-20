@@ -107,8 +107,10 @@ bytes use pipes, never argv, logs or plaintext files. Restore uses a pinned imag
 network-none/tmpfs and disabled Docker/PostgreSQL logging. Runtime roles are never
 elevated; temporary extension bootstrap exists only in an empty disposable cluster.
 Scratch/staging roots are pinned with directory handles; replacement is rejected
-before mount, extraction or import. The daemon binds a live parent dirfd, and
-cleanup addresses the original owned scratch, not a replacement path. Subprocesses
+before mount, extraction or import. The daemon bind, every PG client and the
+returned socket path use the socket leaf's own retained directory handle, not
+its replaceable basename. Cleanup uses that basename only after an inode check;
+a replaced leaf fails closed without changing the replacement. Subprocesses
 run beneath a Linux subreaper with pidfd-fenced descendant cleanup, including
 new sessions/double forks. Timeout or uncertain cleanup is failure, never success.
 GPG agents are scoped to the pinned private homedir; no host-wide kill is used.
@@ -126,8 +128,11 @@ node --test --test-concurrency=1 ops/held-operator/*.test.mjs
 
 `GROVE_REHEARSAL_SOURCE=<exact commit>` selects the source for `fixture.test.mjs`;
 its historical fallback is provisional, not final-source qualification. The runner
-also checks actual owner SQL COMMIT/lost acknowledgment against the same SQLite
-app authority. Parent runs the real PG/image rehearsal and full gates serially.
+launches dependency-dependent tool checks from the installed repository, never
+from the private artifact output parent. Their real subprocess evidence is retained
+under the fixture output root. The nested checks remain inside fixture cleanup.
+The runner also checks actual owner SQL COMMIT/lost acknowledgment against the
+same SQLite app authority. Parent runs the real PG/image rehearsal and full gates serially.
 
 The runner retains a unique private `fixture-*` directory containing the source
 freeze, synthetic populated snapshots, catalog-delta blueprint, encrypted backup,
