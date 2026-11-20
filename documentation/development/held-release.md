@@ -146,6 +146,27 @@ no command/approval flag overrides it. A new source requires independent
 `source-bound-held-release-v1` execution qualification, fresh backup/restore and
 custody under the owner's separate contract.
 
+The parameterized replacement is owned in
+[`ops/held-operator`](../../ops/held-operator/README.md). Its private installation
+verifies the immutable commit/tree/files, running code and installed dependency
+sources, actual fixture preservation/backup artifacts and an independent signed
+review. No production review key or admission is shipped. Fixture scope never
+admits execution; production review is still separate from fresh live custody
+and readiness. Qualification requests include source, publication, command,
+action and `consume`: writes consume exactly once, while reconciliation verifies
+existing consumption without writing. The migration entry point reuses the same
+bounded 045–048 barrier and refuses fixture custody for a production operation.
+The replacement implements existing-only SQLite WAL/FULL consumption/CAS and one
+pinned app authority shared by registered source/code/custody installations.
+Provider, migration, backup and owner SQL paths use the same app window; SQL and
+provider intents survive crashes/expiry. Readback never clears quarantine; explicit
+authority-only resolution requires canonical persisted evidence and renewed signed
+dashboard/controller exclusion. No closure/public-key/app-authority pin or live
+exclusion is shipped. Missing independent installation and live facts still block.
+GET plus PUT is not an atomic DigitalOcean generation fence; no unsupported CAS
+header is sent. Operational code and the admitted app source have separately
+verified closures and need not be the same Git revision.
+
 Requests reference trusted publication/previous workflow run/attempt coordinates,
 a private journal directory, independent backup receipt/journal/ciphertext paths
 and an exact sanitized owner command. Retained ciphertext and the confirmed
@@ -160,6 +181,10 @@ Restore/reconcile/lifecycle-ingress/
 effects/public-health proposals preserve unrelated provider configuration and fence
 the exact generation and instance inventory. Intent is fsynced before PUT/SQL;
 unknown acceptance stays uncertain and permits **readback only**, not another PUT.
+The innermost CLI dispatch retains the outer approved complete raw inventory;
+pagination, invalid totals and any metadata/identity drift veto the write rather
+than establishing a new inner baseline. Explicit resolution changes only the
+authority after readback, never repeats the unknown provider/SQL effect.
 An already exact-active target is verified without a write. Database operations
 are short bounded owner transactions, with no remote I/O inside them.
 
