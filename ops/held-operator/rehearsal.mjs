@@ -777,6 +777,11 @@ export async function rehearse({
     );
     assert.equal(providerWrites, 1);
     cases.crash_before_effect = "pass";
+    // Knex's migrator disables identifier/response processing on its client.
+    // Real owner phase commands open a fresh configured database connection;
+    // model that boundary instead of reusing the migration client's state.
+    await db.destroy();
+    db = await fixture.ownerDatabase();
     await rehearseOwnerSQL({
       db,
       root,

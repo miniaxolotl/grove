@@ -51,10 +51,20 @@ async function fixture(run) {
     ]).trim();
     assert(purelib.startsWith(venv + "/"));
     const marker = join(root, "site-ran"),
-      hook = join(purelib, "sitecustomize.py");
+      hook = join(purelib, "grove_operator_fixture_hook.py");
     await writeFile(
       hook,
       `from pathlib import Path\nPath(${JSON.stringify(marker)}).write_text("hook executed")\n`,
+    );
+    // A system hook can win before the virtualenv's sitecustomize. Model that
+    // ordering in this disposable prefix without modifying the OS installation.
+    await writeFile(
+      join(purelib, "00-preexisting-site-hook.pth"),
+      'import sys, types; sys.modules["sitecustomize"] = types.ModuleType("sitecustomize")\n',
+    );
+    await writeFile(
+      join(purelib, "10-grove-fixture-hook.pth"),
+      "import grove_operator_fixture_hook\n",
     );
     await run({ root, executable, marker, hook });
   } finally {
@@ -62,7 +72,7 @@ async function fixture(run) {
   }
 }
 
-test("the old isolated launch really executes prefix sitecustomize and reaches the unchanged OS-path rejection", async () =>
+test("the old isolated launch executes a prefix startup hook even when sitecustomize is shadowed", async () =>
   fixture(async ({ root, executable, marker, hook }) => {
     const toolchain = JSON.parse(
       python(executable, ["-I", "-B", script("authority.py"), "--toolchain"]),

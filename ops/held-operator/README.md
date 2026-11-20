@@ -142,7 +142,10 @@ launches dependency-dependent tool checks from the installed repository, never
 from the private artifact output parent. Their real subprocess evidence is retained
 under the fixture output root. The nested checks remain inside fixture cleanup.
 The runner also checks actual owner SQL COMMIT/lost acknowledgment against the
-same SQLite app authority. Parent runs the real PG/image rehearsal and full gates serially.
+same SQLite app authority. After migration checks it opens a fresh configured
+owner client, matching the separate production phase-command boundary rather
+than retaining Knex's migration-disabled identifier processing. Parent runs the
+real PG/image rehearsal and full gates serially.
 
 The runner retains a unique private `fixture-*` directory containing the source
 freeze, synthetic populated snapshots, catalog-delta blueprint, encrypted backup,
