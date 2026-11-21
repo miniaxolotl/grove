@@ -89,6 +89,7 @@ jobs:
       RELEASE_TAG: ${{ needs.candidate.outputs.tag }}
       RELEASE_DECISION_HASH: ${{ needs.candidate.outputs.decision }}
       GROVE_TELEMETRY_BUILD: production
+      GROVE_HELD_RELEASE_BUILD: ${{ needs.candidate.outputs.held == 'true' && 'true' || 'false' }}
       GROVE_POSTHOG_KEY: ${{ secrets.GROVE_POSTHOG_KEY }}
       GROVE_CLI_SENTRY_DSN: ${{ secrets.GROVE_CLI_SENTRY_DSN }}
       GROVE_API_SENTRY_DSN: ${{ secrets.GROVE_API_SENTRY_DSN }}
