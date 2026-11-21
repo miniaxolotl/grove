@@ -177,7 +177,16 @@ export function publication(context, digest, now) {
   };
 }
 function assertBaseline(baseline) {
-  exact(baseline, ["app", "state", "settings", "digest", "health"]);
+  exact(baseline, [
+    "app",
+    "state",
+    "settings",
+    "digest",
+    "health",
+    ...(Object.hasOwn(baseline, "publicationOnly") ? ["publicationOnly"] : []),
+  ]);
+  if (Object.hasOwn(baseline, "publicationOnly"))
+    assert.equal(baseline.publicationOnly, true);
   assert.match(baseline.app, /^[a-f0-9-]{36}$/);
   for (const value of [baseline.state, baseline.settings])
     assert.match(value, hash);
