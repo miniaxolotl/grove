@@ -129,6 +129,14 @@ resume only through trusted, unexpired pre-write artifacts, exact run/attempt
 provenance and a bounded linked custody chain. Missing publication is not success;
 an uncertain prior provider request is never replay permission.
 
+Publication does not require maintenance mode or stopping the existing API/worker.
+Its `publicationOnly` baseline binds the actual settled app state and complete,
+unchanged instance inventory. The settings hash separately freezes the same spec
+with only maintenance/archive enabled for the later operator cutover; it is not
+evidence that services were stopped. Held restore still requires an actual archived
+app, zero instances and that exact settings hash, plus the separate schema, backup
+and operator gates. Legacy archived baselines retain their exact-state check.
+
 The receipt chain is:
 `published_held → held_verified → lifecycle_verified → effects_approved → runtime_verified → public_verified → website_verified`.
 Protected **Held release continuation** records actual named-instance proofs for
