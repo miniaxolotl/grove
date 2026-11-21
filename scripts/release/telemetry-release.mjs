@@ -15,6 +15,12 @@ export function releaseDiagnostics(env, { read, head, resolve, run }) {
     assert(selected.manifest.deliver.includes("service"));
   }
   assert(env.SENTRY_AUTH_TOKEN, "SENTRY_AUTH_TOKEN is required");
+  assert(
+    env.GROVE_HELD_RELEASE_BUILD === undefined ||
+      ["true", "false"].includes(env.GROVE_HELD_RELEASE_BUILD),
+    "Invalid held image build control",
+  );
+  const productVersion = read("package.json").version;
   const targets = [
     ["api", "api", "grove-api"],
     ["cli", "mcp", "grove-cli"],
@@ -32,6 +38,9 @@ export function releaseDiagnostics(env, { read, head, resolve, run }) {
       revision: config.revision,
       version,
       component,
+      holdRequired:
+        component === "api" && env.GROVE_HELD_RELEASE_BUILD === "true",
+      productVersion,
     });
   }
   for (const [component, directory, project] of targets) {
