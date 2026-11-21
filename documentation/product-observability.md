@@ -30,6 +30,11 @@ enter clients.
   filenames/coordinates support source maps without local paths/source excerpts.
   The sampling header is projected from Grove's own client configuration at send
   time, never borrowed from another host client.
+- Release uploads validate component/package version, root product version, source
+  revision and the API-only held-build flag before any Sentry write. The production
+  publisher uses the same held-build control for its uploaded maps and image build;
+  clients remain ordinary builds. Metadata mismatch blocks uploads rather than
+  silently associating maps with another build.
 - Queues are bounded to 128 records; enqueue never waits for a provider. Uploads
   recheck collection, time out and drop during short provider-failure windows.
   Shutdown waits at most 550ms (50ms for optional hooks).
