@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.33](https://github.com/miniaxolotl/grove/compare/v1.11.32...v1.11.33) (2026-11-21)
+
+
+### Bug Fixes
+
+* **release:** publish without requiring maintenance mode ([#326](https://github.com/miniaxolotl/grove/issues/326)) ([d40c0dd](https://github.com/miniaxolotl/grove/commit/d40c0ddfb3ffaee08a55754ad265fa2970c15918))
+
 ## [1.11.32](https://github.com/miniaxolotl/grove/compare/v1.11.31...v1.11.32) (2026-11-20)
 
 
