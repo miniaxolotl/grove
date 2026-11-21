@@ -42,6 +42,7 @@ function fixture() {
     approved: true,
   };
   const io = {
+    assertExclusiveWindow: async () => {},
     qualify: async () => ({
       source: context.source,
       manifest: command.manifest,
@@ -90,6 +91,99 @@ test("frozen v1.11.29 cannot become new-source execution even with a parent appr
   );
   assert.equal(f.writes(), 0);
   assert.equal(f.records.length, 0);
+});
+test("actual controller forwards full approved inventory into the CLI dispatch factory, including restart checks", async () => {
+  const api = await import("./held-operator-provider-io.mjs").catch((e) => {
+    if (e.code === "ERR_MODULE_NOT_FOUND") return {};
+    throw e;
+  });
+  assert.equal(typeof api.createProviderDispatch, "function");
+  for (const changed of [false, "boundary", "last"]) {
+    const f = fixture(),
+      before = {
+        state: f.command.expected,
+        settings: "2".repeat(64),
+        generation: "old",
+        instances: [
+          {
+            component_name: "worker",
+            instance_name: "worker-old",
+            metadata: { revision: 1 },
+          },
+        ],
+      };
+    f.set(before);
+    let reads = 0,
+      writes = 0;
+    f.io.put = api.createProviderDispatch({
+      command: f.command,
+      current: () => {},
+      validate: () => {},
+      external: {
+        assertExclusiveWindow: async () => ({ expiresAt: Date.now() + 60000 }),
+        prepareProviderWrite: async () => {},
+      },
+      observe: async () => {
+        reads++;
+        return changed && (changed === "boundary" || reads >= 3)
+          ? {
+              ...before,
+              instances: [
+                { ...before.instances[0], instance_name: "worker-restarted" },
+              ],
+            }
+          : before;
+      },
+      submit: async () => {
+        writes++;
+        f.set({ ...before, settings: f.command.proposed });
+      },
+    });
+    if (changed)
+      await assert.rejects(
+        controller.runProviderTransition(p, p, f.command, {}, f.io, now),
+        /uncertain/i,
+      );
+    else await controller.runProviderTransition(p, p, f.command, {}, f.io, now);
+    assert.equal(writes, changed ? 0 : 1);
+  }
+});
+test("expiry during awaited qualification or journal fsync never dispatches a provider effect", async () => {
+  for (const phase of ["qualification", "journal"]) {
+    const f = fixture();
+    let clock = now;
+    f.io.now = () => clock;
+    const qualify = f.io.qualify;
+    f.io.qualify = async (...args) => {
+      if (phase === "qualification") clock = f.command.expiresAt + 1;
+      return qualify(...args);
+    };
+    const open = f.io.journal;
+    f.io.journal = async (...args) => {
+      const j = await open(...args);
+      return {
+        ...j,
+        append: async (...a) => {
+          await j.append(...a);
+          if (phase === "journal") clock = f.command.expiresAt + 1;
+        },
+      };
+    };
+    await assert.rejects(
+      controller.runProviderTransition(p, p, f.command, {}, f.io, now),
+      /expired/i,
+    );
+    assert.equal(f.writes(), 0);
+  }
+});
+test("provider writes require independent exclusive-window authority, never presumed atomic GET plus PUT", async () => {
+  const f = fixture();
+  delete f.io.assertExclusiveWindow;
+  await assert.rejects(
+    controller.runProviderTransition(p, p, f.command, {}, f.io, now),
+    /exclusive/i,
+  );
+  assert.equal(f.writes(), 0);
 });
 test("intent is durably journalled before exactly one provider write; readback proves completion", async () => {
   const f = fixture();

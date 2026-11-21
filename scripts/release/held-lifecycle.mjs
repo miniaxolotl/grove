@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { receiptHash, validateHeldReceipt } from "./held-state.mjs";
 import { holdIdentity } from "./held-provider.mjs";
+import { performance } from "node:perf_hooks";
 export function lifecycleBinding(p, parent, action) {
   validateHeldReceipt(parent, p);
   const held =
@@ -30,9 +31,25 @@ export async function applyLifecycleTransition(
   p,
   parent,
   command,
+  { assertFresh = () => {} } = {},
 ) {
+  const wall = Date.now(),
+    mono = performance.now();
+  const fresh = () => {
+    assertFresh();
+    const elapsed = performance.now() - mono;
+    assert(
+      Math.abs(Date.now() - wall - elapsed) < 1000,
+      "Operator clock changed",
+    );
+    assert(
+      command.issuedAt <= wall + elapsed && command.expiresAt > wall + elapsed,
+      "Operator command expired before SQL effect",
+    );
+  };
   const binding = lifecycleBinding(p, parent, command.action),
     hash = receiptHash(command);
+  assertFresh({ beginTransaction: true });
   return boundedTransaction(db, async (trx) => {
     const control = await trx("lifecycle_release_control")
       .where({ singleton: true })
@@ -61,6 +78,7 @@ export async function applyLifecycleTransition(
         !control || control.phase === "public",
         "An unresolved earlier release cannot be replaced",
       );
+      fresh();
       await trx("lifecycle_release_control")
         .insert({ releaseHash: binding.release, receiptHash: binding.receipt })
         .onConflict("singleton")
@@ -88,6 +106,7 @@ export async function applyLifecycleTransition(
         evidence: binding.evidence,
       }),
     );
+    fresh();
     if (command.action === "handoff")
       return (
         await trx.raw("SELECT grove_lifecycle_approve(?,?,?,?,?) AS evidence", [
@@ -122,14 +141,46 @@ export async function verifyLifecycleTransition(db, p, parent, command) {
     ])
   ).rows[0]?.evidence;
   assert(proof, "Missing persisted lifecycle admission");
+  assert.equal(proof.release, binding.release);
+  assert.equal(proof.receipt, binding.receipt);
+  const control = await db("lifecycle_release_control")
+    .where({ singleton: true })
+    .first();
+  assert.equal(control?.releaseHash, binding.release);
+  assert.equal(control?.receiptHash, binding.receipt);
   if (command.action === "admit")
     assert.equal(proof.control.phase, "reconcile");
   else if (command.action === "handoff") {
     assert(["handoff", "released", "public"].includes(proof.control.phase));
     assert.equal(proof.control.approvalHash, receiptHash(command));
+    assert.deepEqual(control.handoffEvidence, binding.evidence);
   } else {
     assert.equal(proof.control.phase, "public");
     assert.equal(proof.control.publicHash, receiptHash(command));
+    assert.deepEqual(control.publicEvidence, binding.evidence);
   }
-  return proof;
+  const target = {
+    release: control.releaseHash,
+    receipt: control.receiptHash,
+    phase:
+      command.action === "admit"
+        ? "reconcile"
+        : command.action === "handoff"
+          ? "handoff"
+          : "public",
+    ...(binding.evidence
+      ? {
+          evidence:
+            command.action === "handoff"
+              ? control.handoffEvidence
+              : control.publicEvidence,
+        }
+      : {}),
+  };
+  assert.equal(
+    receiptHash(target),
+    command.proposed,
+    "Persisted SQL target hash differs from approval",
+  );
+  return { ...proof, proofHash: receiptHash(target) };
 }

@@ -3,7 +3,8 @@ import { readFileSync, existsSync } from "node:fs";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { execFileSync } from "node:child_process";
-import { parseHeldDecision, resolveHeldDecision } from "./held-delivery.mjs";
+import { parseHeldDecision } from "./held-delivery.mjs";
+import { resolveHeldWorkflowSelection } from "./held-workflow-source.mjs";
 const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
 const job = (name) =>
   workflow.split(`\n  ${name}:\n`)[1].split(/\n {2}[\w-]+:\n/)[0];
@@ -38,20 +39,7 @@ test("only a source-bound declaration or coordinated stamp selects the held work
   const source = execFileSync("git", ["rev-parse", "HEAD"], {
     encoding: "utf8",
   }).trim();
-  let selection;
-  try {
-    selection = resolveHeldDecision(source, false);
-  } catch (sourceError) {
-    try {
-      selection = resolveHeldDecision(source, true);
-    } catch (stampError) {
-      throw new AggregateError(
-        [sourceError, stampError],
-        "Neither a valid held source declaration nor its coordinated stamp",
-        { cause: stampError },
-      );
-    }
-  }
+  const selection = resolveHeldWorkflowSelection(source);
   const path = "scripts/release/held-decision.json";
   assert.deepEqual(
     selection?.manifest ?? null,
