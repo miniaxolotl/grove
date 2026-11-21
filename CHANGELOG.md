@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.34](https://github.com/miniaxolotl/grove/compare/v1.11.33...v1.11.34) (2026-11-21)
+
+
+### Bug Fixes
+
+* **release:** align diagnostics with current build metadata ([#330](https://github.com/miniaxolotl/grove/issues/330)) ([b344666](https://github.com/miniaxolotl/grove/commit/b34466663e49089abc04fab23cb6ce008246dd77))
+
 ## [1.11.33](https://github.com/miniaxolotl/grove/compare/v1.11.32...v1.11.33) (2026-11-21)
 
 
