@@ -11,7 +11,8 @@ import {
   completePublication,
 } from "./held-delivery.mjs";
 import { receiptHash } from "./held-state.mjs";
-import { captureArchivedBaseline } from "./held-provider.mjs";
+import { capturePublicationBaseline } from "./held-provider.mjs";
+import { validateCompleteInstanceInventory } from "./held-instance-inventory.mjs";
 import {
   appStateFingerprint,
   readProviderResponse,
@@ -28,30 +29,29 @@ const exec = (command, args) =>
     stdio: ["ignore", "pipe", "pipe"],
   }).trim();
 const git = (...args) => exec("git", args);
-export async function archivedReadback(decision, read) {
+export async function publicationReadback(decision, read) {
   const app = await read(`/v2/apps/${decision.app}`),
     first = app.app;
-  const inventory = await read(`/v2/apps/${decision.app}/instances`);
-  assert(
-    Array.isArray(inventory.instances) &&
-      !inventory.links?.pages?.next &&
-      !inventory.meta?.next_cursor,
-    "Incomplete instance inventory",
+  const instances = validateCompleteInstanceInventory(
+    await read(`/v2/apps/${decision.app}/instances`),
   );
-  const baseline = captureArchivedBaseline(
+  const baseline = capturePublicationBaseline(
     first,
-    inventory.instances,
+    instances,
     decision,
   );
   const after = (await read(`/v2/apps/${decision.app}`)).app;
   assert.equal(
     appStateFingerprint(first),
     appStateFingerprint(after),
-    "Archived provider generation drift",
+    "Publication provider generation drift",
   );
-  assert.equal(
-    (await read(`/v2/apps/${decision.app}/instances`)).instances?.length,
-    0,
+  assert.deepEqual(
+    validateCompleteInstanceInventory(
+      await read(`/v2/apps/${decision.app}/instances`),
+    ),
+    instances,
+    "Publication instance inventory drift",
   );
   return baseline;
 }
@@ -93,7 +93,7 @@ async function main() {
     );
     return readProviderResponse(response, "GET", path);
   };
-  const baseline = await archivedReadback(decision, read);
+  const baseline = await publicationReadback(decision, read);
   const parentRun = process.env.GROVE_HELD_PENDING_RUN,
     parentAttempt = process.env.GROVE_HELD_PENDING_ATTEMPT;
   assert(

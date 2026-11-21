@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import * as provider from "../deploy-digitalocean.mjs";
+import { validateCompleteInstanceInventory } from "./held-instance-inventory.mjs";
 import {
   receiptHash,
   validateHeldReceipt,
@@ -44,19 +45,9 @@ function settled(app) {
   );
 }
 const parts = (spec) => [spec.services[0], spec.workers[0]];
-export function captureArchivedBaseline(
-  app,
-  instances,
-  decision,
-  fingerprint = fingerprintDefault,
-) {
+function captureBaseline(app, decision, fingerprint) {
   settled(app);
   assert.equal(app.id, decision.app);
-  assert.equal(instances.length, 0);
-  assert(
-    app.spec.maintenance?.archive === true &&
-      app.spec.maintenance.enabled === true,
-  );
   assert(
     parts(app.spec).every(
       (part) =>
@@ -78,6 +69,42 @@ export function captureArchivedBaseline(
     settings: fingerprint({ id: app.id, spec: app.spec }),
     digest: decision.previousDigest,
     health,
+  };
+}
+export function captureArchivedBaseline(
+  app,
+  instances,
+  decision,
+  fingerprint = fingerprintDefault,
+) {
+  const baseline = captureBaseline(app, decision, fingerprint);
+  assert.equal(instances.length, 0);
+  assert(
+    app.spec.maintenance?.archive === true &&
+      app.spec.maintenance.enabled === true,
+  );
+  return baseline;
+}
+export function capturePublicationBaseline(
+  app,
+  instances,
+  decision,
+  fingerprint = fingerprintDefault,
+) {
+  const baseline = captureBaseline(app, decision, fingerprint);
+  validateCompleteInstanceInventory({ instances });
+  // Publication does not stop or deploy services. Bind the actual observed state,
+  // and separately freeze the only settings change allowed before held restore.
+  const archived = globalThis.structuredClone(app.spec);
+  archived.maintenance = {
+    ...archived.maintenance,
+    archive: true,
+    enabled: true,
+  };
+  return {
+    ...baseline,
+    settings: fingerprint({ id: app.id, spec: archived }),
+    publicationOnly: true,
   };
 }
 export function holdIdentity(p) {
@@ -222,7 +249,13 @@ export function prepareHeld(
     settled(app);
     const baseline = p.evidence.baseline;
     assert.equal(app.id, baseline.app);
-    assert.equal(fingerprint(app), baseline.state);
+    if (baseline.publicationOnly === true)
+      assert.equal(
+        fingerprint({ id: app.id, spec: app.spec }),
+        baseline.settings,
+        "Archived settings differ from the published source baseline",
+      );
+    else assert.equal(fingerprint(app), baseline.state);
     assert.equal(instances.length, 0);
     assert(
       app.spec.maintenance?.archive === true &&

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as held from "./held-provider.mjs";
+import { publicationReadback } from "./held-production.mjs";
 import {
   publication,
   receiptHash,
@@ -148,6 +149,102 @@ test("compatible held restore changes only both images, startup latch, archive a
     { ...app, spec: { ...app.spec, region: "unexpected" } },
   ])
     assert.throws(() => held.prepareHeld?.(changed, [], p, fingerprint));
+});
+
+test("publication accepts a running app without admitting a running restore", async () => {
+  const app = archived();
+  delete app.spec.maintenance;
+  app.active_deployment.spec = globalThis.structuredClone(app.spec);
+  const instances = [
+    { component_name: "api", instance_name: "api-old" },
+    { component_name: "worker", instance_name: "worker-old" },
+  ];
+  const baseline = held.capturePublicationBaseline(
+    app,
+    instances,
+    { app: app.id, previousDigest: previous },
+    fingerprint,
+  );
+  assert.equal(baseline.publicationOnly, true);
+  assert.equal(baseline.state, fingerprint(app));
+  assert.equal(app.spec.maintenance, undefined);
+  assert.doesNotMatch(JSON.stringify(baseline), /secret-fixture|PRIVATE/);
+  const p = publication({ ...context, baseline }, digest, now);
+  assert.throws(() => held.prepareHeld(app, instances, p, fingerprint));
+  assert.throws(() => held.prepareHeld(app, [], p, fingerprint));
+
+  const stopped = globalThis.structuredClone(app);
+  stopped.spec.maintenance = { archive: true, enabled: true };
+  stopped.active_deployment = {
+    id: "archived-generation",
+    phase: "ACTIVE",
+    spec: globalThis.structuredClone(stopped.spec),
+  };
+  const spec = held.prepareHeld(stopped, [], p, fingerprint);
+  const running = {
+    ...stopped,
+    spec,
+    active_deployment: { id: "held-generation", phase: "ACTIVE", spec },
+  };
+  const evidence = await held.verifyHeld(
+    p,
+    {
+      fingerprint,
+      getApp: async () => running,
+      getInstances: async () => instances,
+      probe: async (scope) => ({
+        status: "release_held",
+        role: scope.component,
+        identity: held.holdIdentity(p),
+        schema: "verified",
+        challenge: scope.challenge,
+      }),
+    },
+    now,
+  );
+  assert.equal(recordHeld(p, evidence, context, now).phase, "held_verified");
+  stopped.spec.region = "unexpected";
+  stopped.active_deployment.spec = globalThis.structuredClone(stopped.spec);
+  assert.throws(() => held.prepareHeld(stopped, [], p, fingerprint));
+});
+
+test("publication readback retains live inventory and rejects pagination or same-count drift", async () => {
+  const app = archived();
+  delete app.spec.maintenance;
+  app.active_deployment.spec = globalThis.structuredClone(app.spec);
+  const decision = { app: app.id, previousDigest: previous };
+  const instances = [
+    { component_name: "api", instance_name: "api-old", state: "RUNNING" },
+    { component_name: "worker", instance_name: "worker-old", state: "RUNNING" },
+  ];
+  const read = (change) => {
+    let reads = 0;
+    return async (path) => {
+      if (!path.endsWith("/instances")) return { app };
+      reads++;
+      const page = { instances: globalThis.structuredClone(instances) };
+      return reads === 2 && change ? change(page) : page;
+    };
+  };
+  const baseline = await publicationReadback(decision, read());
+  assert.equal(baseline.publicationOnly, true);
+  await assert.rejects(
+    publicationReadback(
+      decision,
+      read((page) => {
+        page.instances[0].state = "REPLACED";
+        return page;
+      }),
+    ),
+    /Publication instance inventory drift/,
+  );
+  await assert.rejects(
+    publicationReadback(
+      decision,
+      read((page) => ({ ...page, links: { pages: { next: "more" } } })),
+    ),
+    /INSTANCE_INVENTORY_REJECTED/,
+  );
 });
 
 test("the existing one-API/one-worker instance contract cannot certify a partial larger generation", () => {
