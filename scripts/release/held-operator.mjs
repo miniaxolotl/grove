@@ -2,6 +2,7 @@
 // operator owns custody, qualification, private files and its fsynced journal.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { receiptHash, validateHeldReceipt } from "./held-state.mjs";
 const actions = {
   restore: "published_held",
@@ -87,6 +88,11 @@ export function validateBackupCustody(
     receipt.encryptedSha256,
   );
   assert.equal(journal.requiresReconciliation, false);
+  assert.equal(
+    journal.records.at(-1)?.state,
+    "backup_complete_hold",
+    "Backup journal has a later failed/uncertain outcome",
+  );
   assert(
     journal.records.some(
       (record) =>
@@ -125,6 +131,18 @@ async function qualify(p, parent, command, io, now, consume = true) {
     "Frozen execution contracts cannot be reused",
   );
 }
+function writeClock(io, start) {
+  const mono = performance.now(),
+    wall = Date.now();
+  return () => {
+    const elapsed = performance.now() - mono;
+    assert(
+      Math.abs(Date.now() - wall - elapsed) < 1000,
+      "Operator clock changed; retain hold",
+    );
+    return io.now ? io.now() : start + elapsed;
+  };
+}
 export async function runProviderTransition(
   p,
   parent,
@@ -133,7 +151,9 @@ export async function runProviderTransition(
   io,
   now = Date.now(),
 ) {
-  await qualify(p, parent, command, io, now);
+  const current = writeClock(io, now);
+  await qualify(p, parent, command, io, current());
+  validateOperatorCommand(p, parent, command, current());
   assert.equal(
     (io.specFingerprint ?? receiptHash)(spec),
     command.proposed,
@@ -164,8 +184,27 @@ export async function runProviderTransition(
         providerHash: command.proposed,
         hold: true,
       });
+      await qualify(p, parent, command, io, current(), false);
+      assert.equal(
+        typeof io.assertExclusiveWindow,
+        "function",
+        "Independent exclusive provider change window required; GET plus PUT is not atomic",
+      );
+      await io.assertExclusiveWindow(command, fresh);
+      const dispatch = await io.getState();
+      assert.equal(
+        dispatch.state,
+        command.expected,
+        "Provider generation drift at dispatch",
+      );
+      assert.deepEqual(
+        dispatch.instances,
+        before.instances,
+        "Provider instances changed at dispatch",
+      );
+      validateOperatorCommand(p, parent, command, current());
       try {
-        await io.put(spec);
+        await io.put(spec, dispatch);
       } catch {
         await journal.append("uncertain_hold", {
           providerHash: command.proposed,
@@ -232,7 +271,9 @@ export async function runDatabaseTransition(
   io,
   now = Date.now(),
 ) {
-  await qualify(p, parent, command, io, now);
+  const current = writeClock(io, now);
+  await qualify(p, parent, command, io, current());
+  validateOperatorCommand(p, parent, command, current());
   assert(["admit", "handoff", "open-public"].includes(command.action));
   const journal = await io.journal(command.id, {
     source: p.release.source,
@@ -248,7 +289,41 @@ export async function runDatabaseTransition(
     });
     let evidence;
     try {
-      evidence = await io.applyDatabase(p, parent, command);
+      await qualify(p, parent, command, io, current(), false);
+      assert.equal(
+        typeof io.assertExclusiveWindow,
+        "function",
+        "Independent app window required before owner SQL",
+      );
+      assert.equal(
+        typeof io.prepareDatabaseWrite,
+        "function",
+        "Durable owner SQL intent required",
+      );
+      const state = JSON.parse(JSON.stringify(await io.getState()));
+      await io.assertExclusiveWindow(command, state);
+      await io.prepareDatabaseWrite(command, state);
+      const lease = await io.assertExclusiveWindow(
+        command,
+        await io.getState(),
+      );
+      const final = await io.getState();
+      assert.equal(final.state, state.state, "Provider drift before owner SQL");
+      assert.deepEqual(
+        final.instances,
+        state.instances,
+        "Provider instances changed before owner SQL",
+      );
+      const assertFresh = ({ beginTransaction = false } = {}) => {
+        validateOperatorCommand(p, parent, command, current());
+        assert(
+          lease?.expiresAt - current() > (beginTransaction ? 21000 : 0),
+          "App window expires before bounded SQL",
+        );
+      };
+      validateOperatorCommand(p, parent, command, current());
+      assertFresh({ beginTransaction: true });
+      evidence = await io.applyDatabase(p, parent, command, { assertFresh });
     } catch {
       await journal.append("uncertain_hold", {
         approvalHash: receiptHash(command),
@@ -262,7 +337,13 @@ export async function runDatabaseTransition(
       approvalHash: receiptHash(command),
       hold: true,
     });
-    await io.verifyDatabase(p, parent, command, evidence);
+    const proof = await io.verifyDatabase(p, parent, command, evidence);
+    assert.equal(
+      typeof io.finishDatabaseWrite,
+      "function",
+      "Owner SQL completion authority required",
+    );
+    await io.finishDatabaseWrite(command, await io.getState(), proof);
     await journal.append("committed_hold", {
       approvalHash: receiptHash(command),
       hold: true,
