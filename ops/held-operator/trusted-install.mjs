@@ -225,6 +225,7 @@ export async function stageTrustedInstall({
       toolFiles,
       tools: {
         nodeSha256: files["bin/node"],
+        pythonPath: await realpath(pythonExecutable),
         python: toolchain.python,
         sqlite: toolchain.sqlite,
       },

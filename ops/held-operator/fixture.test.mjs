@@ -19,7 +19,7 @@ const module = await import("./rehearsal.mjs").catch((e) => {
 test(
   "real populated 044 -> encrypted retained restore -> exact 045–048 and fault qualification",
   { timeout: 240000 },
-  async () => {
+  async (t) => {
     assert.equal(typeof module.rehearse, "function");
     const result = await module.rehearse({
       repository: process.cwd(),
@@ -102,6 +102,61 @@ test(
     });
     assert.equal(admitted.manifest.fixtureQualified, true);
     assert.equal(admitted.manifest.executionAdmitted, false);
+    await t.test("production admission rejects a source outside the verified bundle before importing it", async () => {
+      const productionPayload = { ...payload, scope: "production" };
+      await control.durableWrite(
+        result.root + "/production-review.json",
+        JSON.stringify({
+          payload: productionPayload,
+          signature: sign(
+            null,
+            Buffer.from(canonical(productionPayload)),
+            privateKey,
+          ).toString("base64"),
+        }),
+      );
+      await assert.rejects(
+        qualifyInstallation({
+          control,
+          config: { ...config, review: result.root + "/production-review.json" },
+          publicKey: publicKey.export({ format: "pem", type: "spki" }),
+        }),
+        /BUNDLED_SOURCE_REQUIRED/,
+      );
+    });
+    await t.test("review expiry advances while installation artifacts are inspected", async (t) => {
+      let clock = payload.issuedAt + 1;
+      t.mock.method(Date, "now", () => clock);
+      await assert.rejects(
+        qualifyInstallation({
+          control: {
+            ...control,
+            readPrivate: async (path, options) => {
+              const value = await control.readPrivate(path, options);
+              if (path === config.report) clock = payload.expiresAt + 1;
+              return value;
+            },
+          },
+          config,
+          publicKey: publicKey.export({ format: "pem", type: "spki" }),
+        }),
+        /REVIEW_EXPIRED/,
+      );
+    });
+    await t.test("review expiry is rechecked after asynchronous source admission", async (t) => {
+      let reads = 0;
+      t.mock.method(Date, "now", () =>
+        reads++ === 0 ? payload.issuedAt + 1 : payload.expiresAt + 1,
+      );
+      await assert.rejects(
+        qualifyInstallation({
+          control,
+          config,
+          publicKey: publicKey.export({ format: "pem", type: "spki" }),
+        }),
+        /REVIEW_EXPIRED/,
+      );
+    });
     await assert.rejects(
       qualifyInstallation({
         control,

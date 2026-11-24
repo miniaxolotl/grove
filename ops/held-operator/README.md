@@ -15,7 +15,12 @@ production-qualified installation**. In particular:
   and `files:{relativePath:sha256}` covering all executable modules, resolver package
   metadata and installed transitive dependency sources. Its **raw byte hash** is
   the source-controlled `closureSha256`; the independently approved public key's
-  raw PEM hash is `reviewKeySha256`. No CLI flag may supply or override either pin.
+   raw PEM hash is `reviewKeySha256`. No CLI flag may supply or override either pin.
+- Production configuration must use that bundle's exact `admitted-source` root.
+  An independently located source tree is rejected before source import, even if
+  its files match: its dependency resolution must be the verified bundle graph.
+  The migration CLI uses the database module returned by that qualified installation;
+  it never rereads mutable configuration to choose an import after loading credentials.
 - `authority.py` implements an independent SQLite authority outside code/custody:
   existing-only ordinary opens, directory/database identities, cross-process
   serialization, unique consumes and sequence/hash CAS. Provisioning and every
@@ -28,6 +33,10 @@ production-qualified installation**. In particular:
   `site`/`sitecustomize`; `-S` excludes those hooks before script execution or pin
   discovery. These scripts use only the standard library. The `/usr/`-only,
   immutable OS-tool closure checks remain unchanged; site hooks are not whitelisted.
+  The closure also binds the fixed `/usr/bin/python3` launch alias to its reviewed
+  canonical interpreter (`tools.pythonPath`). Alias drift rejects admission even
+  if the old interpreter and its pinned files remain present. Older closures
+  without this binding must be regenerated and independently reviewed.
 - One externally pinned app database survives source/custody/code changes.
   Registered installation descriptors bind each source, code closure, custody
   UUID and work-root identity separately. Installing another source must register
@@ -195,9 +204,12 @@ issuedAt:<milliseconds>, expiresAt:<milliseconds>}`. Maximum validity is 24h.
    operational key creation/storage or new secret service. Test keys are ephemeral
    synthetic fixtures. The parent must establish the review authority separately;
    no production key, signature or live clearance is shipped.
+   Expiry is checked against a fresh clock after artifact inspection and again
+   after asynchronous source/authority/window verification, immediately before
+   returning qualification. A review expiring during those checks is rejected.
 4. Under the private root install `installation.json` and `review-key.pem` (0600).
    Set `GROVE_OPERATOR_CUSTODY_ROOT` to that root. Configuration fields:
-   `schema:2`, `contract`, `sourceRoot` (complete frozen source with dependencies),
+   `schema:2`, `contract`, `sourceRoot` (the installed bundle's `admitted-source`),
    `inventory` (parsed source inventory), `report`, `blueprint`, `review` (private
    paths), `authority`, `window` and `policy`. Policy binds `appId`, `parentSession`, `deployedSource`,
    `deployedImage`, `originalsEncryptedSha256`, `originalsReviewDue`. Original
