@@ -59,6 +59,7 @@ export async function runRehearsalToolTests({
       "window.test.mjs",
       "trusted-install.test.mjs",
       "process.test.mjs",
+      "agent-sockets.test.mjs",
       "pinned-path.test.mjs",
       "restore-path.test.mjs",
       "rehearsal-path.test.mjs",
