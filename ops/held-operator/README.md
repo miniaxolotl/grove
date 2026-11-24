@@ -124,6 +124,14 @@ without changing the replacement. Subprocesses
 run beneath a Linux subreaper with pidfd-fenced descendant cleanup, including
 new sessions/double forks. Timeout or uncertain cleanup is failure, never success.
 GPG agents are scoped to the pinned private homedir; no host-wide kill is used.
+After the scoped agent stop, cleanup removes only the four fixed, owned Unix
+socket entries that refuse a connection. Observed active or uncertain sockets,
+regular files, symlinks and identity changes fail closed. This accommodates GnuPG
+versions that leave dead socket files after the supervised agent has been reaped;
+it does not authorize stopping another homedir's agent or removing key material.
+The caller must exclusively own use of this private homedir during cleanup.
+The final identity check and unlink are separate syscalls; directory pinning does
+not fence a concurrent same-UID writer swapping or activating a socket between them.
 
 ## Offline qualification
 
