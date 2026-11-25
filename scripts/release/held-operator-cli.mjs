@@ -35,7 +35,7 @@ import {
 } from "../deploy-digitalocean.mjs";
 import { readGitHubJson } from "../ci/github-json.mjs";
 import { qualifyIndependent } from "./held-operator-qualification.mjs";
-import { validateCompleteInstanceInventory } from "./held-instance-inventory.mjs";
+import { deploymentSpecMatches, providerInstanceInventory } from "./held-provider-response.mjs";
 import { createProviderDispatch } from "./held-operator-provider-io.mjs";
 import {
   verifyOperatorRoot,
@@ -187,15 +187,16 @@ try {
       };
       const getApp = async () => (await remote(`/v2/apps/${appId}`)).app;
       const getInstances = async () => {
+        const app = await getApp();
         const page = await remote(`/v2/apps/${appId}/instances`);
-        return validateCompleteInstanceInventory(page);
+        return providerInstanceInventory(page, app);
       };
       const observe = async () => {
         const app = await getApp();
         assert.equal(app.id, appId);
         assert(!app.pending_deployment && !app.in_progress_deployment);
         assert.equal(app.active_deployment?.phase, "ACTIVE");
-        assert.deepEqual(app.spec, app.active_deployment.spec);
+        assert(deploymentSpecMatches(app), "DEPLOYMENT_SPEC_DRIFT");
         const instances = await getInstances();
         assert.equal(
           appStateFingerprint(await getApp()),

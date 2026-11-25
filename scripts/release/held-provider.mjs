@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import * as provider from "../deploy-digitalocean.mjs";
 import { validateCompleteInstanceInventory } from "./held-instance-inventory.mjs";
+import { deploymentSpecMatches } from "./held-provider-response.mjs";
 import {
   receiptHash,
   validateHeldReceipt,
@@ -24,7 +25,7 @@ function fingerprintDefault(app) {
 function settled(app) {
   assert(!app.pending_deployment && !app.in_progress_deployment);
   assert.equal(app.active_deployment?.phase, "ACTIVE");
-  assert(isDeepStrictEqual(app.spec, app.active_deployment.spec));
+  assert(deploymentSpecMatches(app), "DEPLOYMENT_SPEC_DRIFT");
   assert.equal(app.spec.name, "grove");
   assert(
     app.spec.services?.length === 1 && app.spec.services[0].name === "api",

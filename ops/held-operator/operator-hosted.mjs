@@ -2,7 +2,7 @@ import { need, hashJSON } from "./operator-control.mjs";
 import { URL } from "node:url";
 import { Buffer } from "node:buffer";
 import { appStateFingerprint } from "../../scripts/deploy-digitalocean.mjs";
-import { validateCompleteInstanceInventory } from "../../scripts/release/held-instance-inventory.mjs";
+import { deploymentSpecMatches, providerInstanceInventory } from "../../scripts/release/held-provider-response.mjs";
 export function createHosted({ appId, deployedSource, deployedImage }) {
   return async function observeHosted({
     token,
@@ -100,13 +100,14 @@ export function createHosted({ appId, deployedSource, deployedImage }) {
       deployment?.id === deploymentId && deployment.spec,
       "PROVIDER_SHAPE_REJECTED",
     );
-    validate(deployment.spec);
+    const deployed = { ...first, active_deployment: { ...first.active_deployment, spec: deployment.spec } };
+    need(deploymentSpecMatches(deployed), "DEPLOYED_SOURCE_DRIFT");
     const list = await get(`/v2/apps/${appId}/instances`);
-    const rawInstances = validateCompleteInstanceInventory(list);
+    const rawInstances = providerInstanceInventory(list, deployed);
     const { app: last } = await get("/v2/apps/" + appId);
     need(
       hashJSON(identity(first)) === hashJSON(identity(last)) &&
-        hashJSON(first.spec) === hashJSON(deployment.spec) &&
+        deploymentSpecMatches(deployed) &&
         deployment.phase === first.active_deployment.phase,
       "PROVIDER_DRIFT",
     );
