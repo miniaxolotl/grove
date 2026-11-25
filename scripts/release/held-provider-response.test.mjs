@@ -11,18 +11,18 @@ const desired = {
   maintenance: { enabled: true, archive: true },
 };
 function archive() {
-  const spec = structuredClone(desired);
-  const actual = structuredClone(spec);
+  const spec = globalThis.structuredClone(desired);
+  const actual = globalThis.structuredClone(spec);
   for (const key of ["services", "workers", "ingress"]) delete actual[key];
   return { spec, active_deployment: { id: "archive-generation", phase: "ACTIVE", spec: actual } };
 }
 test("archive projection must preserve every non-resource field and both raw specs", () => {
-  const app = archive(), before = structuredClone(app);
+  const app = archive(), before = globalThis.structuredClone(app);
   assert(deploymentSpecMatches(app));
   assert.deepEqual(providerInstanceInventory({}, app), []);
   assert.deepEqual(app, before);
   for (const field of ["name", "domains", "maintenance"]) {
-    const changed = structuredClone(app);
+    const changed = globalThis.structuredClone(app);
     delete changed.active_deployment.spec[field];
     assert.equal(deploymentSpecMatches(changed), false);
     assert.throws(() => providerInstanceInventory({}, changed), /INVENTORY/);
@@ -30,7 +30,7 @@ test("archive projection must preserve every non-resource field and both raw spe
 });
 test("empty protobuf roster requires a settled archive, not missing metadata or a running app", () => {
   const app = archive();
-  for (const page of [null, [], { meta: { total: 0 } }, { next: "more" }, { instances: null }])
+  for (const page of [null, true, 1, false, 0, "", [], { meta: { total: 0 } }, { next: "more" }, { instances: null }])
     assert.throws(() => providerInstanceInventory(page, app), /INVENTORY/);
   for (const change of [
     { pending_deployment: { id: "pending" } },
