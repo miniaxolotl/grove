@@ -97,6 +97,11 @@ lifecycle/provider reconciliation and reopening. Follow the
   preservation. Provider checks occur outside the SQL transaction. Unknown COMMIT
   stays uncertain; a known COMMIT with failed readback stays committed-unverified.
   `reconcile` is read-only and never consumes, appends, retries or reopens.
+- Production owner identity checks acquire one physical database client and require
+  its transport to be encrypted and certificate-authorized before querying identity
+  on that same client. `pg_stat_ssl` behind a TLS-terminating proxy is not client
+  transport evidence. Missing/plaintext/unverified client TLS fails closed; only
+  owned local restore fixtures use the separate non-network fixture boundary.
 - `createQualifier` independently verifies source, publication, action, command,
   expiry and backup custody; `consume:true` is exclusive and fsynced.
   `consume:false` requires matching existing consumption and never writes. The
