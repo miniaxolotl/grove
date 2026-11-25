@@ -111,6 +111,12 @@ lifecycle/provider reconciliation and reopening. Follow the
   duplicates and more than 1,000 rows fail closed. Archived empty inventories are
   valid. The controller carries its approved inventory into the actual CLI PUT
   boundary; every inner read compares against that baseline, including metadata.
+  For a settled archive, the actual active spec may be the exact desired-spec
+  projection without services/workers/ingress. Both raw specs are retained and all
+  other fields must match. Only that matching archive can interpret the API's exact
+  empty `{}` protobuf inventory envelope as zero instances; running, paginated or
+  malformed missing-array responses still fail. An accepted archive is reconciled,
+  never resubmitted merely because the provider uses this representation.
 - Before owner SQL (`admit`, `handoff`, `open-public`) the same app lock persists
   a SQL intent. Only canonical persisted phase/approval/evidence/hash readback
   finishes it. All provider/SQLite calls occur outside the bounded SQL transaction;
