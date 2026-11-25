@@ -186,9 +186,10 @@ try {
         return readProviderResponse(response, body ? "PUT" : "GET", path);
       };
       const getApp = async () => (await remote(`/v2/apps/${appId}`)).app;
-      const getInstances = async (app) => {
+      const getInstances = async () => {
+        const app = await getApp();
         const page = await remote(`/v2/apps/${appId}/instances`);
-        return providerInstanceInventory(page, app ?? await getApp());
+        return providerInstanceInventory(page, app);
       };
       const observe = async () => {
         const app = await getApp();
@@ -196,7 +197,7 @@ try {
         assert(!app.pending_deployment && !app.in_progress_deployment);
         assert.equal(app.active_deployment?.phase, "ACTIVE");
         assert(deploymentSpecMatches(app), "DEPLOYMENT_SPEC_DRIFT");
-        const instances = await getInstances(app);
+        const instances = await getInstances();
         assert.equal(
           appStateFingerprint(await getApp()),
           appStateFingerprint(app),
