@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.11.35](https://github.com/miniaxolotl/grove/compare/v1.11.34...v1.11.35) (2026-11-26)
+
+
+### Bug Fixes
+
+* **release:** harden qualified operator admission ([#334](https://github.com/miniaxolotl/grove/issues/334)) ([657a003](https://github.com/miniaxolotl/grove/commit/657a0037afd9ebbf75673e9cbc6d9e8c81d3a6e0))
+* **release:** recognize native archived provider responses ([#336](https://github.com/miniaxolotl/grove/issues/336)) ([978f9bc](https://github.com/miniaxolotl/grove/commit/978f9bc2f80ea9879afd132614d77afef1171690))
+* **release:** separate held application and operator workflow identities ([cb1e74f](https://github.com/miniaxolotl/grove/commit/cb1e74fac887db01a816d0fb9a2100a815f2bf78))
+* **release:** verify owner TLS on the physical client ([#335](https://github.com/miniaxolotl/grove/issues/335)) ([9169786](https://github.com/miniaxolotl/grove/commit/9169786c9da1da831c7d95af17960017a1ad976e))
+
 ## [1.11.34](https://github.com/miniaxolotl/grove/compare/v1.11.33...v1.11.34) (2026-11-21)
 
 
