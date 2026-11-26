@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { route,routeHeldOperator } from "./proofing-release.mjs";
+import * as releaseRoutes from './proofing-release.mjs';
 import { updateImageSpec, findDeployment } from "../deploy-digitalocean.mjs";
 const base = "6566c2dca78e7fde9c79357f8d07c5ad6f4cc7d5",
   merged = "a".repeat(40),
@@ -42,6 +43,15 @@ test('operational recovery has one exact reviewed coordinated patch admission, n
   assert.equal(routeHeldOperator(merged,operatorPr,false,io),'coordinated');assert.equal(routeHeldOperator(stamp,operatorPr,true,io),'coordinated');
   for(const change of [{number:338},{merged:false},{head:{ref:'another-branch'}},{base:{ref:'production'}}])assert.equal(routeHeldOperator(merged,{...operatorPr,...change},false,io),'website-only');
   assert.throws(()=>routeHeldOperator(stamp,operatorPr,true,fixture('\npackages/api/src/server.ts',()=>{},'1.11.34','1.11.35','978f9bc2f80ea9879afd132614d77afef1171690')));
+});
+test('action-pin repair has one exact coordinated 1.11.36 admission',()=>{
+  assert.equal(typeof releaseRoutes.routeHeldActionPin,'function');
+  const pinPr={...pr,number:340,head:{ref:'fix/release-held-action-pin',repo:{full_name:'miniaxolotl/grove'}}};
+  const io=fixture('',()=>{},'1.11.35','1.11.36','0ec31adf20c68bc909a59d05cbb4e6e07681d3b6');
+  assert.equal(releaseRoutes.routeHeldActionPin(merged,pinPr,false,io),'coordinated');
+  assert.equal(releaseRoutes.routeHeldActionPin(stamp,pinPr,true,io),'coordinated');
+  for(const change of [{number:341},{merged:false},{head:{ref:'another-branch'}},{base:{ref:'production'}}])assert.equal(releaseRoutes.routeHeldActionPin(merged,{...pinPr,...change},false,io),'website-only');
+  assert.throws(()=>releaseRoutes.routeHeldActionPin(stamp,pinPr,true,fixture('\npackages/api/src/server.ts',()=>{},'1.11.35','1.11.36','0ec31adf20c68bc909a59d05cbb4e6e07681d3b6')));
 });
 test("only the actual proofing merge can request the coordinated source release", () => {
   assert.equal(route(merged, pr, false, fixture()), "coordinated");
