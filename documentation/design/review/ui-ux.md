@@ -16,6 +16,11 @@ The three highest-value changes are:
 - Replace routine explanations with clear controls, examples and compact status.
 - Make a note’s source and its use in an answer Grove’s recognizable interaction.
 
+Owner-required checks for the next implementation: remove **excessive horizontal
+or vertical dividers**, improve settings/toggle hierarchy and layout, link
+directly to all released extension stores, and update URLs as navigation changes
+so Back/Forward and reload preserve the exact location and return context.
+
 ## Evidence and limits
 
 - Source: development `622ca2b0b5b98801c21166be9d00965f72bfe42d`, product
@@ -24,6 +29,16 @@ The three highest-value changes are:
 - Notes reviewed at 1440, 768, 390 and 320px; editor, Ask and Writing settings at
   1440 and 390px. All ten captured states had no horizontal page overflow or
   JavaScript page errors. This is not full journey, keyboard or device acceptance.
+- The broader pass adds 23 web captures at 1440/390px: notebooks, graph,
+  Connections, API-key scope, AI settings, files/storage and refresh failure, data,
+  pending browser/agent approval and sharing. No horizontal page overflow or page
+  errors in those states. Desktop axe repeats the shell name-mismatch findings.
+  Focused interactions below are not end-to-end import, export, deletion or
+  permission-grant acceptance.
+- Six focused phone states also had no overflow or page errors: deletion
+  cancellation, export options, uncommitted sharing, import entry, file refresh
+  failure and stale notes. No API mutations were attempted. Note-row reload and
+  failed-refresh observations are recorded in the gallery.
 - Extension captures use the current built Chrome package in isolated Chromium
   156.0.8078.4, synthetic text and mocked HTTP/model responses. No live AI calls.
   This does not establish parity with every published store version or browser.
@@ -50,6 +65,21 @@ destinations. Keep local installation under an advanced disclosure. Remove the
 obsolete waiting language from current docs and FAQs; retain dated evidence as
 history. The first useful state should be the existing local writing checks, not
 an account-creation requirement. Keep explicit notebook/AI permissions separate.
+
+The direct destinations already exist in the shared component:
+
+- [Chrome Web Store](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa)
+- [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
+- [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo)
+
+Chrome and Edge pages resolve with Grove’s listing title. The Firefox HTML page
+returned a client challenge; its [official public metadata](https://addons.mozilla.org/api/v5/addons/addon/grove-private-notes/)
+identifies Grove as public and not disabled. This is destination evidence, not an
+installation test. `packages/website/tests/extension-store-links.spec.ts:48`
+currently expects the obsolete Chrome guide/unavailable behavior: update those
+expectations alongside the component, not just its display label. Check actual
+`href` destinations in Install and Connections, with/without JavaScript and across
+browser detection; no setup-guide detour for the store action.
 
 ### High: mobile navigation consumes the workspace
 
@@ -92,6 +122,10 @@ notebook. Ask should lead with a question and visible source scope, not another
 equal-weight search mode. Advanced retrieval can remain available without being
 a primary competing destination. Preserve meaningful search/filter state on
 return and in shareable URLs where applicable.
+
+The broader pass qualifies this recommendation: do **not** collapse global
+navigation search, scoped filtering and question answering into one ambiguous
+control. Their different jobs are valid; clarify their scope and hierarchy.
 
 ### Medium: Ask looks like a generic chatbot, not a notebook tool
 
@@ -171,6 +205,168 @@ scoped view; reserve status emphasis for actual problems. Keep optional metadata
 in row details and bulk actions in selection mode. Retain list rows and useful
 dividers rather than turning every note into a large card.
 
+## Broader workflow pass
+
+### Medium: settings need parent/child hierarchy, not more separators
+
+Writing assistance, Spelling and Basic grammar currently share the same left
+edge, weight and checkbox treatment, although one is the master control
+(`packages/website/src/components/dashboard/writing-preferences.tsx:159`). Expanded
+automatic/highlight/rule options continue down the left column while the shorter
+Enhanced grammar block leaves the right side mostly empty on desktop. See
+[expanded Writing](../screenshots/ui-ux-review/writing-expanded-1440.png).
+
+Make **Writing checks** the group-level control; nest its spelling, grammar,
+timing and display choices visibly. Place remote **Enhanced grammar** in a
+separate, clearly labelled group with its automatic-send option nested under it.
+Use consistent label/control columns, row height, spacing and readable supporting
+text. A dependent option must retain its saved choice when disabled and explain
+why it is inactive. Avoid nested “More options → advanced rules” layers when one
+meaningful Rules disclosure suffices. In AI settings, keep Organization,
+Summaries, Connected agents and Speech as intelligible groups, and distinguish
+feature availability from the user’s saved preference. Do not replace every
+checkbox with a switch or silently change the existing save policy.
+
+Search both orientations of dividers in the shell, editor toolbars, lists,
+connection forms and extension panels. Flag a line when it repeats a boundary
+already conveyed by spacing, a heading, a surface or another outline—not merely
+because CSS contains `border`. The repeated editor bands and permanent selection
+header are the first simplification targets (`app/app/editor.css:287`,
+`app/app/dashboard.css:736`, under `packages/website/src/`). Prefer one clear
+boundary per group. Retain useful row separation, control outlines, focus rings,
+table relationships and destructive-action grouping. The current flat settings
+rows already remove their borders (`settings-layout.css:31`); adding a divider
+between every toggle would make their hierarchy worse, not better.
+
+### High: access management comes after installation
+
+`packages/website/src/components/dashboard/connections.tsx:149` places extension,
+agent and API-key setup before **Your connections**. In
+[mobile Connections](../screenshots/ui-ux-review/connections-390.png), those
+installation choices occupy almost the entire first screen, even with an approved
+connection present. Finding or revoking existing access requires scrolling past
+setup. This is a hierarchy issue, not a need for more onboarding copy.
+
+Lead with existing connections, their scope and **Edit scope / Revoke**. Put
+**Add connection** beside the heading and reveal the installation choices there.
+An empty account can lead with those choices. Keep Hide visibly distinct from
+Revoke: hiding a row does not stop access.
+
+### High: note deletion omits the recovery consequence
+
+`packages/website/src/components/dashboard/note-delete-dialog.tsx:213` says the
+note and history will be “hidden from your Grove.” The comparable notebook
+warning explicitly says they cannot be restored
+(`notebook-lifecycle-summary.tsx:7`). “Hidden” alone can sound like a reversible
+view setting, especially beside Archive and connection Hide.
+
+Use a short, visible consequence: **“This note and its history will be hidden.
+You can’t restore them in Grove.”** Preserve the real retention contract; do not
+claim physical erasure. Keep draft-loss, uncertain-save and conflict warnings
+conditional and visible. The review opens and cancels the dialog; it does not
+delete a note or prove deletion recovery.
+
+### Medium: permission editing should sit beside the permission summary
+
+Agent approval shows selected **Delete memories** and **All current and future
+notebooks**, but capability editing is below **Customize access**
+(`packages/website/src/components/dashboard/connect-agent.tsx:264`). API-key
+creation selects all capabilities initially
+(`connections.tsx:573`). The pending browser form is different: read/write are
+selected, delete and AI writing are not. Do not generalize one form’s defaults to
+all connections.
+
+Group **Can do** and **Can access** into a compact, directly editable summary
+before approval. Keep destructive capabilities, future-notebook access and
+remote-AI consent explicit; hide identifiers and protocol detail instead. This
+recommendation changes presentation, not authorization defaults or grant policy.
+Do not add another setup step.
+
+### Medium: extension Search hides the main read action
+
+`packages/browser-extension/src/panel.ts:922` builds the result preview as a
+noninteractive `div` and places **Open**, Copy and Share in the overflow menu.
+The [Search capture](../screenshots/ui-ux-review/extension-search-390.png) therefore
+shows the found note without an obvious way to read it. The full reader itself
+is a useful, focused surface.
+
+Make the result title or a visible **Open** the primary keyboard/touch target.
+Keep Copy/Share and uncommon management actions in overflow. Progressive
+disclosure should remove secondary choices, not conceal the result’s main job.
+
+### Medium: compact refresh feedback hides whether results are current
+
+`packages/website/src/components/dashboard/memory-library.tsx:568` retains loaded
+notes on refresh failure, which is good. But “Couldn’t refresh. Showing saved
+notes.” is screen-reader-only; the visible control is merely **Retry**, with the
+detail in `title`. Touch users should not have to infer what failed.
+
+In Files, the error is below the expanded storage summary and filters
+(`files-panel.tsx:544`), while `files.error` replaces the loaded list. Keep a
+compact failed-refresh receipt beside Refresh, plus detailed recovery in the
+result surface. Retain authorized loaded rows and expanded locations where safe;
+do not keep them after access is revoked. Preserve focus, query and scroll. An
+offscreen alert or a successful-looking old count is not sufficient visible
+freshness feedback.
+
+### High: navigation must update the URL and preserve the return location
+
+Opening a library row leaves the URL at `/app` and opens a dialog; reloading
+returns to the list. `memory-library.tsx:138` holds selection in local state.
+A canonical note route exists, but **Open note page** is secondary in
+`memory-detail.tsx:276`.
+
+Keep quick-open, but reflect the selected note in the route; a secondary canonical
+link alone does not meet the owner’s return-location requirement. Back should
+close the detail and restore its originating list; Forward/reload/copied URL
+should identify the same note. This is not an argument to replace every short
+action with a full page.
+
+Extend the check beyond notes: library filters/view/sort, notebook subviews
+(`context.tsx:71`), file filters/page (`files-panel.tsx:264`), selected conversation
+and meaningful Settings disclosures need restorable navigation state. Settings
+sections already use real routes; daily notes already encode their date and
+exports accept a task ID. Preserve these working cases. Local sidebar expansion
+and scroll persistence (`workspace-navigation-state.tsx`) are useful but do not
+substitute for a location URL.
+
+Acceptance must cover **filtered list → note → files/settings → Back → same
+filtered list**, including the selected row, pagination/loaded range, view, scroll
+and focus. Push history for meaningful navigation; replace it for normalization
+and rapid filter edits, not every keystroke. Keep drafts and private content out
+of URLs; use bounded route IDs or scoped state handles where needed. Validate
+return destinations as authorized local paths, handle deleted/inaccessible targets
+honestly, and preserve unsaved edits. Direct deep links need a sensible parent
+fallback when there is no originating history entry.
+
+### What the wider pass does not justify removing
+
+- Notebook creation has useful Name/Parent controls and a real agent-access
+  consequence. Retain that consequence; remove only generic nesting advice.
+- Graph renders actual note relationships, not invented KPIs. A small synthetic
+  graph does not justify filling the canvas with fake activity or declaring the
+  graph useless without a large-library review.
+- Sharing names **General access** and explains who can read. Retain audience,
+  inherited access and expiry information when applicable. Choosing public access
+  is not publication until **Create link / Save**; never replace that distinction
+  with optimism.
+- AI settings explain local versus remote effects and unavailable providers.
+  These are not all redundant descriptions. Shorten by grouping related choices,
+  not by hiding what leaves the device or what an unavailable option means.
+- Import/export are purposeful Settings surfaces. The review checks entry/options,
+  not upload processing, export completion, download integrity or real email.
+
+The wider reference search supports that distinction:
+[NN/g’s tooltip guidance](https://www.nngroup.com/articles/tooltip-guidelines/)
+reserves tooltips for nonessential explanation;
+[progressive disclosure](https://www.nngroup.com/articles/progressive-disclosure/)
+defers advanced or infrequent choices; and
+[recognition rather than recall](https://www.nngroup.com/articles/recognition-and-recall/)
+supports visible primary actions. The
+[Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines/blob/main/command.md)
+also support semantic controls, visible focus and announced async states. These
+are design references, not evidence that Grove passed every guideline.
+
 ## Copy: remove, disclose, or show
 
 | Current                                                        | Recommended treatment                                                                                                               |
@@ -243,6 +439,9 @@ every action. A short sentence is fine when it says something useful.
   unmodified Chrome run passed. Treat the earlier failure as intermittent
   timing/short-viewport qualification, not a confirmed permanent clip or a fixed
   bug. Do not relax the assertion to make the review green.
+- The broader pass’s unmodified Chrome- and Edge-package host cases passed in
+  Chromium with synthetic HTTP/models. This is not branded Edge, Firefox, live
+  provider or published-store parity acceptance.
 - The public-page taste inspector reported nine rule categories as failures. Its
   demands for more pictures and entrance motion are **not** suitable redesign
   requirements here. Source lint also flagged functional audio-progress gradients
@@ -251,10 +450,10 @@ every action. A short sentence is fine when it says something useful.
 
 ## Recommended implementation order
 
-1. Correct store availability and standardize labels/save receipts.
-2. Reduce mobile navigation and redundant helper copy; verify recovery and focus.
-3. Recompose empty Ask around question + sources; streamline editor controls.
-4. Apply shared component tokens and the source-trail interaction across surfaces.
+1. Correct direct store links, deletion consequences and access-management order.
+2. Establish URL/return-state behavior before changing navigation composition.
+3. Group settings/toggles, remove redundant divider bands and standardize receipts.
+4. Recompose mobile/Ask/editor and shared source trails without hiding recovery.
 
 Before accepting a redesign, verify populated/empty/error/offline states, long
 titles, slow saves, drafts, keyboard and touch alternatives, reduced motion,

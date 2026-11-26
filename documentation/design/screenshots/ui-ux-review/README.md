@@ -47,6 +47,67 @@ unmodified Chrome run passed. The intermittent observation remains in the review
 This is not a full cross-browser installed-suite pass. No live AI, native
 permission prompts or cross-store/browser-version parity is claimed.
 
+## Broader workflow evidence
+
+Same source/build and synthetic fixture boundaries as above. The broader run
+captured 23 web states at 1440/390×900 with no page overflow or JavaScript page
+errors. Six focused phone captures additionally cover deletion cancellation,
+export options, uncommitted public-sharing selection, import entry, scrolled file
+failure and stale notes. Those six also had no overflow or page errors; axe was
+run on the 23-state set, not the focused interaction set.
+
+Selected captures follow; the full temporary capture set is not shipped. Desktop
+axe repeats the shell accessible-name mismatches described in the review.
+
+| Expanded Writing, desktop                                                                          | Expanded Writing, phone                                        |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| ![Master control and dependent writing options at the same indentation](writing-expanded-1440.png) | ![Expanded writing options at 390px](writing-expanded-390.png) |
+
+These two additional captures open More writing options and advanced rules without
+changing a setting. Both have no horizontal page overflow; no additional axe or
+page-error measurement is claimed for this small disclosure-only run. They show
+why parent/child grouping and balanced layout matter more than adding dividers.
+
+| Notebooks                                            | Real relationship graph                           | AI settings                                    | Files                                       |
+| ---------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- | ------------------------------------------- |
+| ![Notebook management at 1440px](notebooks-1440.png) | ![Synthetic note graph at 1440px](graph-1440.png) | ![AI settings at 1440px](ai-settings-1440.png) | ![Uploaded files at 1440px](files-1440.png) |
+
+| Connections                                                                        | Pending browser approval                                                                       | Pending agent approval                                                        | API-key scope                                                    |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| ![Installation options precede existing connections at 390px](connections-390.png) | ![Browser read and write selected, delete and AI writing unselected](browser-approval-390.png) | ![Agent access summary and Customize access at 390px](agent-approval-390.png) | ![API-key selected capabilities at 390px](api-key-scope-390.png) |
+
+Browser approval is seeded with an empty-capability pending connection, **not** an
+already-approved receipt. Browser, agent and API-key defaults differ. No approval,
+key creation or revocation was submitted.
+
+| Note deletion                                                                | Stale notes                                                                                           | File refresh failure                                                                      | Public-sharing selection                                                   |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| ![Delete warning omits ordinary restore unavailability](delete-note-390.png) | ![Loaded notes retained with a visible Retry but no visible failure explanation](stale-notes-390.png) | ![Error after scrolling below expanded storage and filters](files-error-scrolled-390.png) | ![Anyone with the link selected before Create link](share-pending-390.png) |
+
+The deletion dialog initially focused Cancel and was cancelled. Note-row opening
+left the URL at `/app`; reload returned to the list without the detail dialog.
+The induced stale-note refresh kept two rows. With storage expanded, the file
+failure alert began around y=1002 in a 900px viewport at scroll 0, and loaded file
+rows disappeared; the image deliberately scrolls to the actual alert rather than
+presenting an unchanged top viewport as evidence. No API mutations were attempted
+in these focused interactions. The synthetic failure is not a live outage.
+
+| Import entry                                                                           | Note export options                                                          | Extension Search                                                          | Extension reader                                           |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| ![Import destination and file constraints before choosing files](import-notes-390.png) | ![Note export options without preparing or downloading](export-note-390.png) | ![Extension Search result with overflow action](extension-search-390.png) | ![Focused extension note reader](extension-reader-390.png) |
+
+The extension additions are 390×844 captures from the unmodified Chrome host
+suite, same isolated Chromium version and mocked HTTP/models. The synthetic
+`<script>` text, “Unsafe” link and “No tracking” image fallback are deliberate
+sanitization fixtures, not product copy or real account content. Copied receipts
+reflect preceding test actions. Selected Chrome- and Edge-package host cases
+passed on Chromium; this does not establish branded Edge/Firefox, native prompts,
+real models, published store versions or production acceptance.
+
+Import entry was closed without choosing files; export options were closed
+without preparing/downloading a file; sharing was closed without Create link.
+Worker completion, download integrity, live publication and erasure are untested.
+
 ## Public entry pages
 
 Live `grovenote.app`, captured 26 November 2026. Home requested 1440×900 and its
