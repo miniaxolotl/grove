@@ -65,6 +65,13 @@ Apply that standard across the web app and extension, not only to settings copy.
   blocker. No store submission, store install or configuration change was performed.
 - [Screenshots and provenance](../screenshots/ui-ux-review/README.md).
 
+Source revalidation against development `81bf958` finds no changes to the reviewed
+website, extension or shared UI/search contracts since `622ca2b0`. The intervening
+change is the email implementation below. Existing browser measurements remain
+dated fixture evidence, not a new authenticated or device test. Treat the defect
+findings separately from the proposed navigation, sorting, link and motion designs;
+passing documentation checks does not implement or accept those designs.
+
 ## Prioritized findings
 
 ### High: installation still looks unfinished
@@ -786,13 +793,14 @@ outlined sheet, decorative top stripe and category eyebrow differ from the appâ€
 system-interface type and quieter neutral surfaces. Full subjects also make
 unnecessarily long in-message headings.
 
-The owner-requested implementation is isolated in
+The owner-requested implementation was merged into development as `81bf958` in
 [email consistency PR #349](https://github.com/miniaxolotl/grove/pull/349), with
-[current samples and historical before captures](https://github.com/miniaxolotl/grove/blob/fix/email-webapp-consistency/documentation/design/screenshots/transactional-email/README.md).
+[merged samples and historical before captures](https://github.com/miniaxolotl/grove/blob/81bf958b5afefb9f8290ff030f7a74588d38fa65/documentation/design/screenshots/transactional-email/README.md).
 It aligns system type, green ink, neutral paper, compact 24px headings, spacing,
 5px action corners and one 44px primary action; removes decorative framing and
 filler; and keeps a wrapping fallback address. This review branch remains
-documentation-only. A proposed/verified source change is not a deployed email.
+documentation-only. Email source styling is no longer an implementation backlog
+item; a merged source change is not a deployed or inbox-qualified email.
 
 Consistency must not remove security meaning: keep unrecognized-access recovery,
 the account-authorized export landing and absolute deadline, and public support
@@ -981,6 +989,14 @@ Recently created (`library-filters.tsx:264` in the dashboard components).
 Notebook sibling ordering already uses saved position, name and a stable fallback
 (`packages/website/src/lib/notebooks.ts:4`). Reuse those foundations.
 
+This is not only a select-menu change. `lib/shared/src/contracts.ts:115` currently
+accepts only those date modes and relevance; `lib/memory/src/index.ts:1792` applies
+their ordering and cursor positions before pagination. Title, oldest-created and
+manual note ordering need matching server contracts and cursor behavior before
+the UI offers them. Notebook position already exists, but is not a manual note
+rank. Define manual-order scope and title/date semantics explicitly; do not infer
+them from the current page or rewrite saved notebook positions to change a view.
+
 Keep the selected sort/direction clear and remember the userâ€™s choice per view
 and scope, including return navigation. Sort notebooks within their parent;
 sorting must not move items between notebooks or flatten the hierarchy. Manual
@@ -1131,6 +1147,13 @@ every action. A short sentence is fine when it says something useful.
   Automated heuristics support, but do not replace, visual judgment.
 
 ## Recommended implementation order
+
+Deliver bounded fixes before the larger feature proposals. Coordinate store-copy
+and editor/draft work with [reliability PR #347](https://github.com/miniaxolotl/grove/pull/347)
+so competing plans do not duplicate ownership or silently introduce draft storage.
+Keep private content and search phrases out of URLs by default; restorable lookup
+state can use account/session-scoped handles. Readable slugs are optional, not a
+prerequisite for stable ID routes or resource-aware titles.
 
 1. Correct direct store links, deletion consequences, access-management order and unreadable saved-source views.
 2. Establish working chat/note URLs, resource-aware tab titles, rename/link compatibility, return state and unsaved-draft protection.
