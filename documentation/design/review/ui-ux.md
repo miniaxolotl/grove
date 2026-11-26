@@ -632,6 +632,34 @@ processing, irreversible consequences, errors and uncertain saves. Shorten these
 without hiding them. Demonstrate with the actual selected note or passage whenever
 possible instead of writing a paragraph about what the system will do.
 
+## Internal integration: useful note and notebook links
+
+Owner-requested addition to the proposed update; not an implemented capability
+or a claim that the current link renderer has passed these checks.
+
+- Recognize a Grove note or notebook link when pasted or inserted into a note.
+  Display the linked title by default, rather than a raw URL or identifier.
+  Preserve an existing custom label when parsing a formatted link.
+- Offer **Edit link** to change the label later without changing its destination,
+  and **Use original title** to return to the default. Never overwrite a custom
+  label during refresh or when the linked resource is renamed.
+- On hover or keyboard focus, show a compact preview: title, Note/Notebook type
+  and a short excerpt or notebook description when available. Add location only
+  when it helps distinguish the target. No configuration or processing detail.
+- Keep the title a real navigable link. Provide the same preview through a
+  separate tap-accessible action; viewing details must not force navigation or
+  discard the current note’s draft, selection or scroll position.
+- Resolve details only within the viewer’s existing access. Linking does not
+  grant access or expose private previews in shared notes. For deleted or
+  inaccessible targets, show a concise, accurate state without leaking details;
+  do not replace it with “Temporarily unavailable.”
+
+Acceptance: paste note and notebook links, preview and open each, edit the label,
+then save/reload. Check default and custom labels after renames/moves, keyboard
+and touch access, dismiss/focus return, slow or failed preview loads and revoked
+access. Keep the preview stable without moving the note text. These are future
+implementation checks, not new browser-test results from this review.
+
 ## A distinctive direction: the source stays with the thought
 
 Use Grove’s actual sequence—**browser capture → saved note → cited answer**—as its
@@ -695,6 +723,7 @@ every action. A short sentence is fine when it says something useful.
 2. Establish working chat/note URLs, return state and unsaved-draft protection.
 3. Group scope/count/empty states and settings; remove redundant divider bands.
 4. Recompose mobile/Ask/editor and shared source trails without hiding recovery.
+5. Add parsed internal links, compact previews and editable labels under existing access rules.
 
 Before accepting a redesign, verify populated/empty/error/offline states, long
 titles, slow saves, drafts, keyboard and touch alternatives, reduced motion,
