@@ -144,6 +144,35 @@ each stage. Its final stage uses the existing Vercel helper to pull configuratio
 write exact source identity, build afresh, deploy and verify the live identity;
 it cannot reuse a stale site artifact or call publication-only delivery complete.
 
+### Separately released operational recorder
+
+When an already published source's recorder needs repair, **Held release operational
+continuation** runs repaired tooling admitted through the normal protected production
+promotion. It does not republish, retag or change the original application identity.
+Development still performs CI/release preparation only; the production environment,
+actor restriction, exact tooling CI and production-release concurrency remain required.
+
+The operator supplies the original immutable release source and production merge.
+They must have equal trees, the source must be its exact release tag with a valid
+held declaration, and the original production commit must be an ancestor of the
+current protected production head. The original publication is authenticated from
+its actual workflow/artifact, not reconstructed from these inputs.
+
+New receipts keep that original `release` and add `operator.tooling` with the actual
+operational source, production merge, tree, tag and workflow path. Readers verify
+the real successful production run/attempt, both jobs, artifact digest and every
+parent recursively. A continuation chain uses one frozen operational identity;
+development runs, local attestations and invented run IDs cannot substitute.
+Website recording checks out and builds the **original release source** afresh,
+retaining its source/production identity in Vercel and `/release.json`.
+
+Provider phase checks interpret only omitted `maintenance.archive/enabled` false
+values and the release-control environment's `GENERAL` type default. Invalid
+types or explicit conflicting values still reject. Observations and fingerprints
+remain raw; this does not silently rewrite provider state or clear an accepted
+command's mismatching hash. Such an existing intent requires explicit, separately
+reviewed representation-equivalence reconciliation with raw and semantic hashes.
+
 The local `scripts/release/held-operator-cli.mjs` composes the independently
 qualified operator's private-file, manifest, transaction and fsynced journal
 interfaces. It does not implement another backup, migration or secret store.

@@ -45,7 +45,13 @@ function operator(context) {
     assert.match(context[key], sha);
   assert.match(context.tag, /^v\d+\.\d+\.\d+$/);
   assert.match(context.apiVersion, /^\d+\.\d+\.\d+$/);
-  return { run: context.run, attempt: context.attempt, actor: context.actor };
+  if(context.tooling){
+    exact(context.tooling,['source','production','tree','tag','workflow']);
+    for(const key of ['source','production','tree'])assert.match(context.tooling[key],sha);
+    assert.match(context.tooling.tag,/^v\d+\.\d+\.\d+$/);
+    assert.equal(context.tooling.workflow,'.github/workflows/held-release-operator.yml');
+  }
+  return { run: context.run, attempt: context.attempt, actor: context.actor, ...(context.tooling ? {tooling:context.tooling}: {}) };
 }
 export const validateHeldContext = operator;
 function fresh(at, now) {
