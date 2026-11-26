@@ -158,8 +158,10 @@ class NoteDraftStore extends Map<string, NoteDraft> {
         networkMode: "always",
         retry: false,
       });
-      const projects = await cache.client.fetchQuery({
-        ...cache.resource<{ id: string }[]>("/projects"),
+      // The legacy /projects response is capped at 100. Only a complete,
+      // state-checked directory can establish that a notebook was removed.
+      const { items: projects } = await cache.client.fetchQuery({
+        ...cache.notebookCatalog(),
         staleTime: 0,
         networkMode: "always",
         retry: false,

@@ -254,18 +254,7 @@ export class WorkspaceCache {
     }
   }
   private seed(note: Memory, at: number, authoritative = true): Memory | null {
-    if (
-      authoritative &&
-      (note.status === "archived" ||
-        (note.expiresAt && Date.parse(note.expiresAt) <= Date.now()) ||
-        (note.purgeAt && Date.parse(note.purgeAt) <= Date.now()))
-    )
-      this.privacyListeners.forEach((listener) => listener({ ids: [note.id] }));
-    if (
-      this.deleted.has(note.id) ||
-      (note.purgeAt && Date.parse(note.purgeAt) <= Date.now())
-    )
-      return null;
+    if (this.deleted.has(note.id)) return null;
     const key = workspaceKeys.note(note.id);
     const previous = this.client.getQueryData<Memory | null>(key);
     const state = this.client.getQueryState(key);
@@ -276,6 +265,16 @@ export class WorkspaceCache {
         (previous.version === note.version && (state?.dataUpdatedAt ?? 0) > at))
     )
       return previous;
+    // Lifecycle erasure obeys the same version fence as the visible snapshot.
+    // A held old archive/expiry response cannot erase a newer restored draft.
+    if (
+      authoritative &&
+      (note.status === "archived" ||
+        (note.expiresAt && Date.parse(note.expiresAt) <= Date.now()) ||
+        (note.purgeAt && Date.parse(note.purgeAt) <= Date.now()))
+    )
+      this.privacyListeners.forEach((listener) => listener({ ids: [note.id] }));
+    if (note.purgeAt && Date.parse(note.purgeAt) <= Date.now()) return null;
     this.client.setQueryData(key, note, { updatedAt: at });
     this.scheduleExpiry();
     return note;
@@ -1086,6 +1085,14 @@ export class WorkspaceCache {
           .getQueryCache()
           .findAll({ queryKey: [...root, "note"] })) {
           const note = query.state.data as Memory | null;
+          if (
+            note &&
+            ((note.expiresAt && Date.parse(note.expiresAt) <= Date.now()) ||
+              (note.purgeAt && Date.parse(note.purgeAt) <= Date.now()))
+          )
+            this.privacyListeners.forEach((listener) =>
+              listener({ ids: [note.id] }),
+            );
           if (note?.purgeAt && Date.parse(note.purgeAt) <= Date.now())
             this.forget(note.id);
           else if (note) updates.set(note.id, note);

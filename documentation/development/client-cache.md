@@ -163,8 +163,11 @@ Lost create responses reuse the same create operation; a newer authoritative
 version requires review rather than silently rebasing. Daily-note dates survive
 reload rather than changing at midnight.
 
-On open, fresh authenticated account/project reads and current note access/lifecycle
-checks precede decryption into the UI. Offline or uncertain authorization leaves
+On open, fresh authenticated account reads, the complete state-checked paginated
+notebook catalog and current note access/lifecycle checks precede decryption into
+the UI. The legacy first-100 notebook list cannot establish revocation. Lifecycle
+erasure obeys the snapshot version fence; known source expiry also removes its
+checkpoint. Offline or uncertain authorization leaves
 envelopes locked. Deleted, archived, expired, inaccessible or moved-out-of-scope
 sources cannot be restored into another notebook. Transactional sequence checks
 refuse cross-tab overwrites; owner epochs fence late writes after erasure. Broadcasts
