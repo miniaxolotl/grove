@@ -7,9 +7,19 @@ and keyword fallback are unchanged.
 
 Configured semantic support is not proof that an individual query used it:
 `searchMode` identifies the executed lane, and provider failures can leave keyword
-results usable. The [reliability design](design/production-reliability.md#s2-restore-semantic-retrieval-without-hiding-fallback)
-proposes measured recovery and clearer degradation diagnostics; those additions
-are not current behavior.
+results usable. Query responses can also include optional `retrieval` diagnostics:
+`requested` and `executed` (`hybrid` or `lexical`) and an allowlisted `reason` on
+fallback. Explicit keyword mode has no failure reason. Provider timeout, rejection,
+cooldown, budget, incompatible query vectors, exhausted recall allowance and a
+cursor pinned to lexical ranking remain distinct. Unknown failures become
+`query_unavailable`, never raw provider messages. Recall and Ask source search
+propagate the same diagnostic. These fields describe the query lane, not index
+coverage or model quality; `hybrid` alone does not prove a semantic-only match.
+
+The library labels keyword fallback without removing results or changing filters.
+Settings reports configured meaning-search capability, not an unperformed live
+provider test. Start a new search to retry semantic work; an existing degraded
+relevance traversal keeps its ranking mode until explicitly restarted.
 
 With no phrase entered, global search shows recently updated notes in the selected
 notebook. Use the arrow keys to move between results and **Enter** to open a
@@ -135,6 +145,15 @@ retention and invoker-only prerequisites. Browser `search quality` cases in
 marks, stale refresh, explicit sorting and accessible 1440/390/320px layouts.
 The `palette to Ask` workspace case checks draft recovery, explicit send and the
 notebook or Unfiled scope used to create each conversation.
+
+`retrieval-reliability.test.ts` adds a synthetic one-second cold query and exact
+cache reuse against an indexed semantic-only target, plus timeout/cooldown,
+incompatible query vectors, explicit keyword, quota, cancellation and telemetry
+privacy cases. The query-provider deadline is bounded to 2500ms; caller deadlines
+still win. No worker timeout, billing policy, retained provider evidence or RLS
+boundary changes. A healthy synthetic provider does not establish the root cause
+of production lexical fallback; real-provider cold/warm quality and capacity need
+the separately approved [qualification run](design/production-reliability.md#regression-and-acceptance-matrix).
 
 `pnpm exec tsx tests/src/performance/search-quality.ts` uses disposable role URLs
 from [testing](development/testing.md), creates/removes its own `_test` database

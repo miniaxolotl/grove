@@ -28,7 +28,8 @@ typing, session-memory draft ownership and uncertain-operation retry rules remai
 No edits are silently rebased over another writer. On conflict, retain the draft,
 review the current note and deliberately resolve it. Restore creates a new revision;
 history is never rewritten. Existing version-fenced assistance Undo refuses stale
-state instead of overwriting later edits. There is no new on-disk draft storage.
+state instead of overwriting later edits. Drafts remain memory-only unless the
+owner explicitly enables [encrypted device recovery](development/client-cache.md#device-draft-recovery).
 
 ## API and connected agents
 

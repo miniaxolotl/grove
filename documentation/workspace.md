@@ -53,12 +53,16 @@ owns connection commands and approval.
   each keystroke save. Large/structural changes and explicit Save stay separate.
   Comparisons show highlighted additions/removals; **Full versions** expands both
   complete documents. See [structured notes](structured-documents.md).
-- Drafts/retry identities stay in account/session-owned memory during navigation,
-  not on disk. Saves retain newer typing and require review of concurrent edits.
-  Opening a draft during its save follows that request, not a duplicate create.
-  Reload cannot restore it. Signing out, account/session replacement or terminal
-  refreshed-session denial clears private drafts; transient recovery keeps them
-  mounted with retry feedback. See [session recovery](development/client-cache.md#session-readiness-and-recovery).
+- Drafts/retry identities stay in account/session-owned memory by default. Optional
+  **Settings → Account → Recover drafts on this device** keeps encrypted checkpoints
+  for this account/browser, up to 32 drafts/1 MiB for seven days. Read its privacy
+  explanation before enabling. Recovery needs current online authorization and
+  explicit retry; a device checkpoint is not Saved. Sign-out, account changes and
+  disabling recovery erase it. Unsupported storage leaves text in memory: keep the
+  tab open and export/copy it. See [device recovery](development/client-cache.md#device-draft-recovery).
+  Saves retain newer typing and require review of concurrent edits. Opening a draft
+  during its save follows that request, not a duplicate create. Transient session
+  recovery keeps drafts mounted; terminal denial clears private state.
 - Search with Ctrl/Cmd+K; `/` opens library filtering. **Filters** groups notebook,
   kind, topic, source, date, lifetime and sorting. They apply to the entire matching
   library, not just loaded rows. Queries remain in POST bodies. See

@@ -1,6 +1,6 @@
 # Production reliability: retrieval, freshness and recovery
 
-**Proposed implementation, not shipped behavior.** This design closes gaps found
+**Implementation and acceptance design; not production acceptance.** This design closes gaps found
 in the 26 November 2026 production smoke test of v1.11.37, source
 `622ca2b0b5b98801c21166be9d00965f72bfe42d`. It does not authorize implementation,
 live provider calls, data changes, deployment or broader connection permissions.
@@ -28,10 +28,11 @@ No private account/note identifiers, credentials or raw production logs belong h
 
 ## Ownership and implementation slices
 
-Use one scoped implementation PR per row, in this order. Each slice adds its
-failing regression before the smallest fix, updates its owning guide and records
-exact-head evidence. S4's privacy decision can proceed while earlier slices ship;
-it does not block the connection and retrieval fixes.
+Implement all rows in **one PR stacked on #347**, in this order, using focused
+commits rather than separate slice PRs. Each backend slice adds its failing
+regression before the smallest fix, updates its owning guide and records exact-head
+evidence. The owner's single-PR direction does not enable device recovery on any
+existing account/browser or authorize production/provider changes.
 
 | Slice                                  | Main source owners                                                                                                                                                | Exit gate                                                                                                                                     |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -156,14 +157,16 @@ target needs a measured request budget, not an unproven claim that refresh is ab
 
 ### Required design decision
 
-Current docs promise memory-only private drafts. **Do not add silent plaintext
+The original privacy contract was memory-only private drafts. **Do not add silent plaintext
 localStorage, persist the whole query cache or enable device recovery by default.**
 Recommended design: an explicit per-account/per-browser **Recover drafts on this
 device** setting, off by default, under Settings. Explain its device-storage boundary,
 expiry, sign-out erasure and offline limitations before enabling. No onboarding
 wizard, repeated prompt or provider credential is required. Existing opt-outs win.
-Owner/security review of this persistence/key policy is a prerequisite to S4 code;
-approval of this implementation plan alone is not user consent to turn it on.
+The single-PR implementation retains the default-off boundary and
+non-exportable same-origin key policy. Implementation approval is not user consent
+to turn it on. The [owning contract](../development/client-cache.md#device-draft-recovery)
+describes implemented limits and remaining device qualification.
 
 ### Proposed storage and lifecycle contract
 
