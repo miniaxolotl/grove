@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { route } from "./proofing-release.mjs";
+import { route,routeHeldOperator } from "./proofing-release.mjs";
 import { updateImageSpec, findDeployment } from "../deploy-digitalocean.mjs";
 const base = "6566c2dca78e7fde9c79357f8d07c5ad6f4cc7d5",
   merged = "a".repeat(40),
@@ -13,16 +13,16 @@ const pr = {
   merge_commit_sha: merged,
 };
 const manifest = JSON.parse(readFileSync("release-please-config.json"));
-function fixture(extra = "", edit = () => {}) {
+function fixture(extra = "", edit = () => {},before='1.11.27',after='1.11.28',baseline=base) {
   return {
     git: (cmd, ...args) =>
       cmd === "diff"
         ? `CHANGELOG.md\npackage.json${extra}`
         : args[0] === `${merged}^1`
-          ? base
+          ? baseline
           : merged,
     read: (ref, path) => {
-      const ver = ref === merged ? "1.11.27" : "1.11.28";
+      const ver = ref === merged ? before : after;
       const value =
         path === "release-please-config.json"
           ? globalThis.structuredClone(manifest)
@@ -36,6 +36,13 @@ function fixture(extra = "", edit = () => {}) {
     },
   };
 }
+test('operational recovery has one exact reviewed coordinated patch admission, not a website-only exemption',()=>{
+  const operatorPr={...pr,number:337,head:{ref:'fix/release-operational-held-workflow',repo:{full_name:'miniaxolotl/grove'}}};
+  const io=fixture('',()=>{},'1.11.34','1.11.35','978f9bc2f80ea9879afd132614d77afef1171690');
+  assert.equal(routeHeldOperator(merged,operatorPr,false,io),'coordinated');assert.equal(routeHeldOperator(stamp,operatorPr,true,io),'coordinated');
+  for(const change of [{number:338},{merged:false},{head:{ref:'another-branch'}},{base:{ref:'production'}}])assert.equal(routeHeldOperator(merged,{...operatorPr,...change},false,io),'website-only');
+  assert.throws(()=>routeHeldOperator(stamp,operatorPr,true,fixture('\npackages/api/src/server.ts',()=>{},'1.11.34','1.11.35','978f9bc2f80ea9879afd132614d77afef1171690')));
+});
 test("only the actual proofing merge can request the coordinated source release", () => {
   assert.equal(route(merged, pr, false, fixture()), "coordinated");
   for (const p of [

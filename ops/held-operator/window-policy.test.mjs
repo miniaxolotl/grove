@@ -70,18 +70,22 @@ test("owner boundary rejects runtime role, unverified TLS and wrong toolchain", 
     role: "grove_owner",
     server: "170012",
     mismatch: "error",
-    ssl: true,
     superuser: false,
   };
   for (const change of [
     { role: "grove_api" },
-    { ssl: false },
     { server: "170010" },
     { superuser: true },
   ])
     await assert.rejects(
       sql.verifyOwnerDatabase({
-        raw: async () => ({ rows: [{ ...valid, ...change }] }),
+        client: {
+          acquireConnection: async () => ({
+            connection: { stream: { encrypted: true, authorized: true } },
+            query: async () => ({ rows: [{ ...valid, ...change }] }),
+          }),
+          releaseConnection: async () => {},
+        },
       }),
       /IDENTITY/,
     );

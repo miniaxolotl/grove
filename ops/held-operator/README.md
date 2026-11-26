@@ -15,7 +15,12 @@ production-qualified installation**. In particular:
   and `files:{relativePath:sha256}` covering all executable modules, resolver package
   metadata and installed transitive dependency sources. Its **raw byte hash** is
   the source-controlled `closureSha256`; the independently approved public key's
-  raw PEM hash is `reviewKeySha256`. No CLI flag may supply or override either pin.
+   raw PEM hash is `reviewKeySha256`. No CLI flag may supply or override either pin.
+- Production configuration must use that bundle's exact `admitted-source` root.
+  An independently located source tree is rejected before source import, even if
+  its files match: its dependency resolution must be the verified bundle graph.
+  The migration CLI uses the database module returned by that qualified installation;
+  it never rereads mutable configuration to choose an import after loading credentials.
 - `authority.py` implements an independent SQLite authority outside code/custody:
   existing-only ordinary opens, directory/database identities, cross-process
   serialization, unique consumes and sequence/hash CAS. Provisioning and every
@@ -28,6 +33,10 @@ production-qualified installation**. In particular:
   `site`/`sitecustomize`; `-S` excludes those hooks before script execution or pin
   discovery. These scripts use only the standard library. The `/usr/`-only,
   immutable OS-tool closure checks remain unchanged; site hooks are not whitelisted.
+  The closure also binds the fixed `/usr/bin/python3` launch alias to its reviewed
+  canonical interpreter (`tools.pythonPath`). Alias drift rejects admission even
+  if the old interpreter and its pinned files remain present. Older closures
+  without this binding must be regenerated and independently reviewed.
 - One externally pinned app database survives source/custody/code changes.
   Registered installation descriptors bind each source, code closure, custody
   UUID and work-root identity separately. Installing another source must register
@@ -88,6 +97,11 @@ lifecycle/provider reconciliation and reopening. Follow the
   preservation. Provider checks occur outside the SQL transaction. Unknown COMMIT
   stays uncertain; a known COMMIT with failed readback stays committed-unverified.
   `reconcile` is read-only and never consumes, appends, retries or reopens.
+- Production owner identity checks acquire one physical database client and require
+  its transport to be encrypted and certificate-authorized before querying identity
+  on that same client. `pg_stat_ssl` behind a TLS-terminating proxy is not client
+  transport evidence. Missing/plaintext/unverified client TLS fails closed; only
+  owned local restore fixtures use the separate non-network fixture boundary.
 - `createQualifier` independently verifies source, publication, action, command,
   expiry and backup custody; `consume:true` is exclusive and fsynced.
   `consume:false` requires matching existing consumption and never writes. The
@@ -97,6 +111,12 @@ lifecycle/provider reconciliation and reopening. Follow the
   duplicates and more than 1,000 rows fail closed. Archived empty inventories are
   valid. The controller carries its approved inventory into the actual CLI PUT
   boundary; every inner read compares against that baseline, including metadata.
+  For a settled archive, the actual active spec may be the exact desired-spec
+  projection without services/workers/ingress. Both raw specs are retained and all
+  other fields must match. Only that matching archive can interpret the API's exact
+  empty `{}` protobuf inventory envelope as zero instances; running, paginated or
+  malformed missing-array responses still fail. An accepted archive is reconciled,
+  never resubmitted merely because the provider uses this representation.
 - Before owner SQL (`admit`, `handoff`, `open-public`) the same app lock persists
   a SQL intent. Only canonical persisted phase/approval/evidence/hash readback
   finishes it. All provider/SQLite calls occur outside the bounded SQL transaction;
@@ -124,6 +144,14 @@ without changing the replacement. Subprocesses
 run beneath a Linux subreaper with pidfd-fenced descendant cleanup, including
 new sessions/double forks. Timeout or uncertain cleanup is failure, never success.
 GPG agents are scoped to the pinned private homedir; no host-wide kill is used.
+After the scoped agent stop, cleanup removes only the four fixed, owned Unix
+socket entries that refuse a connection. Observed active or uncertain sockets,
+regular files, symlinks and identity changes fail closed. This accommodates GnuPG
+versions that leave dead socket files after the supervised agent has been reaped;
+it does not authorize stopping another homedir's agent or removing key material.
+The caller must exclusively own use of this private homedir during cleanup.
+The final identity check and unlink are separate syscalls; directory pinning does
+not fence a concurrent same-UID writer swapping or activating a socket between them.
 
 ## Offline qualification
 
@@ -187,9 +215,12 @@ issuedAt:<milliseconds>, expiresAt:<milliseconds>}`. Maximum validity is 24h.
    operational key creation/storage or new secret service. Test keys are ephemeral
    synthetic fixtures. The parent must establish the review authority separately;
    no production key, signature or live clearance is shipped.
+   Expiry is checked against a fresh clock after artifact inspection and again
+   after asynchronous source/authority/window verification, immediately before
+   returning qualification. A review expiring during those checks is rejected.
 4. Under the private root install `installation.json` and `review-key.pem` (0600).
    Set `GROVE_OPERATOR_CUSTODY_ROOT` to that root. Configuration fields:
-   `schema:2`, `contract`, `sourceRoot` (complete frozen source with dependencies),
+   `schema:2`, `contract`, `sourceRoot` (the installed bundle's `admitted-source`),
    `inventory` (parsed source inventory), `report`, `blueprint`, `review` (private
    paths), `authority`, `window` and `policy`. Policy binds `appId`, `parentSession`, `deployedSource`,
    `deployedImage`, `originalsEncryptedSha256`, `originalsReviewDue`. Original

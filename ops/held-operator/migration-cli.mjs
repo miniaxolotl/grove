@@ -50,13 +50,7 @@ try {
       );
     } else {
       const request = await install.control.readPrivate(args[1]);
-      const config = await install.control.readPrivate(
-        install.control.root + "/installation.json",
-      );
-      const { createDatabase } = await import(
-        "file://" + config.sourceRoot + "/lib/database/src/index.ts"
-      );
-      db = createDatabase(url, {
+      db = install.database.createDatabase(url, {
         ssl: true,
         max: 1,
         acquireTimeoutMs: 10000,

@@ -12,6 +12,7 @@ import {
   readTrustedPin,
   assertImmutableCode,
   verifyOperatorRoot,
+  assertBundledSource,
 } from "../../scripts/release/held-operator-bootstrap.mjs";
 import { operatorRoot } from "./qualification.mjs";
 import { openAuthority } from "./authority.mjs";
@@ -33,6 +34,7 @@ export async function loadInstallation({ readOnly = false } = {}) {
   await verifyOperatorRoot(operatorRoot, trusted);
   const control = await installedControl(),
     config = await control.readPrivate(control.root + "/installation.json");
+  assertBundledSource(operatorRoot, config.sourceRoot);
   const publicKey = await readPinnedReviewKey(control, trusted);
   await assertImmutableCode(config.sourceRoot);
   const checked = await qualifyInstallation({

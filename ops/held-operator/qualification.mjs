@@ -6,7 +6,10 @@ import { createRequire } from "node:module";
 import { fileURLToPath, URL } from "node:url";
 import { Buffer } from "node:buffer";
 import { need, hashJSON, sha, canonical, uuid } from "./operator-control.mjs";
-import { assertImmutableCode } from "../../scripts/release/held-operator-bootstrap.mjs";
+import {
+  assertImmutableCode,
+  assertBundledSource,
+} from "../../scripts/release/held-operator-bootstrap.mjs";
 import { validateConfig } from "./config.mjs";
 import { openAuthority } from "./authority.mjs";
 import { verifyWindow } from "./window.mjs";
@@ -481,7 +484,7 @@ export async function qualifyInstallation({
   control,
   config,
   publicKey,
-  now = Date.now(),
+  now = Date.now,
   readOnly = false,
 }) {
   config = JSON.parse(JSON.stringify(config));
@@ -489,13 +492,15 @@ export async function qualifyInstallation({
     control,
     config,
   });
+  const signedReview = await control.readPrivate(config.review);
   const review = await verifyReview({
-    review: await control.readPrivate(config.review),
+    review: signedReview,
     publicKey,
     identity,
-    now,
+    now: now(),
   });
   if (review.scope === "production") {
+    assertBundledSource(operatorRoot, config.sourceRoot);
     for (const path of Object.keys(config.inventory.files))
       await assertImmutableCode(join(config.sourceRoot, path));
     need(
@@ -558,6 +563,7 @@ export async function qualifyInstallation({
     });
     manifest.executionAdmitted = true;
   }
+  await verifyReview({ review: signedReview, publicKey, identity, now: now() });
   // No private archive is needed for fixture admission. Live backup custody is
   // revalidated separately at each consumption, never inherited from this report.
   return { manifest, source: loaded, blueprint };
