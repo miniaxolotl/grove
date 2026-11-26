@@ -29,6 +29,15 @@ the PR and local plans outside Git; preserve dated evidence separately. Run
 `pnpm test:docs` after documentation changes. Only change indexes/shared guides
 when navigation or the shared process actually changes.
 
+## User-facing language
+
+Follow `documentation/development/product-copy.md` for all user-facing messages.
+Keep toasts, alerts, status text and labels short, plain and useful: show what
+happened and the next action, not how the system works. Put optional technical
+detail behind a disclosure or in operator documentation. Do not hide uncertainty,
+privacy consequences or essential warnings to make a message shorter. Review the
+rendered copy on narrow screens; simplify it before shrinking or truncating it.
+
 ## Release contract
 
 - Follow `documentation/release-conventions.md` for the shared patch-first policy:
