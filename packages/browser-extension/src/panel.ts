@@ -988,7 +988,7 @@ function noteRow(note: Memory) {
   };
   feedback.className = "row-feedback";
   feedback.setAttribute("role", "status");
-  actions.append(button, copy, share);
+  actions.append(copy, share);
   const menu = document.createElement("details"),
     trigger = document.createElement("summary"),
     footer = document.createElement("div");
@@ -998,7 +998,7 @@ function noteRow(note: Memory) {
   trigger.setAttribute("aria-label", "Note actions");
   trigger.setAttribute("aria-haspopup", "menu");
   trigger.setAttribute("aria-expanded", "false");
-  for (const action of [button, copy, share]) {
+  for (const action of [copy, share]) {
     action.setAttribute("role", "menuitem");
     action.addEventListener(
       "click",
@@ -1024,7 +1024,7 @@ function noteRow(note: Memory) {
       rect.top < actions.offsetHeight + 16 ? "auto" : "100%";
   });
   menu.addEventListener("keydown", (event) => {
-    const items = [button, copy, share];
+    const items = [copy, share];
     const index = items.indexOf(document.activeElement as HTMLButtonElement);
     if (event.key === "Escape") {
       event.preventDefault();
@@ -1037,10 +1037,10 @@ function noteRow(note: Memory) {
         event.key === "Home"
           ? 0
           : event.key === "End"
-            ? 2
+            ? items.length - 1
             : index < 0
               ? event.key === "ArrowUp"
-                ? 2
+                ? items.length - 1
                 : 0
               : (index + (event.key === "ArrowUp" ? -1 : 1) + items.length) %
                 items.length
@@ -1051,7 +1051,7 @@ function noteRow(note: Memory) {
     if (!menu.contains(event.relatedTarget as Node | null)) menu.open = false;
   });
   footer.className = "note-footer";
-  footer.append(meta, menu);
+  footer.append(meta, button, menu);
   body.append(preview, footer, feedback);
   row.append(body);
   return row;

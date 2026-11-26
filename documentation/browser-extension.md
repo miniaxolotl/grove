@@ -162,7 +162,8 @@ reject cached selection-only consent before context can leave the browser. Only 
 surrounding sentences/paragraphs are reference, not output.
 
 Grove requests three distinct alternatives and accepts two or three after validation.
-The editor remains unchanged until a choice is made. Click an alternative to replace only the
+The editor remains unchanged until a choice is made. Each alternative is labelled
+**Replace with …** so the edit is explicit. Choose it to replace only the
 current selection and copy it in the same click, with native Undo. **Copy** alone
 does not edit; **Close** dismisses the card. Clipboard failure never rolls back a
 successful replacement or reports copy success. Editing, disabling AI
@@ -218,8 +219,9 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   cannot replace newer results, including after pause or sign-out. **Show more**
   uses the server cursor for the same query; unchanged rows stay mounted. Failures
   retain previous results, label them stale and offer **Retry search**. Results
-  show bounded, noninteractive Markdown previews, omitting raw HTML. Each has one **Note actions**
-  menu with **Open**, **Copy** and **Share**; there are no selection checkboxes or
+  show bounded, noninteractive Markdown previews, omitting raw HTML. Each has a
+  visible **Open** action and one **Note actions** menu with **Copy** and **Share**;
+  there are no selection checkboxes or
   bulk actions. Arrow keys, Escape and outside clicks work without moving the list.
 - **Read and copy:** opening a result rechecks access and renders its Markdown/GFM
   document: headings, lists, checklists, tables, quotes, code and safe links.

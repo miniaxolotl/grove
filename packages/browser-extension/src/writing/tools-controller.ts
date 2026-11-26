@@ -541,7 +541,13 @@ export class WritingToolsController {
       for (const text of work.result.alternatives) {
         const row = document.createElement("div");
         row.className = "alternative-row";
-        row.append(this.button(text, () => this.apply(text), "alternative"));
+        row.append(
+          this.button(
+            `Replace with ${text}`,
+            () => this.apply(text),
+            "alternative",
+          ),
+        );
         row.append(
           this.button(
             "Copy",

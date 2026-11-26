@@ -1199,7 +1199,10 @@ for (const target of ["chrome", "edge"])
         .getByRole("button", { name: "Generate alternatives", exact: true })
         .click();
       await sourcePage
-        .getByRole("button", { name: "Elias is my name.", exact: true })
+        .getByRole("button", {
+          name: "Replace with Elias is my name.",
+          exact: true,
+        })
         .click();
       assert.equal(
         await sourcePage.locator("#body").inputValue(),
@@ -1275,7 +1278,10 @@ for (const target of ["chrome", "edge"])
           "valid connection-scoped AI consent does not prompt again for each tool or editor",
         );
         await page
-          .getByRole("button", { name: alternative, exact: true })
+          .getByRole("button", {
+            name: `Replace with ${alternative}`,
+            exact: true,
+          })
           .waitFor();
         const dialog = page.getByRole("dialog", { name: "AI writing tools" });
         const submitted = await worker.evaluate(() =>
@@ -1413,7 +1419,10 @@ for (const target of ["chrome", "edge"])
           );
         }
         await page
-          .getByRole("button", { name: alternative, exact: true })
+          .getByRole("button", {
+            name: `Replace with ${alternative}`,
+            exact: true,
+          })
           .click();
         assert.equal(
           await page.locator("#note").inputValue(),
@@ -1460,7 +1469,10 @@ for (const target of ["chrome", "edge"])
           .getByRole("menuitem", { name: label, exact: true })
           .click();
         await page
-          .getByRole("button", { name: replacement, exact: true })
+          .getByRole("button", {
+            name: `Replace with ${replacement}`,
+            exact: true,
+          })
           .click();
         assert.equal(
           await worker.evaluate(() =>
@@ -2040,7 +2052,11 @@ for (const target of ["chrome", "edge"])
           .count(),
         0,
       );
-      await page.locator("#results .note-menu summary").click();
+      assert.equal(
+        await page.locator("#results .open-note").isVisible(),
+        true,
+        "Open is a primary result action without opening overflow",
+      );
       await page.locator("#results .open-note").click();
       await page.locator("#reader[open]").waitFor();
       assert.equal(
@@ -2464,14 +2480,16 @@ for (const target of ["chrome", "edge"])
         });
       assert.equal(
         await noteMenu
-          .locator(".open-note")
+          .getByRole("menuitem", { name: "Copy", exact: true })
           .evaluate((element) => element === document.activeElement),
         true,
       );
-      await noteMenu.locator(".open-note").press("ArrowDown");
+      await noteMenu
+        .getByRole("menuitem", { name: "Copy", exact: true })
+        .press("ArrowDown");
       assert.equal(
         await noteMenu
-          .getByRole("menuitem", { name: "Copy", exact: true })
+          .getByRole("menuitem", { name: "Share", exact: true })
           .evaluate((element) => element === document.activeElement),
         true,
       );

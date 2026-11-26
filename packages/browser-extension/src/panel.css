@@ -508,6 +508,10 @@ summary {
   color: var(--muted);
   margin: 0;
 }
+.note-footer > .open-note {
+  margin-left: auto;
+  min-height: 40px;
+}
 .note-preview {
   max-height: 180px;
   overflow: hidden;
