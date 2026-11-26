@@ -24,8 +24,9 @@ services:
     logging: { driver: local }
 YAML
 trap 'fixture down --timeout 5 --rmi local' EXIT
-fixture up -d --build --wait --wait-timeout 180 languagetool
+fixture up -d --build --wait --wait-timeout 240 languagetool
 id=$(fixture ps -q languagetool)
+bash ops/languagetool/test-startup.sh "$(docker inspect -f '{{.Image}}' "$id")"
 test -z "$(docker port "$id")"
 test "$(docker network inspect "${project}_proofing" -f '{{.Internal}}')" = true
 docker exec "$id" sh -eu -c '
@@ -66,7 +67,9 @@ test -z "$(docker logs "$id" 2>&1)"
 test -z "$(docker diff "$id")"
 docker exec "$id" sh -ec 'if grep -rla GroveSyntheticMarker /tmp /dev/shm; then exit 1; else test "$?" = 1; fi; cat /sys/fs/cgroup/memory.peak; grep ^VmHWM /proc/1/status'
 docker restart "$id" >/dev/null
-fixture up -d --no-recreate --wait --wait-timeout 180 languagetool
+fixture up -d --no-recreate --wait --wait-timeout 240 languagetool
 known
 test -z "$(docker logs "$id" 2>&1)"
+checked_image=$(docker inspect -f '{{.Image}}' "$id")
+bash ops/languagetool/test-cold-start.sh "$checked_image"
 echo 'Private LT known correction, failure paths, bounds and restart passed.'

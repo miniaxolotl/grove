@@ -16,6 +16,9 @@ publishes and deploys one coordinated release.
 - Website: `https://grovenote.app`, Next.js on Vercel; production branch `production`.
 - API: `https://api.grovenote.app`, Hono REST `/v1` and Streamable HTTP `/mcp`.
 - Worker: same Node 24 image, separate `node dist/worker.js` command and database login.
+- [Container publication](development/container-images.md): separate API, MCP,
+  Website and LanguageTool images in GHCR and Docker Hub. Existing API image
+  aliases remain compatible; website container publication does not move Vercel.
 - Database: PostgreSQL 17 with pgvector; migration owner separate from non-owner
   API/worker roles. Runtime rejects superuser, BYPASSRLS and table-owner credentials.
 
@@ -126,7 +129,9 @@ providers/dimensions never silently fall back. See [models](models.md).
    naming/version policy; [pipeline conventions](pipeline-conventions.md) owns CI.
 5. Production **Deploy** admits exact released source, probes its required database
    schema with both runtime roles, preflights every npm tarball,
-   publishes coordinated packages/images and deploys API/worker by immutable digest.
+   publishes coordinated packages and all four component images to GHCR and Docker
+   Hub, then deploys API/worker by immutable digest. See the [image contract](development/container-images.md)
+   for component names, compatibility aliases, runtime configuration and retries.
    Missing `DIGITALOCEAN_ACCESS_TOKEN`/`DIGITALOCEAN_APP_ID` is an error. Verify registry
    integrity, active provider generation, both component digests and readiness.
    After publication/image verification it attaches the admitted source's unsigned
