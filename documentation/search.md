@@ -5,6 +5,12 @@ connected-agent recall share lexical matching. It works without an AI provider;
 semantic retrieval remains an additional scoped lane. Existing AI allowances
 and keyword fallback are unchanged.
 
+Configured semantic support is not proof that an individual query used it:
+`searchMode` identifies the executed lane, and provider failures can leave keyword
+results usable. The [reliability design](design/production-reliability.md#s2-restore-semantic-retrieval-without-hiding-fallback)
+proposes measured recovery and clearer degradation diagnostics; those additions
+are not current behavior.
+
 With no phrase entered, global search shows recently updated notes in the selected
 notebook. Use the arrow keys to move between results and **Enter** to open a
 note. In global search, the library and Ask Grove's Search tab, **Cancel search**

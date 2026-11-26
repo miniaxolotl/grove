@@ -19,6 +19,14 @@ bundled consumers through the coordinated release process and preserve explicit
 self-hosted origins. Reconnect through the supported setup flow when an existing
 grant is bound to the old resource; do not copy old tokens to a new origin.
 
+The old Cloud API can remain reachable while advertising the canonical OAuth
+resource and a different issuer. An older selected origin can therefore fail before
+an authenticated API read; the current generic `unreachable` result does not prove
+a network outage. Use explicit canonical reconnect and review the new client's
+scope, preserving old credentials and other connections. More precise diagnostics
+are proposed in the [connection-recovery design](design/production-reliability.md#s1-safe-canonical-connection-recovery),
+not yet implemented.
+
 Connection names are prefilled and can be edited during setup or later under
 **Settings → Connections → Edit scope**. Choose **Hide** to move an old entry
 into **Hidden connections** in this browser, and **Show again** to restore it.

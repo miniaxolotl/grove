@@ -39,3 +39,26 @@ Playwright 1.64.1 Noble container, with the host's Node 24.21.0 binary, passed a
 The full Chromium suite passed 277 cases. The retained images are Chromium captures.
 No host package installation or physical-device acceptance is claimed. See [the feature contract](../../../structured-documents.md)
 and [AI investigation](../../../evaluations/ai-services-2026-11-05.md).
+
+## Production smoke baseline — 26 November 2026
+
+The [reliability implementation design](../../production-reliability.md) must
+preserve this already-working passage-review path. This is a **before-fix baseline**,
+not a capture of a semantic, freshness or draft-recovery failure.
+
+Captured through authenticated Chromium on production v1.11.37, source
+`622ca2b0b5b98801c21166be9d00965f72bfe42d`, production merge
+`ee7deafeb072f0ed506260d285c476bba5294cf2`, on 26 November 2026. A clearly
+labeled synthetic note was created in the website and precisely edited through
+the current OpenCode Grove tools using reviewed preview/apply. The website was
+reloaded before opening history: it shows the same version 1 → 2 comparison,
+changing only “blue” to “green” and preserving the reference/checklist.
+
+![Synthetic production revision comparison before reliability changes](production-smoke-20261126.png)
+
+This is an element capture, 1138×1362 pixels; the viewport dimensions were not
+recorded, so it is not responsive-layout evidence. It contains only synthetic
+authored content and date/version labels—no credentials or private user notes.
+It does not establish automatic external-edit freshness, provider health, durable
+draft recovery, WebKit or physical-device acceptance. No runtime behavior was
+changed to produce this image.

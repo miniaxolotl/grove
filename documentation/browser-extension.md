@@ -1,11 +1,14 @@
 # Browser extension
 
-Install Grove from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
-or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
-The [Chrome Web Store item](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa)
-is not yet publicly available. For local setup, download the unsigned Chrome ZIP
-from the [install page](https://grovenote.app/install#browser-extension) or build from source.
-Install lists all three official items and marks a recognized desktop browser. In
+Official listings are available on the
+[Chrome Web Store](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa),
+[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
+and [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
+Each store approves versions independently; a public listing does not mean the
+latest submitted update is live. Unsigned local ZIPs are separate downloads from
+the [install page](https://grovenote.app/install#browser-extension) or source builds.
+Install lists all three official items and marks a recognized desktop browser. The
+current Chrome control still links to manual setup despite the public item. In
 **Settings → Connections**, choose **Add to Firefox**, **Add to Edge**, or the
 **Chrome setup guide** for manual installation. Local packages are
 also available for Firefox and Edge. The
