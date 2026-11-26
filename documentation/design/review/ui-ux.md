@@ -776,6 +776,41 @@ result without knowing Grove’s providers, deployment configuration or internal
 processing. Keep the engineering evidence in this review; do not turn it into
 customer-facing explanatory copy.
 
+### Transactional email consistency
+
+Include email in the same presentation system, not as a separate marketing
+mini-site. At the reviewed snapshot, all five Grove-owned letters share
+`packages/api/src/email-template.ts`: welcome, connection approval/revocation,
+export ready and deletion requested. Their Georgia branding/headings, cream
+outlined sheet, decorative top stripe and category eyebrow differ from the app’s
+system-interface type and quieter neutral surfaces. Full subjects also make
+unnecessarily long in-message headings.
+
+The owner-requested implementation is isolated in
+[email consistency PR #349](https://github.com/miniaxolotl/grove/pull/349), with
+[current samples and historical before captures](https://github.com/miniaxolotl/grove/blob/fix/email-webapp-consistency/documentation/design/screenshots/transactional-email/README.md).
+It aligns system type, green ink, neutral paper, compact 24px headings, spacing,
+5px action corners and one 44px primary action; removes decorative framing and
+filler; and keeps a wrapping fallback address. This review branch remains
+documentation-only. A proposed/verified source change is not a deployed email.
+
+Consistency must not remove security meaning: keep unrecognized-access recovery,
+the account-authorized export landing and absolute deadline, and public support
+after account access ends. A deletion receipt confirms the request—not finished
+cleanup. Keep HTML/plain-text meaning aligned, preview samples visibly labelled,
+and images/remote fonts unnecessary. Use inline email-safe styles and presentation
+tables instead of importing web-app CSS or adding email animation. Preserve
+recipient/tenant checks, durable delivery and uncertain-send fingerprint fencing;
+reconcile pending sends before changing templates, never blindly resend.
+
+The offline implementation check covers all five letters at 620/390/320px,
+including normal/preview, long-link, stripped-style and dark-preference cases.
+Browser/axe results do not establish Gmail, Outlook, Apple Mail, forced-dark-mode,
+screen-reader or inbox-delivery acceptance. Clerk authentication mail and
+payment-provider templates are separately managed; this pass makes no provider
+dashboard changes or live sends. Review those separately before claiming that
+every account-related email matches the app.
+
 ### Concrete copy changes
 
 | Current                                                        | Recommended treatment                                                                                                                                                       |
