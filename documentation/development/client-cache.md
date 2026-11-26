@@ -136,8 +136,12 @@ uses the existing single 60-second scheduler, not a timer per editor.
 
 ## Device draft recovery
 
-**Settings → Account → Recover drafts on this device** is off by default. Explicit
-consent applies only to that account/browser. The version-1 IndexedDB database
+**Settings → Account → Recover drafts on this device** is on by default for a
+fresh account/browser pair. Existing off choices, sign-out erasure tombstones and
+unavailable keys are never overridden. The default key is created transactionally
+only while no owner choice or retained draft exists; a concurrent disable wins.
+This changes local persistence, not server saves or analytics consent. The setting
+and privacy policy disclose device storage and how to turn it off. The version-1 IndexedDB database
 `grove-draft-recovery` stores non-exportable account/browser AES-GCM keys and
 encrypted draft envelopes, not credentials, share links, search queries, media,
 live promises or a permission cache. Envelope routing metadata includes the owner,
@@ -157,7 +161,7 @@ when recovery fails. Storage/key/quota failures retain
 the memory draft with export/copy guidance. Only completed transactions count as
 device checkpoints; only a confirmed server commit counts as Saved.
 
-Before dispatching an opted-in save, persist the exact pending operation/input and
+Before dispatching a recovery-enabled save, persist the exact pending operation/input and
 submitted snapshot. Recovery never sends writes automatically: the editor retains
 the original retry identity, separates newer typing and requires explicit Retry.
 Lost create responses reuse the same create operation; a newer authoritative
@@ -169,7 +173,7 @@ receipt. A clean autosaved note does not repeat a disabled Save action. Settings
 keeps the device-only, seven-day and erasure consequences beside its toggle;
 **Privacy and limits** reveals the remaining limits. Turning recovery off or
 deleting device copies requires an explicit confirmation with Cancel. This changes
-presentation, not consent defaults, retention or retry behavior.
+the device choice; retention and retry behavior remain unchanged.
 
 On open, fresh authenticated account reads, the complete state-checked paginated
 notebook catalog and current note access/lifecycle checks precede decryption into
@@ -186,14 +190,15 @@ can unlock only after fresh authorization. Browser closure/offline state prevent
 remote wipe; expired data is unusable and removed at the next authorized open.
 
 Deploy the additive browser schema with the compatible recovery reader. Roll back
-intake/UI without deleting opted-in unsaved envelopes; retain a compatible unlock/
+intake/UI without deleting retained unsaved envelopes; retain a compatible unlock/
 export path. Reload/restart, lost-response retry, scope denial, corruption/quota,
 expiry and erasure races require isolated-profile evidence; source wiring alone
 does not establish physical crash/device acceptance.
 
 The [isolated browser evidence](../design/screenshots/production-reliability/README.md)
 distinguishes real API/RLS freshness from synthetic lost-response and local-storage
-checks. No new persistence is enabled for existing browsers by deployment alone.
+checks. Opening a fresh account/browser enables recovery; a stored off choice stays
+off across reloads and other tabs. An erased account never silently resumes recovery.
 
 Public sharing readers never use the authenticated workspace cache. Owner sharing
 dialogs also read their permission/link state afresh on each open or conflict;

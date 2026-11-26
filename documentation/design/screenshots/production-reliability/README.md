@@ -2,7 +2,34 @@
 
 ## Current UI
 
-Synthetic Chromium captures of the runtime files in this commit, built as
+Synthetic Chromium captures from build `N2syu0lrlDlkh4mtwHMNS`, made before
+committing the equivalent runtime source. The fixture uses the production app
+layout's CSS order. Only disposable profiles and synthetic notes were used.
+
+| Capture                                                  | Scope                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Delete confirmation](ui-sized-delete-device-copies.png) | 320×900. Single-line heading; equal full-width 44px actions separated by 8px. At 390px and wider the actions sit alongside each other with the same gap.                                                               |
+| [Notes](ui-sized-notes-refresh-failed.png)               | 390×700. One-line New note, matching selection-checkbox centers, aligned title/actions, readable metadata and honest refresh failure without replacing the loaded row.                                                 |
+| [Recovery setting](ui-default-recovery-phone.png)        | 349×246 element capture in a 390×900 viewport. Recovery starts on for a fresh account/browser; saved off choices and erasure tombstones stay off. Device-only storage, expiry and erasure consequences remain visible. |
+| [Unconfirmed save](ui-default-device-draft-phone.png)    | 390×900. Completed encrypted device copy is separate from the unconfirmed server save; the original Retry remains explicit.                                                                                            |
+
+The complete recovery/confirmation and freshness-failure journeys passed in
+Chromium and Node-24 WebKit at 1440/768/390/320px. Reload and controlled process
+restart retained the original operation without automatically replaying a write.
+Cross-tab disable, offline authorization lock/retry, scope denial, missing-key
+non-replacement, size/expiry bounds and erasure fences passed. A separate default
+probe confirmed that disabling during initial key generation wins. Small shell
+labels are at least 11px; optional shortcut hints yield before the Commands label
+is truncated. Keyboard focus rings and 44px touch handles remain.
+The save receipt has its own live region, separate from Device controls and
+popover details, so checkpoint updates do not repeat the server-save announcement.
+
+This verifies browser-engine behavior, not production delivery, physical sudden
+crash, device storage reliability or a closed/offline browser's remote erasure.
+
+## Earlier UI before sizing and default-on recovery
+
+Synthetic Chromium captures of runtime source `2595d07`, built as
 `I4jY7qvSSa9EcqWSaULT6` before committing the equivalent source. The isolated
 fixture follows the app layout's production CSS order, not chunk filenames.
 No live account, provider or deployment was used.

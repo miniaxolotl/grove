@@ -147,9 +147,6 @@ class NoteDraftStore extends Map<string, NoteDraft> {
         this.recoveryError = "";
         return;
       }
-      // Keep private recovery validation out of the default Notes entry bundle.
-      const { memorySchema, kindSchema } =
-        await import("@lib/shared/contracts");
       // Fresh authenticated authorization, not persisted credentials or a cached
       // permission decision. Offline uncertainty never unlocks ciphertext.
       await cache.client.fetchQuery({
@@ -158,6 +155,17 @@ class NoteDraftStore extends Map<string, NoteDraft> {
         networkMode: "always",
         retry: false,
       });
+      if (!currentSession()) return;
+      // A fresh device has no ciphertext to authorize or validate. Do not scan
+      // every notebook or load recovery schemas just to prepare its empty store.
+      if (rows.length === 0) {
+        this.unlocked = true;
+        this.recoveryError = "";
+        return;
+      }
+      // Keep private recovery validation out of the default Notes entry bundle.
+      const { memorySchema, kindSchema } =
+        await import("@lib/shared/contracts");
       // The legacy /projects response is capped at 100. Only a complete,
       // state-checked directory can establish that a notebook was removed.
       const { items: projects } = await cache.client.fetchQuery({
@@ -260,6 +268,8 @@ class NoteDraftStore extends Map<string, NoteDraft> {
     } finally {
       if (currentSession()) {
         this.initializing = false;
+        if (this.enabled && this.unlocked)
+          for (const key of this.keys()) this.schedule(key);
         this.notify();
       }
     }
@@ -397,8 +407,8 @@ export function useDraftHeld(key: string) {
   );
 }
 
-// Memory-only by default. Explicit device opt-in persists encrypted envelopes,
-// never URLs/localStorage, credentials, query caches or permission decisions.
+// Fresh account/browser pairs recover encrypted drafts by default. Saved off
+// choices and erasure fences win; credentials and permission decisions stay out.
 export function NoteDraftsProvider({
   account,
   children,

@@ -1,4 +1,4 @@
-/** Device-only, opt-in draft envelopes. Never persist tokens or the query cache. */
+/** Encrypted device drafts. Saved off choices win; never persist tokens or caches. */
 export const recoveryLimits = {
   drafts: 32,
   bytes: 1_048_576,
@@ -120,7 +120,9 @@ export class DraftRecovery {
     }
     return this.db;
   }
-  async initialize() {
+  async initialize(
+    defaults = true,
+  ): Promise<{ enabled: boolean; rows: Envelope[] }> {
     const db = await this.database();
     const tx = db.transaction(["owners", "drafts"], "readonly");
     const done = complete(tx);
@@ -131,6 +133,13 @@ export class DraftRecovery {
       ),
     ]);
     await done;
+    // A missing owner is a fresh account/browser, not an explicit off choice.
+    // Create the default key only if another tab has not since saved a choice.
+    // Orphaned ciphertext is never replaced with a new key.
+    if (defaults && !owner && rows.length === 0) {
+      await this.enable(true);
+      return this.initialize(false);
+    }
     this.owner = owner;
     this.sequence = new Map(rows.map((row) => [row.name, row.sequence]));
     this.expires = new Map(rows.map((row) => [row.name, row.expires]));
@@ -139,13 +148,16 @@ export class DraftRecovery {
       rows: rows.filter((row) => !!row.ciphertext),
     };
   }
-  async enable() {
+  async enable(onlyIfNew = false) {
     const db = await this.database();
+    const lifetime = this.lifetime;
     const key = await crypto.subtle.generateKey(
       { name: "AES-GCM", length: 256 },
       false,
       ["encrypt", "decrypt"],
     );
+    if (this.closed || lifetime !== this.lifetime)
+      throw new Error("Device recovery session ended");
     const tx = db.transaction(["owners", "drafts"], "readwrite");
     const done = complete(tx);
     const store = tx.objectStore("owners");
@@ -153,6 +165,10 @@ export class DraftRecovery {
     const rows: Envelope[] = await request(
       tx.objectStore("drafts").index("owner").getAll(this.account),
     );
+    if (onlyIfNew && (current || rows.length)) {
+      await done;
+      return;
+    }
     if (!current?.key && rows.some((row) => !!row.ciphertext)) {
       tx.abort();
       await done.catch(() => {});

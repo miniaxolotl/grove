@@ -640,7 +640,7 @@ test("notebook deletion applies instantly, rolls back conflicts and allows a fre
     .click();
   await expect(dialog).not.toBeVisible();
   await expect(notifications.locator(".workspace-toast")).toContainText(
-    "Failed",
+    /failed/i,
   );
   await expect(
     page.getByRole("button", { name: `More actions for ${project.name}` }),
@@ -1972,9 +1972,14 @@ test("mobile note controls leave room to read and retain selection for touch for
     await drawer.getByRole("button", { name: "Undo", exact: true }).tap();
     await expect(editor).toHaveText("A soft landing");
     await page.setViewportSize({ width: 390, height: 480 });
+    // The completed autosave replaces its button with a reserved slot. Do not
+    // race the autosave timer when checking the short-screen toolbar geometry.
+    await expect(drawer.locator(".note-save-status")).toHaveText("Saved");
     await expect(
       drawer.getByRole("button", { name: "Save note", exact: true }),
-    ).toBeInViewport();
+    ).toHaveCount(0);
+    await expect(drawer.locator(".note-save-status")).toBeInViewport();
+    await expect(drawer.locator(".note-save-button")).toBeInViewport();
     await drawer.getByRole("button", { name: "Preview", exact: true }).tap();
     await drawer
       .getByRole("button", { name: "Note actions", exact: true })

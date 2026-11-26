@@ -143,7 +143,7 @@ export function DraftRecoverySettings() {
           busy={busy}
           close={() => setForgetting(false)}
         >
-          <p>
+          <p className="device-copy-confirmation">
             Unsaved text in open tabs stays. Deleted device copies can’t be
             recovered.
           </p>

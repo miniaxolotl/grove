@@ -195,8 +195,9 @@ export const privacy: LegalDocument = {
       content: (
         <>
           <p>
-            Note drafts stay in tab memory by default. If you enable “Recover
-            drafts on this device” in Account settings, Grove stores encrypted
+            Draft recovery is on by default for a new account in this browser.
+            You can turn off “Recover drafts on this device” in Account
+            settings; a saved off choice stays off. Grove stores encrypted
             checkpoints and a non-exportable encryption key in this browser for
             your account, with note/notebook routing identifiers. The limit is
             32 drafts and 1 MiB, expiring seven days after the first checkpoint.

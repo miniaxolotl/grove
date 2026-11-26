@@ -304,7 +304,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.note-save-status {
+.note-save-feedback {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -314,6 +314,14 @@
   margin-right: 10px;
   flex: 0 0 208px;
   width: 208px;
+  min-width: 0;
+  min-height: 20px;
+}
+.note-save-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
   min-width: 0;
   min-height: 20px;
 }
@@ -330,7 +338,7 @@
   font-size: 11px;
   min-height: 32px;
 }
-.note-save-status > .note-device-popover {
+.note-save-feedback > .note-device-popover {
   position: fixed;
   inset: auto 12px 12px auto;
   width: min(320px, calc(100vw - 40px));
@@ -360,7 +368,7 @@
   gap: 8px;
 }
 @supports (position-area: bottom) {
-  .note-save-status > .note-device-popover {
+  .note-save-feedback > .note-device-popover {
     inset: auto;
     position-area: bottom span-left;
     position-try-fallbacks: --device-below, flip-block;
@@ -376,7 +384,7 @@
 .note-save-button {
   flex-shrink: 0;
   width: 96px;
-  min-height: 36px;
+  min-height: var(--touch-target, 36px);
 }
 .note-editor-full .editor-fields {
   position: relative;
@@ -555,7 +563,7 @@
     flex-basis: calc(100% - 48px);
     padding-right: 0;
   }
-  .note-save-status {
+  .note-save-feedback {
     flex: 1;
     margin: 0 4px;
   }

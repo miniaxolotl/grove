@@ -2301,7 +2301,7 @@ html:has(.grove-app) {
     min-width: 0;
     padding: 0;
   }
-  .note-editor-bar > .note-save-status {
+  .note-editor-bar > .note-save-feedback {
     grid-column: 2;
     grid-row: 2;
     margin: 0;
@@ -2469,11 +2469,28 @@ html:has(.grove-app) {
   .memory-row {
     grid-template-columns: 44px minmax(0, 1fr) 44px;
     gap: 6px;
-    padding-inline: 8px;
+    padding: 8px;
   }
   .row-selection {
     gap: 0;
     padding-top: 0;
+  }
+  .memory-open {
+    display: grid;
+    align-content: center;
+    min-height: var(--touch-target);
+  }
+  .memory-row-details {
+    margin-top: 6px;
+  }
+  .library-selection-header .select-loaded {
+    gap: 6px;
+  }
+  .library-selection-header {
+    padding-inline: 8px;
+  }
+  .library-selection-header .select-loaded > input {
+    margin-inline: 14px;
   }
   .row-checkbox {
     display: grid;

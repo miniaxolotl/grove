@@ -858,27 +858,29 @@ function ReadyMemoryEditor({
                 <NotebookBreadcrumbs projects={projects} id={projectId} />
                 <h1>{noteTitle}</h1>
               </div>
-              <span
-                className="note-save-status"
-                role="status"
-                title={autoSave ? "Saves automatically" : undefined}
-              >
-                <Check
-                  size={13}
-                  aria-hidden="true"
-                  style={{
-                    visibility:
-                      !busy &&
-                      !dirty &&
-                      base &&
-                      !latest &&
-                      !freshness?.error &&
-                      !freshness?.checking
-                        ? "visible"
-                        : "hidden",
-                  }}
-                />
-                <span title={saveStatus}>{saveStatus}</span>
+              <span className="note-save-feedback">
+                <span
+                  className="note-save-status"
+                  role="status"
+                  title={autoSave ? "Saves automatically" : undefined}
+                >
+                  <Check
+                    size={13}
+                    aria-hidden="true"
+                    style={{
+                      visibility:
+                        !busy &&
+                        !dirty &&
+                        base &&
+                        !latest &&
+                        !freshness?.error &&
+                        !freshness?.checking
+                          ? "visible"
+                          : "hidden",
+                    }}
+                  />
+                  <span title={saveStatus}>{saveStatus}</span>
+                </span>
                 {freshness?.error && (
                   <button
                     type="button"
