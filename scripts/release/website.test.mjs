@@ -1,7 +1,34 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { deployWebsite, preflightWebsite } from "./website.mjs";
+import * as website from "./website.mjs";
+
+test("website image build receives only validated public production configuration", () => {
+  assert.equal(typeof website.websiteImageEnvironment, "function");
+  const key = `pk_live_${Buffer.from("clerk.example.test$").toString("base64")}`;
+  const config = website.websiteImageEnvironment({
+    SITE_URL: "https://grovenote.app",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: key,
+    CLERK_SECRET_KEY: "never-copy",
+    SENTRY_AUTH_TOKEN: "never-copy",
+    GROVE_API_URL: "https://private.example.test",
+  });
+  assert.deepEqual(config, {
+    SITE_URL: "https://grovenote.app",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: key,
+  });
+  assert.throws(() =>
+    website.websiteImageEnvironment({ SITE_URL: "https://grovenote.app" }),
+  );
+  assert.throws(() =>
+    website.websiteImageEnvironment({
+      SITE_URL: "http://wrong.example.test",
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: key,
+    }),
+  );
+});
 
 const env = {
   VERCEL_TOKEN: "fixture",

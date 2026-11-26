@@ -1,12 +1,71 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { parseEnv } from "node:util";
 import process from "node:process";
 import console from "node:console";
 import { pathToFileURL, URL } from "node:url";
 import { assertCurrentRef, workflowContext } from "../ci/current-ref.mjs";
 
 const origin = "https://grovenote.app";
+export function websiteImageEnvironment(values) {
+  assert.equal(
+    values.SITE_URL,
+    origin,
+    "Website image must use the configured production origin",
+  );
+  assert.match(
+    values.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "",
+    /^pk_live_[A-Za-z0-9+/=]+$/,
+    "Production Clerk publishable key is required",
+  );
+  const keys = [
+    "SITE_URL",
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_POSTHOG_ENABLED",
+    "NEXT_PUBLIC_POSTHOG_KEY",
+    "NEXT_PUBLIC_SENTRY_ENABLED",
+    "NEXT_PUBLIC_SENTRY_DSN",
+  ];
+  return Object.fromEntries(
+    keys
+      .filter((key) => values[key] !== undefined)
+      .map((key) => [key, values[key]]),
+  );
+}
+
+function writeWebsiteImageEnvironment(env) {
+  const directory = mkdtempSync(join(tmpdir(), "grove-website-config-"));
+  try {
+    // Pull into a disposable directory, never the Docker context. The output
+    // allowlist excludes runtime credentials and provider auth/upload tokens.
+    execFileSync(
+      "npx",
+      [
+        "--yes",
+        "vercel@65.2.0",
+        "pull",
+        "--yes",
+        "--environment=production",
+        "--cwd",
+        directory,
+      ],
+      { env, stdio: ["ignore", "ignore", "inherit"], timeout: 120_000 },
+    );
+    const values = parseEnv(
+      readFileSync(join(directory, ".vercel/.env.production.local"), "utf8"),
+    );
+    writeFileSync(
+      "website-image-env.json",
+      JSON.stringify(websiteImageEnvironment(values)) + "\n",
+      { mode: 0o600 },
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
 function configuration(env) {
   for (const key of ["VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID"])
     assert(env[key]?.trim(), `${key} is required`);
@@ -166,7 +225,10 @@ if (
 ) {
   try {
     await preflightWebsite(process.env);
-    if (process.argv[2] === "deploy") {
+    if (process.argv[2] === "image-config") {
+      assertCurrentRef(workflowContext());
+      writeWebsiteImageEnvironment(process.env);
+    } else if (process.argv[2] === "deploy") {
       const evidence = await deployWebsite(process.env, {
         version: JSON.parse(readFileSync("package.json", "utf8")).version,
         assertCurrent: () => assertCurrentRef(workflowContext()),

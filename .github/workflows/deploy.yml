@@ -103,82 +103,33 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Resolve existing immutable images without suppressing registry failures
-        id: existing
-        run: |
-          inspect() {
-            local digest
-            if digest="$(docker buildx imagetools inspect "$1" --format '{{.Manifest.Digest}}' 2>image-error)"; then
-              [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || return 1
-              printf '%s' "$digest"
-            elif ! grep -Eqi 'not found|manifest unknown|no such manifest' image-error; then
-              cat image-error >&2
-              return 1
-            fi
-          }
-          digest="$(inspect "ghcr.io/miniaxolotl/grove:sha-$RELEASE_SOURCE_SHA")"
-          for repository in ghcr.io/miniaxolotl/grove miniaxolotl/grove; do
-            for tag in "sha-$RELEASE_SOURCE_SHA" "$RELEASE_TAG"; do
-              existing="$(inspect "$repository:$tag")"
-              if [[ -n "$existing" && "$existing" != "$digest" ]]; then exit 1; fi
-            done
-          done
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: Preflight every component in GHCR and Docker Hub
+        run: node scripts/release/container-images.mjs preflight
+      - name: Read only public website build configuration from the existing production project
+        run: node scripts/release/website.mjs image-config
       - name: Upload exact-source diagnostics maps and release linkage
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: node scripts/release/telemetry-release.mjs
-      - id: build
-        if: steps.existing.outputs.digest == ''
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          platforms: linux/amd64
-          build-args: |
-            GROVE_TELEMETRY_BUILD=production
-            RELEASE_SOURCE_SHA=${{ needs.candidate.outputs.sha }}
-            GROVE_POSTHOG_KEY=${{ secrets.GROVE_POSTHOG_KEY }}
-            GROVE_CLI_SENTRY_DSN=${{ secrets.GROVE_CLI_SENTRY_DSN }}
-            GROVE_API_SENTRY_DSN=${{ secrets.GROVE_API_SENTRY_DSN }}
-          push: true
-          tags: ghcr.io/miniaxolotl/grove:sha-${{ needs.candidate.outputs.sha }}
-          labels: |
-            org.opencontainers.image.version=${{ needs.candidate.outputs.version }}
-            org.opencontainers.image.revision=${{ needs.candidate.outputs.sha }}
-            org.opencontainers.image.source=https://github.com/miniaxolotl/grove
-          provenance: mode=max
-          sbom: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - id: image
+        name: Build or reuse and verify API, MCP, Website and LanguageTool images in both registries
+        run: node scripts/release/container-images.mjs prepare
       - name: Validate the existing topology before npm publication
         env:
-          GROVE_IMAGE_DIGEST: ${{ steps.existing.outputs.digest || steps.build.outputs.digest }}
+          GROVE_IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
         run: |
           node scripts/ci/current-ref.mjs
           [[ "$GROVE_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          tag="miniaxolotl/grove:sha-$RELEASE_SOURCE_SHA"
-          docker buildx imagetools create --prefer-index=false --tag "$tag" "ghcr.io/miniaxolotl/grove@$GROVE_IMAGE_DIGEST"
-          test "$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')" = "$GROVE_IMAGE_DIGEST"
           node scripts/deploy-digitalocean.mjs --propose
       - name: Publish all coordinated npm artifacts
         run: node scripts/publish.mjs
-      - id: image
-        name: Promote and verify the immutable image
+      - name: Promote and verify all four component images
         env:
-          GROVE_IMAGE_DIGEST: ${{ steps.existing.outputs.digest || steps.build.outputs.digest }}
+          GROVE_IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
         run: |
           node scripts/ci/current-ref.mjs
           [[ "$GROVE_IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
-          source="ghcr.io/miniaxolotl/grove@$GROVE_IMAGE_DIGEST"
-          docker pull "$source"
-          test "$(docker inspect "$source" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$RELEASE_SOURCE_SHA"
-          for repository in ghcr.io/miniaxolotl/grove miniaxolotl/grove; do
-            for tag in "sha-$RELEASE_SOURCE_SHA" "$RELEASE_TAG" latest; do
-              docker buildx imagetools create --prefer-index=false --tag "$repository:$tag" "$source"
-              test "$(docker buildx imagetools inspect "$repository:$tag" --format '{{.Manifest.Digest}}')" = "$GROVE_IMAGE_DIGEST"
-            done
-          done
-          echo "digest=$GROVE_IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
+          node scripts/release/container-images.mjs promote
           jq -n --arg sha "$RELEASE_SOURCE_SHA" --arg tag "$RELEASE_TAG" --arg digest "$GROVE_IMAGE_DIGEST" \
             '{sha:$sha,tag:$tag,image:"ghcr.io/miniaxolotl/grove",digest:$digest}' > manifest.json
       - name: Attach verified browser downloads to the source release
@@ -186,7 +137,9 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-${{ needs.candidate.outputs.tag }}-${{ github.run_attempt }}
-          path: manifest.json
+          path: |
+            manifest.json
+            container-images.json
           retention-days: 90
           if-no-files-found: error
 

@@ -12,6 +12,7 @@ if (upload && !process.env.SENTRY_AUTH_TOKEN)
   );
 
 const nextConfig: NextConfig = {
+  output: process.env.GROVE_CONTAINER_BUILD === "1" ? "standalone" : undefined,
   poweredByHeader: false,
   allowedDevOrigins: ["10.8.0.5"],
   async headers() {

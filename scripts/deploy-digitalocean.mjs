@@ -325,7 +325,7 @@ export function updateImageSpec(
         health_check: {
           http_path: "/ready",
           port: 8081,
-          initial_delay_seconds: 60,
+          initial_delay_seconds: 180,
           timeout_seconds: 5,
           period_seconds: 10,
           failure_threshold: 6,

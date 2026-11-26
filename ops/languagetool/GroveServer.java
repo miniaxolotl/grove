@@ -92,14 +92,25 @@ public final class GroveServer extends HTTPServer {
           .timeout(Duration.ofSeconds(45)).header("Content-Type", "application/x-www-form-urlencoded")
           .POST(HttpRequest.BodyPublishers.ofString("language=en-US&enabledOnly=true&enabledRules=EN_A_VS_AN&text=This+is+a+hour+away."))
           .build();
-      HttpResponse<String> response = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
-          .send(probe, HttpResponse.BodyHandlers.ofString());
-      JsonNode json = new ObjectMapper().readTree(response.body());
-      JsonNode match = json.at("/matches/0");
-      if (response.statusCode() != 200 || !json.at("/software/version").asText().equals("6.8") ||
-          !match.at("/rule/id").asText().equals("EN_A_VS_AN") || !match.at("/replacements/0/value").asText().equals("an")) {
-        throw new IllegalStateException("English startup check failed");
+      HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+      boolean healthy = false;
+      // Cold English initialization can exceed the normal check budget on a
+      // shared CPU. Retry only this fixed synthetic startup check; retain the
+      // normal engine limits and reject non-loopback checks until it succeeds.
+      for (int attempt = 0; attempt < 3; attempt++) {
+        try {
+          HttpResponse<String> response = client.send(probe, HttpResponse.BodyHandlers.ofString());
+          JsonNode json = new ObjectMapper().readTree(response.body());
+          JsonNode match = json.at("/matches/0");
+          healthy = response.statusCode() == 200 && json.at("/software/version").asText().equals("6.8") &&
+              match.at("/rule/id").asText().equals("EN_A_VS_AN") && match.at("/replacements/0/value").asText().equals("an");
+          if (healthy) break;
+        } catch (IOException e) {
+          // No upstream body or exception message is safe to log.
+        }
+        if (attempt < 2) Thread.sleep(250);
       }
+      if (!healthy) throw new IllegalStateException("English startup check failed");
       lt.ready = true;
     } catch (Exception e) {
       System.exit(1);
