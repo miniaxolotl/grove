@@ -10,7 +10,7 @@ is **a generic tool shell with too much interface around the work**: navigation,
 search modes, formatting controls, explanatory sentences and repeated metadata.
 Removing more decoration alone would make it plainer, not more distinctive.
 
-The three highest-value changes are:
+The three design priorities are:
 
 - Give mobile screens back to the note or question, rather than navigation.
 - Replace routine explanations with clear controls, examples and compact status.
@@ -39,6 +39,11 @@ so Back/Forward and reload preserve the exact location and return context.
   cancellation, export options, uncommitted sharing, import entry, file refresh
   failure and stale notes. No API mutations were attempted. Note-row reload and
   failed-refresh observations are recorded in the gallery.
+- The cross-screen pass adds ten captures at 1200/768/390px and short 390×600 /
+  320×480 layouts. No page overflow or JavaScript page errors in these runs.
+  It uses the fixture’s history/Link shim, not the real Next router. Source and
+  full-reload observations support the findings; real Next history-cache,
+  physical-keyboard/zoom and production acceptance remain separate.
 - Extension captures use the current built Chrome package in isolated Chromium
   156.0.8078.4, synthetic text and mocked HTTP/model responses. No live AI calls.
   This does not establish parity with every published store version or browser.
@@ -207,6 +212,45 @@ dividers rather than turning every note into a large card.
 
 ## Broader workflow pass
 
+### Medium: scope, counts and empty states look like unrelated fragments
+
+The owner’s supplied crop highlights a display problem, not just excessive copy:
+**Notes → search → “0 notes” → “Unfiled” → a large bordered empty-state panel**.
+The small count and scope are detached from the heading and from each other;
+the panel gives a generic result message more visual weight than the location.
+Its padding, heading/body gap and separate recovery button make a tiny amount of
+information feel like another full section. The fixture reproduces this at
+[768px](../screenshots/ui-ux-review/empty-unfiled-768.png) and
+[390px](../screenshots/ui-ux-review/empty-unfiled-390.png); these are not a claim
+about the crop’s original viewport or zoom.
+
+- Put the current location and its count in one compact header/breadcrumb, with
+  scope leading and count secondary. Do not leave “Unfiled” as an unexplained
+  second metadata line. When empty, omit the redundant zero count: **Unfiled** as
+  the location, **No notes here yet** and **New note** are enough. Make the
+  search’s scope apparent beside the field.
+- Keep search/filter controls together and before the result surface. Show active
+  constraints as labelled, removable choices when needed—not only a number on an
+  icon. Align their edges with the results.
+- Make the empty treatment proportionate: one short state sentence, one relevant
+  next action, deliberate spacing. A modest result boundary is fine; an extra
+  card or divider is not required simply because there is no row to show.
+- Distinguish **“No notes in Unfiled yet”** from **“No notes match this search.”**
+  The former should offer creation/import in that location; the latter should
+  offer Clear search or removal of the actual narrowing filter.
+
+There is also a behavioral mismatch. `memory-library.tsx:224` treats a selected
+notebook/Unfiled scope as a filter, even without a search. Lines 674–699 then show
+“No matching notes” and reset _all_ filters, including that scope. In the fixture,
+Clear filters shows an all-notes result while the URL still says
+`?notebook=personal`; reload returns to empty Unfiled. Keep navigation scope
+separate from search refinements. Label an intentional scope change **View all
+notes**, not Clear filters. The truly empty all-notes view already offers
+**Write your first note**—retain that useful distinction rather than using one
+generic empty card everywhere. The source paths here are under
+`packages/website/src/components/dashboard/`; `.library-scope` explicitly uses
+`display: block` in `packages/website/src/app/app/dashboard.css:705`.
+
 ### Medium: settings need parent/child hierarchy, not more separators
 
 Writing assistance, Spelling and Basic grammar currently share the same left
@@ -237,6 +281,83 @@ boundary per group. Retain useful row separation, control outlines, focus rings,
 table relationships and destructive-action grouping. The current flat settings
 rows already remove their borders (`settings-layout.css:31`); adding a divider
 between every toggle would make their hierarchy worse, not better.
+
+The short-screen check also distinguishes **saved configuration** from
+**effective state**: after Writing assistance is switched off, Spelling and Basic
+grammar remain checked and editable. The local master survives reload. This is
+not evidence that the engine still runs: `note-writing.tsx:56` gates it on the
+master. Preserve saved child choices, but visibly mark their group **Paused while
+writing checks are off**, or otherwise show that they are not currently active.
+The hierarchy must communicate that distinction without another paragraph per
+toggle. Do not silently clear the children to make the screen look consistent.
+
+### Medium: simplify toolbar and filter layout with consistent icon roles
+
+The owner’s Linear references demonstrate a useful _structure_: compact toolbar
+triggers, labelled icon rows inside menus, aligned label/value columns, and
+separators between meaningful groups rather than every option. They are not a
+request to copy dark styling, round every control or reproduce Linear’s feature
+inventory.
+
+Grove already has a good starting point: List/Graph use icons plus text, and
+Archive / Today’s note / Import notes already have aligned icons and labels.
+The measured More-menu rows share a 36px pitch and icon column. Do not report
+those as missing icons or randomly spaced rows. The inconsistent part is their
+composition: view choices and the text-only **More** trigger compete as peer
+buttons while search, Filters and result metadata occupy another band.
+
+- Keep the two common views together. Consider the existing ellipsis icon for
+  More note actions instead of another text button; preserve its accessible name,
+  keyboard hint/focus behavior and a tap-discoverable label. Use icon **and text**
+  inside menus and for unfamiliar or consequential actions.
+- Give Filters and any genuine display-options control distinct meanings/icons;
+  do not add a second sliders button for the same job. Add no empty “View settings”
+  menu merely to imitate the reference.
+- Standardize icon size/stroke, icon/text gap, row baselines, trailing checkmark /
+  chevron column, trigger height and menu padding. Keep the panel anchored to its
+  trigger and within usable viewport gutters. Separate navigation, view controls
+  and destructive actions by grouping, not a divider after every row.
+- In the phone Filters panel, two columns begin at only 360px
+  (`packages/website/src/app/app/workspace.css:1577`). Topic tag is squeezed beside
+  a full-width Apply tag button and its placeholder is clipped. Let search/text
+  fields span the usable width; pair only short compatible choices. Keep labels,
+  input edges and footer actions aligned; reduce redundant framing instead of
+  shrinking text to fit.
+
+The More icon already exists in `ui/action-menu.tsx:19`; the library deliberately
+replaces it with `visibleLabel="More"` at `memory-library.tsx:481`. These paths
+are under `packages/website/src/components/dashboard/`. Icon-only is an option
+for familiar compact triggers, **not** a mandate to remove labels from Save,
+Revoke, permission choices or the main Open action.
+
+### Medium: searchable choices need an explicit local-versus-server policy
+
+The supplied Source-select example has eight options and no visible search.
+`ui/select.tsx:95` renders a plain Radix option viewport, not a search field.
+Keyboard typeahead can move focus (CLI in the phone check), but does not narrow
+the eight choices and is not discoverable touch search. Add visible filtering
+where option scanning is the problem. Notebook selection already has a search
+field: `notebook-picker.tsx:47` filters labels locally, and the test phrase
+“Website” correctly narrows it. Preserve and reuse that behavior rather than
+declaring every dropdown unsearchable.
+
+| Input/data                                          | Appropriate search                                                                                                    | Boundary to preserve                                                                                                                                                             |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sources and other fixed, fully loaded option lists  | Client-side label filtering; Source is a useful candidate.                                                            | No API request for each keystroke over eight static values. Short sort/duration lists can remain simple selects.                                                                 |
+| Notebook picker                                     | Client-side over the complete authorized catalog, as today.                                                           | `workspace-cache.ts:320` assembles all catalog pages before exposing them. If scale later requires server search, preserve hierarchy, selected values and full-dataset coverage. |
+| Notes/global finder, files and conversation history | Backend search with authorization, scope, sort and pagination.                                                        | Never search only the currently rendered/loaded page and call it the whole result set. Preserve freshness, cancellation and stale-response fencing.                              |
+| Topic suggestions                                   | Local suggestions are fine as suggestions; comprehensive tag discovery needs complete catalog data or backend search. | Current suggestions come from loaded note rows (`memory-library.tsx:523`), so they are not an exhaustive tag index.                                                              |
+
+The table’s component paths are under `packages/website/src/components/dashboard/`;
+the cache is under `packages/website/src/lib/`. Reuse the existing debounced
+backend note-search behavior (`use-note-search.ts`), not an unrelated search
+system. Keep small interactive reads synchronous where appropriate; this review
+does not propose background jobs for option filtering.
+
+Every searchable select needs a visible search label, a scrollable bounded result
+list, retained selection, keyboard/IME support and an honest no-match state.
+Server-backed ones also need loading/failure/partial-result states; local ones
+should respond immediately. A failed or incomplete fetch is never “no matches.”
 
 ### High: access management comes after installation
 
@@ -338,6 +459,55 @@ of URLs; use bounded route IDs or scoped state handles where needed. Validate
 return destinations as authorized local paths, handle deleted/inaccessible targets
 honestly, and preserve unsaved edits. Direct deep links need a sensible parent
 fallback when there is no originating history entry.
+
+The third pass confirms two concrete cross-screen failures behind that rule:
+
+- **Files → chat does not open the referenced conversation.**
+  `files-panel.tsx:131` emits `/app/ask?chat=<id>`, but
+  `packages/website/src/app/app/ask/page.tsx:11` consumes only `draft`, and Ask’s
+  selected conversation is session state (`ask-grove.tsx:136`). The fixture lands
+  on an empty Ask screen without reading the referenced chat. A control check
+  opens the same seeded conversation through History and reads it successfully;
+  its selection still leaves the URL at `/app/ask`, and reload loses it. Repair
+  producer and consumer together, validate access to the ID, and distinguish an
+  unavailable conversation from a fresh blank chat.
+- **Files → note → the app’s Back action returns to Notes, not Files.**
+  `memory-inspector.tsx:209` computes a notebook/home destination from the note,
+  rather than its origin. This is distinct from the browser Back button. A scoped
+  file query, expanded location and scroll position need a return path too.
+
+### High: unsaved AI preferences are protected only inside Settings
+
+In the fixture, switching Answers and writing off without saving, visiting
+Writing, then returning to AI & search retains the edit. Visiting Notes and
+returning instead restores the saved On value and disables Save; the unsaved
+choice disappears without a recovery decision. `preference-editor.tsx:28` keeps
+the draft in the Settings provider, and `settings-frame.tsx:14` owns that provider.
+There is no comparable leave/reload guard in this editor. These paths are under
+`packages/website/src/components/dashboard/`.
+
+Retain a safely account-scoped draft or ask **Keep editing / Discard changes**
+before losing it; save only through the existing explicit action. Cover links,
+browser history, refresh, sign-out and account changes without leaking a draft to
+another account. Preserve the working within-Settings behavior and newer-edit
+reconciliation during save. Do not “fix” lost work with silent autosave or another
+global toast.
+
+### Preserve the interaction details that already work
+
+At 320×480, the notebook picker stays within the viewport. Escape closes the
+nested picker first and restores focus to Parent notebook; a second Escape
+closes the creation dialog and returns focus to New notebook. Those are useful
+properties to retain when flattening panels or reducing dividers. Tab sampling
+also reached the document body/browser-focus boundary; this is not evidence of a
+background control being activated, nor a complete focus-trap certification.
+
+Axe additionally flags accessible-name mismatches on the picker’s Top level
+option and the tablet Filters trigger. The master-off screen had no axe findings.
+Neither result proves the whole keyboard or accessibility experience is accepted.
+The tablet About you Preferences subview also reloads to Overview at the same
+`/app/profile` URL, reinforcing the broader subview/route finding rather than
+creating another unrelated navigation prescription.
 
 ### What the wider pass does not justify removing
 
@@ -451,8 +621,8 @@ every action. A short sentence is fine when it says something useful.
 ## Recommended implementation order
 
 1. Correct direct store links, deletion consequences and access-management order.
-2. Establish URL/return-state behavior before changing navigation composition.
-3. Group settings/toggles, remove redundant divider bands and standardize receipts.
+2. Establish working chat/note URLs, return state and unsaved-draft protection.
+3. Group scope/count/empty states and settings; remove redundant divider bands.
 4. Recompose mobile/Ask/editor and shared source trails without hiding recovery.
 
 Before accepting a redesign, verify populated/empty/error/offline states, long

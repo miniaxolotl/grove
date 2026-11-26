@@ -108,6 +108,75 @@ Import entry was closed without choosing files; export options were closed
 without preparing/downloading a file; sharing was closed without Create link.
 Worker completion, download integrity, live publication and erasure are untested.
 
+## Cross-screen and empty-state evidence
+
+Same product snapshot and production CSS. Ten new captures use isolated synthetic
+contexts at 1200/768/390×900, 390×600 and 320×480. No horizontal page overflow or
+JavaScript page errors in the completed runs. The owner’s supplied empty-state
+crop informed the display review; the images below are independently reproduced
+fixtures, not that crop or a claim about its viewport/zoom.
+
+| Empty Unfiled, tablet                                                                          | Empty Unfiled, phone                                      | Actual unmatched search                                          | Empty library control                                                             |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| ![Detached scope/count and no-matching state without a search at 768px](empty-unfiled-768.png) | ![Same empty scoped view at 390px](empty-unfiled-390.png) | ![No results with an actual search phrase](empty-search-390.png) | ![Unfiltered empty library offers Write your first note](empty-first-run-390.png) |
+
+An empty Unfiled scope displays “No matching notes” without a query. Clear filters
+removes the scope and shows a seeded notebook note, but leaves
+`?notebook=personal` in the URL. Reload restores the empty Unfiled view. Search
+focus is restored after clearing. The genuinely empty all-notes case has a
+different, useful first-note action. No note was created.
+
+| Chat link from Files                                                  | Same chat opened through History                                            | Unsaved AI preference                               | Local master off                                                               |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------ |
+| ![Files chat link reaches a blank Ask screen](file-chat-link-390.png) | ![History loads the seeded conversation successfully](history-open-390.png) | ![AI preference draft at 1200px](ai-draft-1200.png) | ![Master off while saved child options remain checked](master-off-390x600.png) |
+
+The Files link sets `?chat=<id>` but makes no read of that chat. History does read
+and display it, while leaving the URL at `/app/ask`; full reload loses selection.
+The note counterpart’s in-app Back action returns to `/app`, not its Files origin.
+The AI draft survives Writing→AI navigation within Settings, but is lost after
+Notes→Settings. No preference save was submitted. The local Writing master was
+changed only in disposable browser storage and remains off after reload; the
+checked children are saved choices, not evidence of active proofing.
+
+| Short-viewport nested picker                                                    | Tablet subview                                                 |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| ![Parent picker inside New notebook at 320 by 480](nested-notebook-320x480.png) | ![About you Preferences at 768px](profile-preferences-768.png) |
+
+Nested Escape returns focus to Parent notebook, then the dialog opener. Tab
+sampling reaches BODY at the browser-focus boundary; no full focus-trap claim.
+The Preferences subview reloads to Overview at the same URL. Axe on these two
+states flags Top level / Filters accessible-name mismatches; the 390×600
+master-off state has no axe findings. Axe was not run on the other seven captures.
+
+Navigation uses the existing test Link/history shim, not the real Next router.
+Source inspection and full reload support the findings; real Next cache/history,
+mobile keyboard, pinch zoom and authenticated production remain unverified. API
+reads are synthetic; automatic `POST /briefs` attempts while loading About you
+were blocked, not accepted jobs. No remote effects, generation or account edits.
+An initial missing documents-list fixture was corrected before retaining the
+History screenshot; its temporary error was not recorded as a product defect.
+
+### Menus, alignment and searchable selects
+
+The owner’s Linear and Grove crops inform the icon/layout comparison. Six
+additional fixture captures inspect More, Filters and Source at 768/390×900;
+four are retained below. No page overflow or JavaScript page errors; axe was not
+run on this set. Local menu opening/search did not save a preference or submit
+an account command.
+
+| More actions                                                   | Phone filters                                                                       | Source choices, tablet                                                | Source choices, phone                                                   |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ![Existing aligned icon-and-text More menu](more-menu-390.png) | ![Two-column filter form squeezes Topic tag beside Apply tag](filters-menu-390.png) | ![Source options have no visible search input](source-select-768.png) | ![Phone Source options and keyboard-focused CLI](source-select-390.png) |
+
+More rows share a 36px height and icon x-position; they are not evidence of ragged
+alignment or missing icons. The settled tablet filter panel is 480px wide at
+x=249 in a 768px viewport; initial pre-placement geometry was not used as a
+clipping finding. Source exposes eight options, no input. Phone keyboard
+typeahead focuses CLI without filtering the list. The separate Notebook picker
+does expose Filter notebooks and narrows “Website” to Website redesign. These are
+different control capabilities, not one universal search defect. Search policies
+and grouping/alignment recommendations are in the review.
+
 ## Public entry pages
 
 Live `grovenote.app`, captured 26 November 2026. Home requested 1440×900 and its
