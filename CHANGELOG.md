@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.36](https://github.com/miniaxolotl/grove/compare/v1.11.35...v1.11.36) (2026-11-26)
+
+
+### Bug Fixes
+
+* **release:** reuse verified pnpm action in held recorder ([#340](https://github.com/miniaxolotl/grove/issues/340)) ([df9f802](https://github.com/miniaxolotl/grove/commit/df9f8020ef4055ec20eb91847641a122e5ba86cd))
+
 ## [1.11.35](https://github.com/miniaxolotl/grove/compare/v1.11.34...v1.11.35) (2026-11-26)
 
 

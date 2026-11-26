@@ -106,7 +106,7 @@ function fixture(t) {
   // credential/provider/provenance command fails instead of reaching the network.
   write(
     ".fixture-bin/gh",
-    `#!${process.execPath}\nconst args=process.argv.slice(2);if(args.length!==2||args[0]!=="api"||!/^repos\\/miniaxolotl\\/grove\\/pulls\\/(293|303|337)$/.test(args[1]))process.exit(90);console.log(JSON.stringify({number:Number(args[1].split("/").at(-1)),merged:false,head:{ref:"fixture-unselected"}}));\n`,
+    `#!${process.execPath}\nconst args=process.argv.slice(2);if(args.length!==2||args[0]!=="api"||!/^repos\\/miniaxolotl\\/grove\\/pulls\\/(293|303|337|340)$/.test(args[1]))process.exit(90);console.log(JSON.stringify({number:Number(args[1].split("/").at(-1)),merged:false,head:{ref:"fixture-unselected"}}));\n`,
   );
   execFileSync("chmod", ["+x", join(cwd, ".fixture-bin/gh")]);
   const execute = (args) =>
