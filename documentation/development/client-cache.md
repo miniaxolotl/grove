@@ -151,8 +151,9 @@ the first checkpoint (reads/typing do not extend expiry). Active drafts are neve
 silently evicted. Typing checkpoints sample at 350ms while the page executes;
 browser throttling, suspended tabs and interrupted transactions can extend the
 uncheckpointed interval. The editor shows the actual completed checkpoint time,
-not a promise that the latest burst is durable. Open **Device** in the existing
-save-status surface for the checkpoint time and its limits. Storage/key/quota failures retain
+not a promise that the latest burst is durable. Open **Device** beside the save
+receipt for the completed **Device copy** time; **Device issue** offers export
+when recovery fails. Storage/key/quota failures retain
 the memory draft with export/copy guidance. Only completed transactions count as
 device checkpoints; only a confirmed server commit counts as Saved.
 
@@ -162,6 +163,13 @@ the original retry identity, separates newer typing and requires explicit Retry.
 Lost create responses reuse the same create operation; a newer authoritative
 version requires review rather than silently rebasing. Daily-note dates survive
 reload rather than changing at midnight.
+
+An uncertain save shows **Not confirmed** and **Retry save**, not a successful
+receipt. A clean autosaved note does not repeat a disabled Save action. Settings
+keeps the device-only, seven-day and erasure consequences beside its toggle;
+**Privacy and limits** reveals the remaining limits. Turning recovery off or
+deleting device copies requires an explicit confirmation with Cancel. This changes
+presentation, not consent defaults, retention or retry behavior.
 
 On open, fresh authenticated account reads, the complete state-checked paginated
 notebook catalog and current note access/lifecycle checks precede decryption into

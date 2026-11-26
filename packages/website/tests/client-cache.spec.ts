@@ -265,7 +265,9 @@ test("row deletion retains conflict review when a save replay returns a later ve
   });
   await editor.fill("Committed before connection loss");
   await editor.press("Control+s");
-  await expect(page.locator(".note-save-status")).toContainText("Not saved");
+  await expect(page.locator(".note-save-status")).toContainText(
+    "Not confirmed",
+  );
   const draft = "Retained newer draft. ".repeat(350);
   await editor.fill(draft);
   await navigate(page, "/app");

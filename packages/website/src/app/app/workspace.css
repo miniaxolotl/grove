@@ -372,8 +372,15 @@ html:has(.grove-app) {
 .library-sync {
   display: inline-flex;
   align-items: center;
-  width: 68px;
+  flex: 0 0 176px;
+  width: 176px;
+  justify-content: flex-end;
+  gap: 4px;
   min-height: 44px;
+}
+.library-refresh-state {
+  font-size: 12px;
+  white-space: nowrap;
 }
 .library-refreshing {
   display: inline-flex;
@@ -2299,12 +2306,25 @@ html:has(.grove-app) {
     grid-row: 2;
     margin: 0;
     white-space: normal;
+    width: 100%;
+  }
+  .note-save-status > svg {
+    display: none;
   }
   .note-editor-bar > .note-save-button {
     grid-column: 3;
     grid-row: 1 / 3;
     width: 44px;
     padding: 8px;
+  }
+  .note-editor-full .note-save-button[aria-label="Retry save"] > svg {
+    display: none;
+  }
+  .note-editor-full
+    .note-save-button[aria-label="Retry save"]
+    > .note-retry-short {
+    display: inline;
+    font-size: 12px;
   }
   .note-editor-bar > button[popovertarget],
   .note-editor-actions {

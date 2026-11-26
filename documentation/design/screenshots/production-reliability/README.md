@@ -1,5 +1,31 @@
 # Retrieval, freshness and device recovery — 26 November 2026
 
+## Current UI
+
+Synthetic Chromium captures of the runtime files in this commit, built as
+`I4jY7qvSSa9EcqWSaULT6` before committing the equivalent source. The isolated
+fixture follows the app layout's production CSS order, not chunk filenames.
+No live account, provider or deployment was used.
+
+| Capture                                            | Scope                                                                                                                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Recovery setting](ui-device-recovery-phone.png)   | 349×246 element capture within a 390×900 viewport. Device-only, seven-day and erasure consequences stay visible; optional detail is under Privacy and limits. |
+| [Unconfirmed save](ui-device-draft-phone.png)      | 390×900. Short failure message, visible Retry and contextual Device copy details, not a server-save receipt.                                                  |
+| [Refresh failure](ui-notes-refresh-failed.png)     | 390×700. Visible Refresh failed and Retry while the loaded note, row position and keyboard focus remain.                                                      |
+| [Delete confirmation](ui-delete-device-copies.png) | 320×900. Named consequence, Cancel and explicit deletion; cancelling leaves recovery enabled.                                                                 |
+
+The same styled recovery/confirmation, refresh-failure and 1440/768/390/320px
+journeys passed in Chromium and Node-24 WebKit. Save receipts remain legible;
+Device details stay within the viewport and Escape returns focus. A clean
+autosaved note no longer repeats a disabled Save button. Consent defaults,
+retention, authorization and retry identity are unchanged. This is browser-engine
+verification, not physical-device or sudden-crash qualification.
+
+## Initial implementation evidence
+
+The following captures predate the UI simplification above and retain their
+original provenance; they are not the current interface.
+
 Synthetic, isolated browser evidence for runtime source
 `d8909f349cb4348b80a1185bcfe419f136ac3e23`, following backend
 `837cc98`. Actual workspace components use optimized CSS from local build

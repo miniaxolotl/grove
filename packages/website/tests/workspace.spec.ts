@@ -1881,12 +1881,14 @@ test("viewer task save failures retain the checked draft and stable controls for
       );
   const before = await geometry();
   await task.click();
-  await expect(page.getByRole("alert")).toHaveText("Please retry this save.");
+  await expect(page.getByRole("alert")).toHaveText(
+    "Save not confirmed. Try again.",
+  );
   await expect(task).toBeChecked();
   expect(await geometry()).toEqual(before);
   expect(state.records.get(note.id)?.content).toBe(checklist);
   failed = false;
-  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await page.getByRole("button", { name: "Retry save", exact: true }).click();
   await expect
     .poll(() => state.records.get(note.id)?.content)
     .toBe(checklist.replace("- [ ] Ship", "- [x] Ship"));
@@ -2343,7 +2345,9 @@ test("row deletion resolves a lost save with its original identity and keeps new
   });
   await editor.fill("Committed before the connection was lost");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
-  await expect(page.locator(".note-save-status")).toContainText("Not saved");
+  await expect(page.locator(".note-save-status")).toContainText(
+    "Not confirmed",
+  );
   await editor.fill("A newer unsavable draft. ".repeat(300));
   await page
     .getByRole("button", { name: "Back to notes", exact: true })
@@ -7066,7 +7070,7 @@ test("full-page drafts survive app navigation and still detect changes to their 
   await expect(editor).toHaveText("An agent’s newer copy.");
   await expect(
     page.getByRole("button", { name: "Save note", exact: true }),
-  ).toBeDisabled();
+  ).toHaveCount(0);
 });
 
 test("returning to a draft during its first save follows that save without duplicating the note", async ({
@@ -7635,7 +7639,9 @@ test("autosave retries a lost first response before saving newer typing and clea
     name: "What should stay with you?",
   });
   await editor.fill(saved.content);
-  await expect(page.locator(".note-save-status")).toContainText("Not saved");
+  await expect(page.locator(".note-save-status")).toContainText(
+    "Not confirmed",
+  );
   await editor.fill("The first draft, with a newer thought.");
   // New typing restarts autosave; don't race its completed save with a manual click.
   await expect(page).toHaveURL(`${base}/app/memories/${saved.id}?mode=edit`);
@@ -7693,8 +7699,8 @@ test("save retries retain their operation and draft, and dialogs stay open while
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeVisible();
   gate.resolve();
-  await expect(page.getByRole("alert")).toContainText("Please retry");
-  await page.getByRole("button", { name: "Save note", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Save not confirmed");
+  await page.getByRole("button", { name: "Retry save", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(attempts[0].taskId).toMatch(/^task-/);
   expect(attempts[1]).toEqual(attempts[0]);

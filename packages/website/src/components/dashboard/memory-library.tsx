@@ -570,14 +570,12 @@ export function MemoryLibrary({
                   readError &&
                   (view === "graph" || !query.isFetchNextPageError) ? (
                   <>
-                    <span className="sr-only">
+                    <span className="library-refresh-state">
                       {staleSearch
-                        ? "Search changed. Refresh results."
+                        ? "Search changed"
                         : query.isFetchNextPageError
-                          ? "Couldn’t load more. Showing loaded notes."
-                          : items.length
-                            ? "Couldn’t refresh. Showing saved notes."
-                            : "Couldn’t refresh notes."}
+                          ? "More notes failed"
+                          : "Refresh failed"}
                     </span>
                     <button
                       type="button"
@@ -615,14 +613,14 @@ export function MemoryLibrary({
                   <span
                     title={
                       retrieval?.reason
-                        ? `Meaning search did not run (${retrieval.reason}). Start a new search to try again.`
+                        ? "Meaning search is unavailable. Showing keyword results."
                         : undefined
                     }
                   >
-                    {retrieval?.reason ? "Keyword fallback" : "Keyword"}
+                    {retrieval?.reason ? "Keyword only" : "Keyword results"}
                   </span>
                 ) : search && searchMode === "hybrid" ? (
-                  <span title="Meaning + keyword results">Meaning</span>
+                  <span>Meaning + keywords</span>
                 ) : null}
               </span>
             </span>

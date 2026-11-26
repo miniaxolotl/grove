@@ -61,39 +61,49 @@ import {
 
 const saveOwners = new WeakMap<Promise<Memory>, object>();
 
-function DraftCheckpointStatus({ draftKey }: { draftKey?: string }) {
+function DraftCheckpointStatus({
+  draftKey,
+  onExport,
+}: {
+  draftKey?: string;
+  onExport: () => void;
+}) {
   const drafts = useNoteDrafts();
   useNoteDraftRevision();
   const id = useId();
   if (!drafts?.enabled) return null;
-  const message =
-    drafts.recoveryError ||
-    (draftKey && drafts.checkpoints.has(draftKey)
-      ? `Device checkpoint ${new Date(drafts.checkpoints.get(draftKey)!).toLocaleTimeString()}`
-      : "No unsaved device checkpoint yet.");
+  const message = drafts.recoveryError
+    ? "Device copy unavailable"
+    : draftKey && drafts.checkpoints.has(draftKey)
+      ? `Device copy ${new Date(drafts.checkpoints.get(draftKey)!).toLocaleTimeString()}`
+      : "No device copy yet";
   return (
     <>
       <button
         type="button"
         className="text-button note-device-trigger"
         popoverTarget={id}
-        aria-label="Device draft recovery status"
+        aria-label={
+          drafts.recoveryError
+            ? "Device issue: draft recovery status"
+            : "Device draft recovery status"
+        }
         title={message}
       >
-        Device
+        {drafts.recoveryError ? "Device issue" : "Device"}
       </button>
-      <span
-        popover="auto"
-        id={id}
-        className="note-device-popover"
-        role="status"
-      >
+      <span popover="auto" id={id} className="note-device-popover">
         <strong>{message}</strong>
         <span>
-          A device checkpoint is separate from a server save. Recent typing may
-          not be checkpointed yet. Keep this tab open or export your text if
-          recovery is unavailable.
+          {drafts.recoveryError
+            ? "Keep this tab open. Export your unsaved text before closing."
+            : "Device copy only. Recent edits may be missing."}
         </span>
+        {drafts.recoveryError && (
+          <button type="button" className="text-button" onClick={onExport}>
+            Export unsaved text…
+          </button>
+        )}
       </span>
     </>
   );
@@ -241,6 +251,7 @@ function ReadyMemoryEditor({
   const [mediaBusy, setMediaBusy] = useState(false);
   const busy = !!saving;
   const [error, setError] = useState(draft?.error ?? "");
+  const [unconfirmed, setUnconfirmed] = useState(!!draft?.pending);
   const [expanded, setExpanded] = useState(false);
   const [focused, setFocused] = useState(false);
   const focusOrigin = useRef<HTMLElement | null>(null);
@@ -375,6 +386,7 @@ function ReadyMemoryEditor({
       try {
         if (result.status === "rejected") throw result.reason;
         const saved = result.value;
+        if (active()) setUnconfirmed(false);
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (draftKey && retained?.saving !== request) return;
         const values = active()
@@ -460,7 +472,13 @@ function ReadyMemoryEditor({
       } catch (e) {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (retained?.saving === request) retained.error = errorMessage(e);
-        if (active()) setError(errorMessage(e));
+        if (active()) {
+          setError(errorMessage(e));
+          setUnconfirmed(
+            !!pending.current &&
+              (!(e instanceof DashboardApiError) || e.status >= 500),
+          );
+        }
         if (
           e instanceof DashboardApiError &&
           e.code === "daily_note_exists" &&
@@ -717,7 +735,9 @@ function ReadyMemoryEditor({
         ? "Daily note already saved"
         : dirty
           ? error
-            ? "Not saved · retry"
+            ? unconfirmed
+              ? "Not confirmed"
+              : "Not saved"
             : content.length > 6000
               ? "Over save limit"
               : !content.trim()
@@ -727,9 +747,9 @@ function ReadyMemoryEditor({
                   : "Unsaved changes"
           : base
             ? freshness?.error
-              ? "Saved copy · refresh failed"
+              ? "Refresh failed"
               : freshness?.checking
-                ? "Saved copy · checking…"
+                ? "Checking…"
                 : `Saved${base.status === "archived" ? " · Archived" : ""}`
             : "Start a note";
   const saveButton = (
@@ -737,11 +757,20 @@ function ReadyMemoryEditor({
       type="submit"
       disabled={saveDisabled}
       className="note-save-button"
-      aria-label={busy ? "Saving note" : "Save note"}
+      aria-label={
+        busy ? "Saving note" : error && unconfirmed ? "Retry save" : "Save note"
+      }
       title={busy ? "Saving…" : `Save note (${shortcutHint(shortcuts.save)})`}
     >
       <Save size={16} aria-hidden="true" />
-      <span>{busy ? "Saving…" : "Save note"}</span>
+      {error && unconfirmed && (
+        <span className="note-retry-short" aria-hidden="true">
+          Retry
+        </span>
+      )}
+      <span>
+        {busy ? "Saving…" : error && unconfirmed ? "Retry save" : "Save note"}
+      </span>
     </Button>
   );
   const secondary = (
@@ -863,6 +892,7 @@ function ReadyMemoryEditor({
                 )}
                 <DraftCheckpointStatus
                   draftKey={base ? `note:${base.id}` : draftKey}
+                  onExport={openExport}
                 />
               </span>
               {toolbar ? (
@@ -904,7 +934,11 @@ function ReadyMemoryEditor({
                 {focused ? <Minimize2 size={17} /> : <Focus size={17} />}
                 {focused && <span>Exit focus</span>}
               </button>
-              {saveButton}
+              {autoSave && base && !dirty && !busy && !error ? (
+                <span className="note-save-button" aria-hidden="true" />
+              ) : (
+                saveButton
+              )}
               {workspace && !fullPage && !expanded && (
                 <button
                   type="button"
@@ -1163,7 +1197,7 @@ function ReadyMemoryEditor({
           </div>
           {error && (
             <p role="alert" className="app-error note-save-error">
-              {error}
+              {unconfirmed ? "Save not confirmed. Try again." : error}
               {dailyConflictId && (
                 <>
                   {" "}

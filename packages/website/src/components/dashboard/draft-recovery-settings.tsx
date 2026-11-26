@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useNoteDrafts, useNoteDraftRevision } from "./note-drafts";
 import { useWorkspaceCache } from "./workspace-cache";
+import { Dialog } from "./dialog";
 
 export function DraftRecoverySettings() {
   const drafts = useNoteDrafts();
@@ -10,15 +11,14 @@ export function DraftRecoverySettings() {
   useNoteDraftRevision();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [forgetting, setForgetting] = useState(false);
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError("");
     try {
       await action();
     } catch {
-      setError(
-        "Device recovery couldn’t change. Keep this tab open and copy or export unsaved text.",
-      );
+      setError("Couldn’t update recovery. Keep this tab open and try again.");
     } finally {
       setBusy(false);
     }
@@ -27,98 +27,152 @@ export function DraftRecoverySettings() {
   const recovered = [...drafts].filter(([, value]) => value.recovered);
   return (
     <section
-      className="app-panel grid gap-3"
+      className="draft-recovery"
       aria-labelledby="draft-recovery-heading"
     >
-      <h2 id="draft-recovery-heading" className="font-editorial text-2xl">
-        Draft recovery on this device
-      </h2>
-      <p className="text-sm text-muted" id="draft-recovery-help">
-        Off by default. When enabled, Grove keeps encrypted draft checkpoints
-        for this account in this browser: up to 32 drafts and 1 MiB, for seven
-        days from the first checkpoint. Sign-out, account changes and turning
-        this off erase them. Unsaved text in an open tab stays in memory.
-      </p>
-      <p className="text-sm text-muted">
-        This is not a server save or protection against a compromised browser or
-        site. Recovery needs an online sign-in and current note access. A recent
-        typing burst may not be checkpointed; closed or offline browsers cannot
-        be remotely wiped.
-      </p>
-      <label className="flex items-center gap-2 text-sm">
+      <h2 id="draft-recovery-heading">Draft recovery</h2>
+      <label className="draft-recovery-toggle">
+        <span>
+          <span className="draft-recovery-label">
+            Recover drafts on this device
+          </span>
+          <span id="draft-recovery-help">
+            Encrypted here for up to 7 days. Not a server save.
+          </span>
+        </span>
         <input
           type="checkbox"
+          name="device-draft-recovery"
+          aria-label="Recover drafts on this device"
           aria-describedby="draft-recovery-help"
           checked={drafts.enabled}
           disabled={busy || drafts.initializing}
-          onChange={(event) =>
-            void run(() =>
-              event.target.checked ? drafts.enable() : drafts.forgetDevice(),
-            )
-          }
+          onChange={(event) => {
+            if (event.target.checked) void run(() => drafts.enable());
+            else setForgetting(true);
+          }}
         />
-        Recover drafts on this device
       </label>
-      <p className="text-sm text-muted" role="status">
-        {busy
-          ? "Updating device recovery…"
-          : drafts.initializing
-            ? "Checking device storage…"
-            : error ||
-              drafts.recoveryError ||
-              (drafts.enabled
-                ? "Enabled for this account and browser. Device checkpoints are separate from Saved."
-                : "Off. New drafts stay in this tab’s memory only.")}
+      <p className="draft-recovery-consequence">
+        Signing out or turning this off deletes device copies.
       </p>
-      {drafts.recoveryError && !drafts.size && (
-        <button
-          type="button"
-          className="text-button w-fit"
-          disabled={busy}
-          onClick={() => void run(() => drafts.initialize(cache))}
-        >
-          Retry unlocking device drafts
-        </button>
-      )}
+      <details className="draft-recovery-details">
+        <summary>Privacy and limits</summary>
+        <ul>
+          <li>
+            Up to 32 drafts and 1 MiB, for 7 days from the first device copy.
+          </li>
+          <li>Recovery needs an online sign-in and current note access.</li>
+          <li>
+            Recent typing may not be copied yet. Export important unsaved text.
+          </li>
+          <li>
+            Switching accounts deletes device copies. Closed or offline browsers
+            cannot be remotely wiped.
+          </li>
+          <li>
+            Encryption does not protect against a compromised browser or site.
+          </li>
+        </ul>
+      </details>
+      <div className="draft-recovery-feedback">
+        <p role="status">
+          {busy
+            ? "Updating device recovery…"
+            : drafts.initializing
+              ? "Checking device storage…"
+              : error ||
+                (drafts.recoveryError
+                  ? "Device recovery needs attention. Keep this tab open."
+                  : "") ||
+                (drafts.enabled
+                  ? "On for this browser."
+                  : "Off. Drafts stay in this tab.")}
+        </p>
+        {drafts.recoveryError && !drafts.size && (
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={() => void run(() => drafts.initialize(cache))}
+          >
+            Retry recovery
+          </button>
+        )}
+      </div>
       {drafts.recoveryError && (
         <button
           type="button"
-          className="text-button w-fit"
+          className="text-button draft-recovery-delete"
           disabled={busy}
-          onClick={() => {
-            if (
-              window.confirm(
-                "Erase this account’s device checkpoints and key? Open text stays in memory. Export anything you need before confirming.",
-              )
-            )
-              void run(() => drafts.forgetDevice());
-          }}
+          onClick={() => setForgetting(true)}
         >
-          Forget device checkpoints
+          Delete device copies…
         </button>
       )}
       {recovered.length > 0 && (
-        <ul className="grid gap-2" aria-label="Recovered drafts">
-          {recovered.map(([key, value]) => {
-            const query = new URLSearchParams(
-              value.dailyDate
-                ? { from: "journal", date: value.dailyDate }
-                : value.projectId
-                  ? { notebook: value.projectId }
-                  : {},
-            );
-            const href = value.base
-              ? `/app/memories/${value.base.id}?mode=edit`
-              : `/app/notes/new?${query}`;
-            return (
-              <li key={key}>
-                <Link className="text-button" href={href}>
-                  {value.content.match(/^#\s+(.+)/m)?.[1] || "Recovered draft"}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="draft-recovery-list">
+          <h3>Recovered drafts</h3>
+          <ul aria-label="Recovered drafts">
+            {recovered.map(([key, value]) => {
+              const query = new URLSearchParams(
+                value.dailyDate
+                  ? { from: "journal", date: value.dailyDate }
+                  : value.projectId
+                    ? { notebook: value.projectId }
+                    : {},
+              );
+              const href = value.base
+                ? `/app/memories/${value.base.id}?mode=edit`
+                : `/app/notes/new?${query}`;
+              return (
+                <li key={key}>
+                  <Link className="text-button" href={href}>
+                    {value.content.match(/^#\s+(.+)/m)?.[1] ||
+                      "Recovered draft"}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+      {forgetting && (
+        <Dialog
+          title="Delete device copies?"
+          busy={busy}
+          close={() => setForgetting(false)}
+        >
+          <p>
+            Unsaved text in open tabs stays. Deleted device copies can’t be
+            recovered.
+          </p>
+          <div className="dialog-actions">
+            <button
+              type="button"
+              className="app-button secondary"
+              data-autofocus
+              disabled={busy}
+              onClick={() => setForgetting(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="app-button danger"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await drafts.forgetDevice();
+                  setForgetting(false);
+                })
+              }
+            >
+              {busy ? "Deleting…" : "Delete device copies"}
+            </button>
+          </div>
+          {error && <p role="alert">{error}</p>}
+        </Dialog>
       )}
     </section>
   );
