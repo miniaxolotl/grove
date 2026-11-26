@@ -48,6 +48,12 @@ Apply that standard across the web app and extension, not only to settings copy.
   It uses the fixture’s history/Link shim, not the real Next router. Source and
   full-reload observations support the findings; real Next history-cache,
   physical-keyboard/zoom and production acceptance remain separate.
+- The refined pass checks 52 finder/history/billing/archive states at fine
+  1440×900 / 768×700 and coarse 390×700 / 320×480, plus focused handoff, layout
+  diagnostics and long source reading. No page errors, horizontal overflow or
+  effect attempts in the completed runs. Two 390px dialogs have no sampled axe
+  violations; that is not whole-app or assistive-technology acceptance. Missing
+  vertical scroll remains a finding despite the horizontal-overflow checks.
 - Extension captures use the current built Chrome package in isolated Chromium
   156.0.8078.4, synthetic text and mocked HTTP/model responses. No live AI calls.
   This does not establish parity with every published store version or browser.
@@ -366,6 +372,46 @@ list, retained selection, keyboard/IME support and an honest no-match state.
 Server-backed ones also need loading/failure/partial-result states; local ones
 should respond immediately. A failed or incomplete fetch is never “no matches.”
 
+### Medium: finder refinements retain results but move their targets
+
+The global finder correctly keeps earlier matches while a refined phrase loads,
+marks the region busy and dims the earlier result. However, the first retained
+result moves **26px down** when Cancel search appears. This reproduces at fine
+1440×900 and 768×700, and coarse 390×700 and 320×480. The outer palette stays
+480px tall, clamping to 452px at 320×480; a stable dialog does not establish stable
+controls inside it.
+
+`packages/website/src/app/app/palette.css:328` gives the caption a 34px minimum
+and 8px vertical padding. Its new Cancel search button inherits a 44px minimum
+from `dashboard.css:1073`, making the pending caption 60px tall. Reserve the
+caption/action lane across settled and pending states; **do not shrink Cancel’s
+hit target**. Preserve retained results, the busy status, cancellability and
+immediate typing. Old matches should remain recognizably previous results, not
+appear to answer the new phrase before it finishes.
+
+A DOM-only diagnostic reservation removes that 26px movement at 1440/390/320px
+while leaving Cancel at 44px. It was discarded with the fixture; no fix or
+regression acceptance is claimed.
+
+`packages/website/src/components/dashboard/workspace-search.tsx:109` also creates
+fresh query/scope state each time the finder opens. Escape correctly returns
+focus, but reopening clears the phrase and restores All notes in all four
+contexts. Preserve the current lookup when returning from a result, with an
+explicit clear/reset action; do not silently restore a narrow scope without
+showing it. This is a recovery recommendation, not evidence that the backend
+lost notes or that every new search should inherit an old restriction.
+
+Keep the working one-click **Search all notes** recovery, distinct no-match/error
+states, retained input on retry and focus return to the field. “Search anything”
+currently opens a note finder; its title/copy should make that scope clear rather
+than imply that it also searches commands, settings or conversation history.
+Ask remains a separate explicit handoff, not an automatic answer request.
+
+This refines, rather than reverses, the earlier search recommendation:
+[NN/g’s scoped-search guidance](https://www.nngroup.com/articles/scoped-search/)
+supports visible scope, easy broadening and refinement after results. It does not
+justify merging note finding and question answering or expanding authorization.
+
 ### Medium: size components by role and input mode, not one global scale
 
 Width alone is not a touch-device test. A dedicated sizing check compares fine
@@ -428,6 +474,56 @@ claim physical erasure. Keep draft-loss, uncertain-save and conflict warnings
 conditional and visible. The review opens and cancels the dialog; it does not
 delete a note or prove deletion recovery.
 
+### High: long saved sources have no usable scroll path
+
+`packages/website/src/components/dashboard/source-revision.tsx:36` renders the
+saved source in a `.note-document` article without its own scrolling body.
+`packages/website/src/app/app/workspace.css:94` removes outer padding and hides
+overflow for that layout, which normally relies on the editor’s inner scroller.
+The real revision route uses this component at
+`app/app/(notes)/memories/[id]/page.tsx:12` under `packages/website/src/`.
+
+In a 50-paragraph synthetic saved revision, the final heading stays below the
+viewport after wheel scrolling and Control+End: about y=2,344 at 1440×900,
+y=3,983 at 390×700 and y=4,018 at 320×480. The containing main region has
+`overflow-y: hidden` and zero scroll offset; the source body has no scrollable
+ancestor within that clipped region. This is unreadable evidence, not merely
+an oversized empty state. No horizontal overflow or page error is required for
+this failure to occur.
+
+Give saved-source reading an explicit, bounded scroll surface and restore reading
+gutters; do not apply the editor’s full-bleed contract to plain source content
+without its scrolling contract. On 320×480 the article has only 121px of height
+above the global footer; demote that footer in this reading context rather than
+leaving a tiny scroll strip. Both unavailable and populated sources currently
+start flush with the content edge. Preserve the distinction between the cited
+revision and the current note, the authorized **Open current note** path and the
+honest no-longer-available state.
+
+A DOM-only constrained-body diagnostic makes the end reachable by programmatic
+scrolling in all three contexts. It does not prove a complete repair, native
+touch/keyboard scrolling or readable short-screen layout. No source code was
+changed; actual reader, focus, media and real-browser acceptance remain required.
+
+### Medium: saved revision fallback and failure need truthful recovery
+
+`packages/website/src/components/dashboard/revision-compare.tsx:18` intentionally
+falls back to full versions when either text exceeds 6,000 characters. In the
+saved-history fixture, a long earlier version compared with saved version 2 says
+**“This draft cannot be compared as a saved note yet.”** That describes the wrong
+state. Use neutral comparison-unavailable copy and keep the Full versions route;
+do not imply that saving again will enable a comparison or remove the bounded
+comparison safeguard. Ordinary emoji-containing versions compare successfully;
+this is not a general Unicode failure.
+
+`packages/website/src/components/dashboard/memory-detail.tsx:476` renders a history
+read failure as an alert without an in-place Retry or next step. All four contexts
+reproduce the missing recovery control. Add a scoped retry that preserves the
+chosen comparison and reading position; never retry a restore as a side effect
+of retrying the read. Preserve the working inline Added/Removed distinction,
+full-version disclosure and explicit **Restore as a new revision** action. No
+restoration or history mutation was submitted.
+
 ### Medium: permission editing should sit beside the permission summary
 
 Agent approval shows selected **Delete memories** and **All current and future
@@ -471,6 +567,46 @@ do not keep them after access is revoked. Preserve focus, query and scroll. An
 offscreen alert or a successful-looking old count is not sufficient visible
 freshness feedback.
 
+### Medium: billing feedback belongs beside the refresh and allowance
+
+The synthetic Billing screen preserves feature allowances, pending counts,
+separate AI/audio budgets and payment recovery. Keep those truthful distinctions,
+but reduce their competing presentation: lead with current plan/payment attention
+and the allowance that needs action, with a concise expandable breakdown. The
+1,500 Ask allowance and 155,000 AI-request budget are different source contracts,
+not inconsistent totals to force into one number. Explain that distinction on
+demand rather than asking every reader to understand internal safety budgets.
+
+`packages/website/src/components/dashboard/billing-panel.tsx:139` puts all read
+errors at the sheet’s top, while Refresh usage is much lower at line 237. On short
+screens, clicking Refresh usage scrolls that button into view, but the resulting
+failure is outside the visible settings region above it. Retained usage still
+looks ordinary beside the button. Keep a concise visible failed/stale receipt
+and retry beside the refresh, in reserved space; retain the prior values rather
+than blanking them. A live-region alert is useful, but is not proof that a sighted
+user can see a message above their current scroll position. This is consistent
+with [W3C’s status-message guidance](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html),
+not a claim of screen-reader or WCAG acceptance.
+
+At 390×700, the failed-read alert spans y=−178…−142 while Refresh usage spans
+y=435.5…479.5 inside the visible settings scroller; at 320×480 the alert is also
+above that region. The original meter stays mounted. Desktop 1440×900 keeps the
+alert visible, so this is not an everywhere-hidden error. The gallery shows both
+the unchanged-looking refresh viewport and the actual alert after scrolling up.
+
+Make pending reservations distinct from completed use: in the sample, 1,499 used
+plus 1 pending fills a 1,500 allowance and shows Monthly limit reached. Explain
+that no actions remain available while that reservation is pending, without
+claiming all 1,500 have completed or suggesting that a retry/reset can erase usage.
+Keep reset dates, actual zero values and the statement that editing, keyword
+search and export remain available.
+
+Do not report the fixture’s empty disabled Billing component as a reproduced
+normal production route: `app/app/settings/billing/page.tsx:6` gates the real page
+with `showBilling()`/`notFound()`, and the fixture bypasses that server gate.
+Disabled-feature, permission and provider-failure states need separate acceptance.
+No checkout, portal, trial, payment or provider request was executed.
+
 ### High: navigation must update the URL and preserve the return location
 
 Opening a library row leaves the URL at `/app` and opens a dialog; reloading
@@ -500,6 +636,39 @@ of URLs; use bounded route IDs or scoped state handles where needed. Validate
 return destinations as authorized local paths, handle deleted/inaccessible targets
 honestly, and preserve unsaved edits. Direct deep links need a sensible parent
 fallback when there is no originating history entry.
+
+**Browser-tab titles and renamed resources are part of this contract.**
+`packages/website/src/app/app/layout.tsx:17` supplies the fixed metadata title
+“Your notebook | Grove”; the reviewed app routes/dashboard components have no
+resource-title override. This is source evidence, not a live authenticated-tab
+measurement: the isolated fixture supplies its own test-page title.
+
+- Update the address as people enter notes, notebooks, conversations and durable
+  views; the heading, selected navigation item, URL and browser-tab title must
+  describe the same location. Use concise tab titles such as **Launch review ·
+  Grove**, **Website redesign · Grove** and **Billing · Grove**, not one generic
+  title for the whole app.
+- Reflect a changed note/notebook title in the current browser tab and relevant
+  breadcrumb, result and navigation labels after the rename is confirmed. If a
+  local title draft is shown before confirmation, distinguish its unsaved state;
+  a rejected or uncertain rename must not look saved. Preserve focus, text input
+  and scroll while updating these labels.
+- Where readable title slugs are used, update the canonical address after a
+  confirmed rename using replacement history, not one new entry per keystroke.
+  Keep a stable authorized resource ID as identity; old copied/bookmarked URLs,
+  internal links and previous slugs must still resolve to the same resource or
+  redirect safely. Existing ID-only URLs remain valid. Handle empty, duplicate,
+  long and non-Latin titles without using the title as an authorization key.
+- A readable slug exposes its words to browser history, copied links and possibly
+  request logs/referrers. Do not put note bodies, drafts, credentials or hidden
+  notebook ancestry into URLs, or leak an inaccessible resource’s title through
+  metadata. Reset to a generic authorized title on sign-out/access loss; account
+  changes must not retain another account’s labels.
+- Verify note → notebook → Settings → Back/Forward/reload/new tab, note and notebook
+  renames, save failure, stale slug, archived/deleted/no-access targets and multiple
+  open tabs. Update the title of the current resource only; a background rename
+  must not relabel an unrelated tab. Real Next metadata/history behavior remains
+  an implementation acceptance check, not something the fixture proves.
 
 The third pass confirms two concrete cross-screen failures behind that rule:
 
@@ -535,6 +704,14 @@ reconciliation during save. Do not “fix” lost work with silent autosave or a
 global toast.
 
 ### Preserve the interaction details that already work
+
+The refined finder/history/archive pass adds several positives: finder retry and
+scope broadening return focus to the field; cancelling retains the phrase; Escape
+returns to the launcher. A scoped **Ask Grove about this** handoff carries the
+phrase and notebook into an unsent composer at 1440/390/320px. Archive selection
+does not move the sampled note row at 1440/768/390/320px, and Clear selection
+focuses the header checkbox. Keep these rather than treating every existing
+transition as defective; no restore, delete or question submission was performed.
 
 At 320×480, the notebook picker stays within the viewport. Escape closes the
 nested picker first and restores focus to Parent notebook; a second Escape
@@ -920,8 +1097,8 @@ every action. A short sentence is fine when it says something useful.
 
 ## Recommended implementation order
 
-1. Correct direct store links, deletion consequences and access-management order.
-2. Establish working chat/note URLs, return state and unsaved-draft protection.
+1. Correct direct store links, deletion consequences, access-management order and unreadable saved-source views.
+2. Establish working chat/note URLs, resource-aware tab titles, rename/link compatibility, return state and unsaved-draft protection.
 3. Group scope/count/empty states and settings; remove redundant divider bands.
 4. Recompose mobile/Ask/editor and shared source trails without hiding recovery.
 5. Add consistent sorting and parsed internal links with compact previews and editable labels.

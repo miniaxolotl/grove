@@ -244,6 +244,71 @@ screen-reader-only. No page errors, horizontal overflow or blocked effect
 attempts were recorded. No axe, real Safari chrome/pull-to-refresh, physical-device
 or production timing acceptance is claimed.
 
+## Refined finder, history, billing and source-reading evidence
+
+Same product snapshot and production CSS. Four contexts cover 13 states each
+(52): fine pointer 1440×900 / 768×700, coarse input 390×700 / 320×480. Three
+focused contexts at 1440/390/320px additionally diagnose caption geometry,
+verify an unsent finder→Ask draft/scope handoff and inspect billing failure
+placement. Synthetic Pro limits come from source; usage, overdue payment and
+pending counts are illustrative, not the owner’s billing data. The selected
+billing captures use three stored notes (two active, one archived) and one notebook.
+
+| Finder results                                                  | Refining the phrase                                                                             | Long saved comparison                                                                                      | History read failure                                                                   |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| ![Settled finder results at 390 by 700](finder-results-390.png) | ![Retained result moves down when Cancel search appears at 390 by 700](finder-refining-390.png) | ![Saved long revision incorrectly described as an unsaved draft at 390 by 700](history-saved-long-390.png) | ![History read failure without an in-place retry at 390 by 700](history-error-390.png) |
+
+The finder’s caption grows 34→60px, moving the retained first result down 26px
+in every context while the outer dialog stays fixed. Cancel search retains its
+44px target; a discarded DOM-only 60px caption reservation removes the movement
+at 1440/390/320px. Earlier results settle at 0.55 opacity while refining. This is
+a diagnosis, not a shipped fix. Cancel keeps the phrase, retry/scope broadening
+return focus to the field, and Escape returns to the launcher; reopening resets
+query/scope. Normal emoji-containing saved versions compare and expose full
+versions correctly. Only the separately seeded earlier text over 6,000 characters
+produces the misleading draft fallback. History failure has no Retry in all four
+contexts; no restore was submitted.
+
+| Billing allowance                                                                    | Refresh viewport after failure                                                                                   | Actual alert above it                                                                                    | Stable archive selection                                                                    |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| ![Synthetic Pro usage and overdue payment at 1440 by 900](billing-past-due-1440.png) | ![Retained usage at the refresh position without a visible failure at 390 by 700](billing-refresh-error-390.png) | ![Failed billing read and Try again after scrolling up at 390 by 700](billing-refresh-error-top-390.png) | ![Archive selection keeps the sampled row position at 320 by 480](archive-selected-320.png) |
+
+At 390×700, the billing alert spans y=−178…−142 while Refresh usage remains at
+y=435.5…479.5 in the visible settings scroller. The 320px alert is also above the
+viewport; desktop 1440×900 keeps it visible. The meter stays mounted. The top-alert
+image deliberately scrolls up to show the actual feedback, not a second failure.
+Archive selection leaves the sampled row geometry unchanged in all four contexts;
+Clear selection focuses the header checkbox. No archive, restore, delete, rename,
+checkout, portal, trial, payment, question send or provider request was executed.
+
+| Long saved source                                                                                     | Unavailable saved source                                                                 |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| ![Saved source clipped above the footer after attempted scrolling at 390 by 700](source-long-390.png) | ![Unavailable source with flush reading edges at 390 by 700](source-unavailable-390.png) |
+
+Three focused source-reading contexts use 50 synthetic paragraphs at 1440×900,
+390×700 and 320×480. Wheel plus Control+End leaves the final heading below the
+viewport (about y=2,344 / 3,983 / 4,018); the parent hides overflow and no inner
+reader scrolls. A discarded DOM-only body-scroller diagnostic makes the end
+programmatically reachable, but does not establish touch/keyboard repair. At
+320×480, only 121px remains for the article above the footer. The unavailable
+source belongs to the initial four-context run; it is not a live access failure.
+
+Completed runs record no page errors, horizontal overflow or blocked effect
+attempts. Axe samples only the finder and normal Unicode-history dialogs at 390px
+(no violations), not the entire state set. The static Billing taste inspector
+separately resizes a JS-stripped rendered DOM at 1440×900 / 768×1024 / 390×844:
+tiny-text is a heuristic failure, with palette/font/canvas/edge warnings. It includes
+hidden DOM and cannot prove runtime font, interaction or nested-scroll acceptance.
+All six inspector images were reviewed; its default picture/motion requirements
+are not redesign requirements for an app screen. The selected five source files
+have no taste-lint findings. No clean whole-app accessibility claim is made.
+
+The fixture bypasses the real server-side Billing gate; an empty disabled component
+is not evidence that the ordinary production route is blank. The fixture also owns
+its document title: new tab-title/rename requirements use source inspection, not a
+claim about production metadata observed here. Real Next history/cache/title,
+screen-reader, iOS/Safari/device, provider and production acceptance remain separate.
+
 ## Public entry pages
 
 Live `grovenote.app`, captured 26 November 2026. Home requested 1440×900 and its
