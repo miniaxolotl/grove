@@ -458,7 +458,7 @@ export async function queryEmbedding(
             embedder.embed(text, "query", {
               ...options,
               signal: AbortSignal.any([
-                AbortSignal.timeout(850),
+                AbortSignal.timeout(2500),
                 ...(options.signal ? [options.signal] : []),
                 ...(signal ? [signal] : []),
                 cacheSignal,

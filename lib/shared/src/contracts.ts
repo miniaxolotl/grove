@@ -134,7 +134,12 @@ export const recallSchema = z
     includePersonal: z.boolean().default(true),
     taskId: z.string().max(128).optional(),
     limit: z.number().int().min(1).max(12).default(8),
-    maxCharacters: z.number().int().min(256).max(NOTE_CONTENT_MAX).default(NOTE_CONTENT_MAX),
+    maxCharacters: z
+      .number()
+      .int()
+      .min(256)
+      .max(NOTE_CONTENT_MAX)
+      .default(NOTE_CONTENT_MAX),
   })
   .strict();
 export const versionSchema = z
@@ -261,7 +266,30 @@ export type Principal = {
   issuedAt?: number;
   capabilities: Capability[];
 };
+export const retrievalReasons = [
+  "not_configured",
+  "provider_timeout",
+  "provider_authentication",
+  "provider_rate_limited",
+  "provider_unavailable",
+  "provider_invalid_response",
+  "provider_cooling_down",
+  "inference_budget",
+  "embedding_profile_mismatch",
+  "cache_capacity",
+  "cache_lease_lost",
+  "query_unavailable",
+  "recall_limit",
+  "pinned_lexical",
+] as const;
+export type RetrievalReason = (typeof retrievalReasons)[number];
+export type RetrievalDiagnostic = {
+  requested: "hybrid" | "lexical";
+  executed: "hybrid" | "lexical";
+  reason?: RetrievalReason;
+};
 export type Page<T> = {
+  retrieval?: RetrievalDiagnostic;
   usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
   visit?: {
@@ -275,6 +303,7 @@ export type Page<T> = {
   searchMode?: "hybrid" | "lexical";
 };
 export type RecallResult = {
+  retrieval?: RetrievalDiagnostic;
   usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
   items: Memory[];

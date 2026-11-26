@@ -1,3 +1,4 @@
+import { retrievalEmbedding } from "./retrieval.ts";
 import {
   createHash,
   createHmac,
@@ -1670,7 +1671,7 @@ export class MemoryService {
       input.cursor &&
       this.decodeCursor(input.cursor).search?.regime === "lexical"
     )
-      return this.listResult(principal, input, true);
+      return this.listResult(principal, input, "pinned_lexical");
     if (
       input.query &&
       this.embedder &&
@@ -1684,7 +1685,7 @@ export class MemoryService {
       } catch (error) {
         if (!(error instanceof UsageLimitError) || error.resource !== "recall")
           throw error;
-        return this.listResult(principal, input, true);
+        return this.listResult(principal, input, "recall_limit");
       }
     }
     return this.listResult(principal, input);
@@ -1693,26 +1694,34 @@ export class MemoryService {
   private async listResult(
     principal: Principal,
     input: MemoryList,
-    lexicalOnly = false,
+    lexicalOnly?: import("@lib/shared/contracts").RetrievalReason,
   ): Promise<Page<Memory>> {
     const embedder = lexicalOnly ? undefined : this.embedder;
     let vector: number[] | undefined;
+    let retrieval:
+      | import("@lib/shared/contracts").RetrievalDiagnostic
+      | undefined;
     if (input.query && embedder && input.searchMode !== "lexical") {
       await this.access(principal, "memory:read", async ({ grant }) => {
         if (input.projectId !== undefined) this.scope(grant, input.projectId);
       });
-      try {
-        vector = await queryEmbedding(
+      ({ vector, retrieval } = await retrievalEmbedding("hybrid", () =>
+        queryEmbedding(
           this.db,
           principal.accountId,
           embedder,
-          input.query,
+          input.query!,
           this.dailyRequestLimit,
-        );
-      } catch {
-        /* Keep text search available during provider outages. */
-      }
+        ),
+      ));
     }
+    if (input.query && !retrieval)
+      ({ retrieval } = await retrievalEmbedding(
+        input.searchMode === "lexical" ? "lexical" : "hybrid",
+        undefined,
+        undefined,
+        lexicalOnly ?? "not_configured",
+      ));
     return this.access(
       principal,
       principal.type === "session" && input.projectId && !input.cursor
@@ -1931,6 +1940,7 @@ export class MemoryService {
           ...(input.query
             ? {
                 searchMode: vector ? ("hybrid" as const) : ("lexical" as const),
+                retrieval,
               }
             : {}),
           nextCursor:
@@ -1997,21 +2007,24 @@ export class MemoryService {
     await this.access(principal, "memory:read", async ({ grant }) => {
       if (input.projectId) this.scope(grant, input.projectId);
     });
-    let vector: number[] | undefined;
-    if (input.query && embedder) {
-      try {
-        vector = await queryEmbedding(
-          this.db,
-          principal.accountId,
-          embedder,
-          input.query,
-          this.dailyRequestLimit,
+    const { vector, retrieval } = input.query
+      ? await retrievalEmbedding(
+          "hybrid",
+          embedder
+            ? () =>
+                queryEmbedding(
+                  this.db,
+                  principal.accountId,
+                  embedder,
+                  input.query,
+                  this.dailyRequestLimit,
+                  signal,
+                )
+            : undefined,
           signal,
-        );
-      } catch {
-        /* explicit lexical degradation */
-      }
-    }
+          lexicalOnly ? "recall_limit" : "not_configured",
+        )
+      : { vector: undefined, retrieval: undefined };
     const result = await this.access<RecallResult>(
       principal,
       "memory:read",
@@ -2158,6 +2171,7 @@ export class MemoryService {
               }
             : {}),
           mode: !input.query ? "profile" : vector ? "hybrid" : "lexical",
+          ...(retrieval ? { retrieval } : {}),
           contentVersion: account.contentVersion,
         };
       },
@@ -2235,6 +2249,7 @@ export class MemoryService {
         );
     const base = {
       usage: recalled.usage,
+      retrieval: recalled.retrieval,
       sources: recalled.items,
       ...(recalled.matches ? { matches: recalled.matches } : {}),
       searchMode: recalled.mode,
