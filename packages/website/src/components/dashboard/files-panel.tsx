@@ -23,7 +23,7 @@ import {
   type UploadedFile,
 } from "@lib/shared/files";
 import { useWorkspaceCache } from "./workspace-cache";
-import { errorMessage } from "@/lib/dashboard-api";
+import { DashboardApiError, errorMessage } from "@/lib/dashboard-api";
 import { workspaceKeys } from "@/lib/workspace-cache";
 import {
   FilesStorageSummary,
@@ -71,7 +71,10 @@ function FilePlaces({ file }: { file: UploadedFile }) {
     staleTime: 0,
     refetchInterval: 30000,
   });
-  if (query.error)
+  const denied =
+    query.error instanceof DashboardApiError &&
+    [401, 403, 404].includes(query.error.status);
+  if (query.error && (!query.data || denied))
     return (
       <>
         <Failure error={query.error} retry={() => void query.refetch()} />
@@ -88,6 +91,22 @@ function FilePlaces({ file }: { file: UploadedFile }) {
   if (!query.data) return <p role="status">Loading locations…</p>;
   return (
     <div className="file-places">
+      <div className="file-locations-feedback" role="status">
+        {query.error ? (
+          <>
+            <span>
+              Couldn’t refresh locations. Showing the last loaded locations.
+            </span>{" "}
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => void query.refetch()}
+            >
+              Retry locations
+            </button>
+          </>
+        ) : null}
+      </div>
       <ul aria-label={`Locations for ${file.filename}`}>
         {query.data.items.map((location) => (
           <li key={location.key}>
@@ -305,7 +324,10 @@ function FilesView({ initial }: { initial: FileSearch }) {
   const notebookName =
     notebooks.projects.find((p) => p.id === filters.projectId)?.name ??
     "Selected notebook";
-  const usage = storage.error ? undefined : storage.data;
+  const denied = (error: unknown) =>
+    error instanceof DashboardApiError &&
+    [401, 403, 404].includes(error.status);
+  const usage = denied(storage.error) ? undefined : storage.data;
   return (
     <div className="settings-content files-panel">
       <div className="files-heading">
@@ -316,22 +338,34 @@ function FilesView({ initial }: { initial: FileSearch }) {
             used.
           </p>
         </div>
-        <button
-          type="button"
-          className="text-button"
-          disabled={files.isFetching || storage.isFetching}
-          onClick={() => {
-            void files.refetch();
-            void storage.refetch();
-            void cache.client.invalidateQueries({
-              queryKey: workspaceKeys.resource("/files/locations").slice(0, -1),
-            });
-          }}
-        >
-          Refresh files
-        </button>
+        <div className="files-refresh-controls">
+          <button
+            type="button"
+            className="text-button"
+            disabled={files.isFetching || storage.isFetching}
+            onClick={() => {
+              void files.refetch();
+              void storage.refetch();
+              void cache.client.invalidateQueries({
+                queryKey: workspaceKeys
+                  .resource("/files/locations")
+                  .slice(0, -1),
+              });
+            }}
+          >
+            Refresh files
+          </button>
+          <span className="files-refresh-status" role="status">
+            {(files.error || storage.error) &&
+            !denied(files.error) &&
+            !denied(storage.error) &&
+            (files.data || storage.data)
+              ? "Couldn’t refresh. Showing the last loaded data."
+              : ""}
+          </span>
+        </div>
       </div>
-      {storage.error ? (
+      {storage.error && !usage ? (
         <Failure error={storage.error} retry={() => void storage.refetch()} />
       ) : usage ? (
         <FilesStorageSummary usage={usage} />
@@ -541,7 +575,7 @@ function FilesView({ initial }: { initial: FileSearch }) {
             </button>
           </div>
         ) : null}
-        {files.error ? (
+        {files.error && (!files.data || denied(files.error)) ? (
           <>
             <Failure error={files.error} retry={() => void files.refetch()} />
             {cursors.length > 1 ? (

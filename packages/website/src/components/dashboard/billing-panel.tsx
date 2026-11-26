@@ -136,7 +136,7 @@ export function BillingPanel() {
   return (
     <div className="billing-sheet">
       <h2 className="settings-section-heading">Billing</h2>
-      {error || query.error ? (
+      {error || (query.error && !state) ? (
         <div className="billing-error" role="alert">
           <p>{error || "Couldn’t load your plan."}</p>
           <button
@@ -244,8 +244,12 @@ export function BillingPanel() {
                 >
                   <RotateCw size={14} aria-hidden="true" />
                 </button>
-                <span className="sr-only" role="status">
-                  {query.isFetching ? "Refreshing usage…" : ""}
+                <span className="billing-refresh-status" role="status">
+                  {query.isFetching
+                    ? "Refreshing usage…"
+                    : query.error
+                      ? "Couldn’t refresh usage. Showing the last loaded values. Try Refresh usage again."
+                      : ""}
                 </span>
               </div>
               <dl className="billing-metrics">

@@ -24,6 +24,87 @@ const file = {
   expiresAt: null,
   locationCount: 1,
 };
+
+test("a transient refresh keeps mounted files, expanded locations and visible feedback", async ({
+  page,
+}) => {
+  let failed = false;
+  await page.route("**/api/grove/**", async (route) => {
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
+    if (
+      failed &&
+      ["/files/search", "/files/storage", "/files/locations"].includes(path)
+    ) {
+      await route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: { code: "unavailable", message: "The refresh failed." },
+        },
+      });
+      return;
+    }
+    const data =
+      path === "/me"
+        ? { accountId: "files-retention" }
+        : path === "/files/storage"
+          ? storage
+          : path === "/files/search"
+            ? { items: [file], nextCursor: null }
+            : path === "/files/locations"
+              ? {
+                  items: [
+                    {
+                      key: `chat:${id}`,
+                      title: "Reference conversation",
+                      memoryId: null,
+                      projectId: null,
+                      projectName: null,
+                      conversationId: id,
+                      batchId: null,
+                      archived: false,
+                      historical: false,
+                      downloadPath: null,
+                    },
+                  ],
+                  nextCursor: null,
+                }
+              : [];
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/files`);
+  const row = page
+    .getByRole("list", { name: "Uploaded files" })
+    .getByRole("listitem")
+    .first();
+  await page.getByText("Reference.txt", { exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Reference conversation", exact: true }),
+  ).toBeVisible();
+  const element = await row.elementHandle();
+  const before = await row.boundingBox();
+  failed = true;
+  await page
+    .getByRole("button", { name: "Refresh files", exact: true })
+    .click();
+  const receipt = page.getByText(
+    "Couldn’t refresh. Showing the last loaded data.",
+    { exact: true },
+  );
+  await expect(receipt).toBeInViewport();
+  expect((await receipt.boundingBox())!.height).toBeGreaterThan(10);
+  expect(await row.evaluate((node, old) => node === old, element)).toBe(true);
+  expect((await row.boundingBox())!.y).toEqual(before!.y);
+  await expect(row.locator("details")).toHaveAttribute("open", "");
+  await expect(
+    page.getByRole("link", { name: "Reference conversation", exact: true }),
+  ).toBeVisible();
+});
 for (const width of [320, 1440]) {
   test(`open files from Settings, filter and retry without losing the selection at ${width}px`, async ({
     page,
