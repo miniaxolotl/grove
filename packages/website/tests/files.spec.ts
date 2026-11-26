@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
+import { fixture, note } from "./fixtures/workspace-fixture";
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const id = "00000000-0000-4000-a000-000000000101";
 const storage = {
@@ -24,6 +25,73 @@ const file = {
   expiresAt: null,
   locationCount: 1,
 };
+
+test("Files returns from a note to its scoped lookup, expanded location and focus", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.route("**/api/grove/admin", (route) =>
+    route.fulfill({ json: { success: true, data: { role: "member" } } }),
+  );
+  await page.route("**/api/grove/files/storage", (route) =>
+    route.fulfill({ json: { success: true, data: storage } }),
+  );
+  await page.route("**/api/grove/files/search", (route) =>
+    route.fulfill({
+      json: { success: true, data: { items: [file], nextCursor: null } },
+    }),
+  );
+  await page.route("**/api/grove/files/locations", (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        data: {
+          items: [
+            {
+              key: `note:${note.id}`,
+              title: "Review preferences",
+              memoryId: note.id,
+              projectId: null,
+              projectName: null,
+              conversationId: null,
+              batchId: null,
+              archived: false,
+              historical: false,
+              downloadPath: null,
+            },
+          ],
+          nextCursor: null,
+        },
+      },
+    }),
+  );
+  await page.goto(`${base}/app/settings/files?memoryId=${note.id}`);
+  const search = page.getByRole("searchbox", {
+    name: "Search files",
+    exact: true,
+  });
+  await search.fill("Reference");
+  await search.press("Enter");
+  await page.getByText("Reference.txt", { exact: true }).click();
+  const destination = page.getByRole("link", {
+    name: "Review preferences",
+    exact: true,
+  });
+  await destination.click();
+  await expect(page).toHaveURL(
+    new RegExp(`/app/memories/${note.id}\\?return=`),
+  );
+  await expect(page).toHaveTitle("Review preferences · Grove");
+  await page
+    .getByRole("button", { name: "Back to notes", exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    `${base}/app/settings/files?memoryId=${note.id}`,
+  );
+  await expect(search).toHaveValue("Reference");
+  await expect(destination).toBeVisible();
+  await expect(destination).toBeFocused();
+});
 
 test("a transient refresh keeps mounted files, expanded locations and visible feedback", async ({
   page,
