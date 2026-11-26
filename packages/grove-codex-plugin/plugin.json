@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "grove",
-  "version": "1.11.36",
+  "version": "1.11.37",
   "description": "Private memory across your agents.",
   "author": {
     "name": "Bramble Labs Inc."

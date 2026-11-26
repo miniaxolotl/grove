@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.37](https://github.com/miniaxolotl/grove/compare/v1.11.36...v1.11.37) (2026-11-26)
+
+
+### Bug Fixes
+
+* **release:** record current runtime proofs after slow rollout ([#343](https://github.com/miniaxolotl/grove/issues/343)) ([f6cd6fa](https://github.com/miniaxolotl/grove/commit/f6cd6faaae821cf6001d7a05faaa4ebab15f072a))
+
 ## [1.11.36](https://github.com/miniaxolotl/grove/compare/v1.11.35...v1.11.36) (2026-11-26)
 
 
