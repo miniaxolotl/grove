@@ -40,7 +40,8 @@ when navigation or the shared process actually changes.
   notes.md and status.md outside Git; task worktrees live in worktrees/<project>.
   Relevant screenshots belong in documentation with max four PR previews per row.
   Remove only clean stale task worktrees after confirmed merge; preserve other stacks.
-- Feature PR → protected `development` → frozen `promote/production/vX.Y.Z` PR →
+- Feature PR → protected `development` → Release Please → automatically prepared
+  frozen `promote/production/vX.Y.Z` PR →
   protected `production`. Promotion uses a merge commit. No direct protected-branch
   pushes, forced candidates, moved tags or automatic moving-head promotion.
 - Release Please owns one product version, root changelog, all five shipped
@@ -53,7 +54,8 @@ when navigation or the shared process actually changes.
 - `CI Gate` validates the full job inventory and requires classification, admission
   and every selected job; unselected jobs must be skipped. Push/manual source CI
   remains full. Frozen selection requires independent exact
-  source CI, Release Please provenance, matching trees and operator/run evidence.
+  source CI, Release Please provenance, matching trees and successful Source Release
+  run evidence (legacy selections retain their original operator evidence).
   `GITHUB_TOKEN` automation explicitly dispatches generated-PR CI; no PAT is used.
 - Check every package's registry integrity and provider configuration before
   publication. Missing DigitalOcean configuration is an error. Deploy the admitted

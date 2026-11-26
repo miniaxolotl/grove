@@ -10,8 +10,8 @@ per destination, see [Preview release impact](development/release-impact.md).
 
 ## Topology and configuration
 
-For offline rehearsal of a release PR's manifest edits and npm publication list,
-see [Stage a selective release PR locally](development/selected-release-writer.md).
+Offline impact/selection tools are advisory only; the production pipeline always
+publishes and deploys one coordinated release.
 
 - Website: `https://grovenote.app`, Next.js on Vercel; production branch `production`.
 - API: `https://api.grovenote.app`, Hono REST `/v1` and Streamable HTTP `/mcp`.
@@ -108,17 +108,14 @@ providers/dimensions never silently fall back. See [models](models.md).
 
 ## Release and rollout
 
-1. Merge feature PRs into protected `development`. For website-only admission,
-   CI fetches the candidate and each distinct receipt ancestor's frozen pnpm
-   dependencies into one store, then builds fresh archives with offline installs.
-   Missing inputs, unreviewed fingerprints or changed service artifacts block
-   this route. An earlier coordinated exception cannot authorize a new source.
-   Merge the Release Please PR,
-   then wait for its immutable source tag and independent full-source CI.
-2. Dispatch **Select Release Candidate** on development with that exact tag. It
-   opens frozen `promote/production/vX.Y.Z`; later development commits are excluded.
-   Verify source/tree, Release Please, policy/tooling and operator-run evidence.
-   Expired evidence requires refreshing the original selection run, not moving refs.
+1. Merge feature PRs into protected `development`, then merge the Release Please
+   PR. One configuration stamps the product, all five packages and plugin pins.
+2. Source Release automatically waits for independent full CI on the exact released
+   source and opens frozen `promote/production/vX.Y.Z`. Later development commits
+   are excluded. No manual tag selection, impact ledger or release declaration is
+   required. Rerun the original failed Source Release attempt to resume preparation;
+   it reuses the same tag/ref/PR. Automatic admission uses the successful source
+   workflow identity, not a selection artifact with an expiry date.
 3. Before an incompatible rollout, follow [schema upgrades](operations/schema.md):
    inspect actual applied history, verify a retained backup and isolated restore,
    pause/drain old writers and apply pending forward migrations using the owner.
@@ -149,9 +146,9 @@ providers/dimensions never silently fall back. See [models](models.md).
 
 ### Read-only schema preflight
 
-Held-source delivery additionally requires the explicit
-[held lifecycle contract](development/held-release.md); its controls and current
-composition blockers are not an operator bypass for the ordinary rollout gates.
+Historical held-source recovery remains governed by the separate
+[held lifecycle contract](development/held-release.md). Ordinary releases do not
+select held publication or remove runtime controls as a side effect.
 
 Configure GitHub's protected production environment with `GROVE_API_DATABASE_URL`
 and `GROVE_WORKER_DATABASE_URL`, matching the actual provider API/worker runtime
@@ -194,7 +191,7 @@ readiness and the selected website's live manifest. A healthy older API can retu
 
 ### Expected-state provider fence
 
-Selected hosted delivery can pass `--expected-app-state <sha256>` to
+The standalone provider helper accepts `--expected-app-state <sha256>` in
 `scripts/deploy-digitalocean.mjs`. Its exported `appStateFingerprint(app)` returns
 64 lowercase hex characters: SHA-256 of canonical JSON containing the app ID,
 complete desired spec, and active/pending/in-progress generation IDs and phases.

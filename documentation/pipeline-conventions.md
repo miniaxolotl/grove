@@ -5,15 +5,34 @@ The standalone website uses npm; the products use their pinned pnpm versions.
 Keep common action pins and workflow
 contracts synchronized when updating them.
 
-| File          | Name                     | Responsibility                                                     |
-| ------------- | ------------------------ | ------------------------------------------------------------------ |
-| `ci.yml`      | CI                       | Validate source or admit a frozen promotion; finish with `CI Gate` |
-| `release.yml` | Source Release           | Release Please on development; immutable source tags               |
-| `promote.yml` | Select Release Candidate | Operator-selected tag, independent source CI, frozen PR            |
-| `deploy.yml`  | Deploy                   | Burrow/Grove production: `candidate` → `publish` → `deploy`        |
+| File          | Name           | Responsibility                                                                       |
+| ------------- | -------------- | ------------------------------------------------------------------------------------ |
+| `ci.yml`      | CI             | Validate source or admit a frozen promotion; finish with `CI Gate`                   |
+| `release.yml` | Source Release | Release Please on development; Grove automatically prepares the frozen production PR |
+| `deploy.yml`  | Deploy         | Grove production: `candidate` → `publish` → `deploy` → `website`                     |
 
 Fern delivers through `stage-release.yml` (images and production services), Xcode
 Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build).
+
+## Grove release flow
+
+**Branch → development → Release Please → production.** Merge the feature PR,
+then the coordinated Release Please PR. Source Release fetches the immutable tag,
+waits for full CI on that exact source and opens `promote/production/vX.Y.Z`.
+Merge that PR to deploy. There is no candidate-selection dispatch, release-scope
+declaration, fingerprint refresh or separate deployment approval.
+
+One Release Please configuration updates the product, all five packages and plugin
+pins. Production publishes them together, deploys the API/worker by digest and
+then builds/deploys the website. An ordinary commit without its own release tag
+does not open a production PR. Retrying Source Release reuses the same frozen PR.
+
+Automatic promotion authenticates the successful exact-source Source Release run,
+not an expiring selection artifact. CI dispatched for that PR waits for Source
+Release to finish if needed; Source Release never waits on production-PR CI.
+Legacy selection evidence remains readable for existing production history.
+Held continuation workflows remain manual, isolated recovery tools, not release
+stages. Offline impact/selection tools do not gate or select normal releases.
 
 ## Common baseline
 

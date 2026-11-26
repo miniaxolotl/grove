@@ -13,7 +13,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL, URL } from "node:url";
 import { readGitHubJson } from "../ci/github-json.mjs";
-import { resolveDecision } from "./selected-decision.mjs";
 
 const tagPattern = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const hashPattern = /^[a-f0-9]{40}$/;
@@ -142,12 +141,77 @@ export function assertSelection(policy, pr, candidate, run, record) {
   );
 }
 
+export function assertAutomaticSelection(policy, candidate, run) {
+  requireThat(
+    run.path === ".github/workflows/release.yml" &&
+      run.head_branch === "development" &&
+      run.head_repository?.full_name === policy.repository &&
+      run.head_sha === candidate.sha &&
+      ["push", "workflow_dispatch"].includes(run.event) &&
+      run.status === "completed" &&
+      run.conclusion === "success",
+    "Successful exact-source Source Release is required",
+  );
+}
+
+export function releasedTag(
+  source,
+  io = {
+    git,
+    read: (ref, path) => JSON.parse(git("show", `${ref}:${path}`)),
+  },
+) {
+  requireThat(hashPattern.test(source), "Expected an exact release source");
+  const tag = `v${io.read(source, "package.json").version}`;
+  requireThat(tagPattern.test(tag), "Invalid release version");
+  return io.git("tag", "--points-at", source, "--list", tag) === tag
+    ? tag
+    : null;
+}
+
+function automaticContext(policy) {
+  return (
+    process.env.GITHUB_ACTIONS === "true" &&
+    process.env.GITHUB_REPOSITORY === policy.repository &&
+    process.env.GITHUB_REF === "refs/heads/development" &&
+    process.env.GITHUB_REF_PROTECTED === "true" &&
+    process.env.GITHUB_WORKFLOW_REF ===
+      `${policy.repository}/.github/workflows/release.yml@refs/heads/development` &&
+    process.env.GITHUB_SHA === git("rev-parse", "HEAD")
+  );
+}
+
 function authorizePromotion(policy, pr, candidate) {
   if (pr.user.login === policy.operator) return;
   requireThat(
     pr.user.login === "github-actions[bot]" && pr.user.type === "Bot",
     "Unauthorized promotion author",
   );
+  const automatic = pr.body?.match(/<!-- release-source:(\d+) -->/);
+  if (automatic) {
+    let run = api(`repos/${policy.repository}/actions/runs/${automatic[1]}`);
+    // Generated PR CI may start while Source Release is dispatching it. The
+    // source job never waits on this PR, so waiting for its result cannot cycle.
+    if (run.status !== "completed") {
+      execFileSync(
+        "gh",
+        [
+          "run",
+          "watch",
+          automatic[1],
+          "--repo",
+          policy.repository,
+          "--exit-status",
+          "--interval",
+          "5",
+        ],
+        { stdio: "pipe", timeout: 5 * 60_000 },
+      );
+      run = api(`repos/${policy.repository}/actions/runs/${automatic[1]}`);
+    }
+    assertAutomaticSelection(policy, candidate, run);
+    return;
+  }
   const match = pr.body?.match(/<!-- release-selection:(\d+) -->/);
   requireThat(match, "Selection workflow evidence required");
   const run = api(`repos/${policy.repository}/actions/runs/${match[1]}`);
@@ -275,6 +339,18 @@ export function verifyCi(policy, sha) {
   throw new Error(`Complete independent CI is required for ${sha}`);
 }
 
+async function waitForCi(policy, sha) {
+  const deadline = Date.now() + 45 * 60_000;
+  for (;;) {
+    try {
+      return verifyCi(policy, sha);
+    } catch (error) {
+      if (Date.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 20_000));
+    }
+  }
+}
+
 export function resolveCandidate(policy, tag, tree) {
   requireThat(tagPattern.test(tag), "Select a plain immutable vX.Y.Z tag");
   const sha = git("rev-parse", `refs/tags/${tag}^{commit}`);
@@ -297,10 +373,6 @@ export function resolveCandidate(policy, tag, tree) {
     ),
   };
   assertCandidate(policy, candidate, tree ?? sourceTree);
-  const selected = resolveDecision(sha, true);
-  candidate.decisionHash = selected?.hash ?? null;
-  candidate.decisionPredecessor =
-    selected?.manifest.predecessor.production ?? null;
   git("merge-base", "--is-ancestor", sha, "origin/development");
   candidate.ciRun = verifyCi(policy, sha);
   return candidate;
@@ -332,11 +404,6 @@ export function admitPromotion(policy, pr, mergeSha) {
     tag,
     git("rev-parse", `${mergeSha}^{tree}`),
   );
-  if (candidate.decisionPredecessor)
-    requireThat(
-      git("rev-parse", `${pr.head.sha}^1`) === candidate.decisionPredecessor,
-      "Selected promotion predecessor drift",
-    );
   authorizePromotion(policy, pr, candidate);
   requireThat(
     git("rev-parse", `${pr.head.sha}^{tree}`) === candidate.tree,
@@ -385,11 +452,12 @@ function output(candidate) {
 function openPromotion(policy, tag, target) {
   requireThat(
     process.env.GITHUB_ACTIONS === "true"
-      ? process.env.GITHUB_REF === "refs/heads/development" &&
-          process.env.GITHUB_ACTOR === policy.operator &&
-          process.env.GITHUB_TRIGGERING_ACTOR === policy.operator
+      ? automaticContext(policy) ||
+          (process.env.GITHUB_REF === "refs/heads/development" &&
+            process.env.GITHUB_ACTOR === policy.operator &&
+            process.env.GITHUB_TRIGGERING_ACTOR === policy.operator)
       : api("user").login === policy.operator,
-    "Only the release operator can select a candidate",
+    "Only protected Source Release or the release operator can prepare a candidate",
   );
   requireThat(
     policy.branches.slice(1).includes(target),
@@ -426,21 +494,10 @@ function openPromotion(policy, tag, target) {
       git("rev-parse", `${existing[0].head.sha}^{tree}`) === candidate.tree,
       "Frozen ref drift",
     );
-    if (candidate.decisionPredecessor)
-      requireThat(
-        git("rev-parse", `${existing[0].head.sha}^1`) ===
-          candidate.decisionPredecessor,
-        "Selected promotion predecessor drift",
-      );
     console.log(existing[0].html_url);
     recordSelection(policy, candidate, existing[0]);
     return;
   }
-  if (candidate.decisionPredecessor)
-    requireThat(
-      base === candidate.decisionPredecessor,
-      "Selected production predecessor changed; review a new source decision",
-    );
   const commit = api(`repos/${policy.repository}/git/commits`, {
     message: `chore(release): freeze ${tag} for ${target}\n\nSource: ${candidate.sha}\nTree: ${candidate.tree}`,
     tree: candidate.tree,
@@ -476,7 +533,7 @@ function openPromotion(policy, tag, target) {
     title: `chore(release): promote ${tag} to ${target}`,
     base: target,
     head: branch,
-    body: `## Frozen release\n\n- Tag: \`${tag}\`\n- Source: \`${candidate.sha}\`\n- Tree: \`${candidate.tree}\`\n- Upstream: \`${upstream}\` at \`${parent}\`\n- Tooling: \`${git("rev-parse", "HEAD")}\`\n\nIndependent source CI and protected promotion admission are required. Merge with a merge commit to preserve source ancestry.\n\n<!-- release-selection:${process.env.GITHUB_RUN_ID ?? "local"} -->`,
+    body: `## Release\n\n- Tag: \`${tag}\`\n- Source: \`${candidate.sha}\`\n- Tree: \`${candidate.tree}\`\n\nMerge this PR to deploy the tested release. Use a merge commit to preserve source ancestry.\n\n<!-- ${automaticContext(policy) ? "release-source" : "release-selection"}:${process.env.GITHUB_RUN_ID ?? "local"} -->`,
   });
   api(`repos/${policy.repository}/issues/${pr.number}/assignees`, {
     assignees: [policy.operator],
@@ -537,26 +594,30 @@ if (
         pr.head.repo?.full_name === policy.repository;
       if (pr && pr.base.ref !== "development" && !featureStack)
         output(admitPromotion(policy, pr, git("rev-parse", "HEAD")));
+    } else if (command === "auto") {
+      requireThat(
+        automaticContext(policy),
+        "Automatic promotion requires protected Source Release",
+      );
+      const source = git("rev-parse", "HEAD");
+      const tag = releasedTag(source);
+      if (!tag)
+        console.log("No release tag on this source; nothing to promote.");
+      else {
+        await waitForCi(policy, source);
+        openPromotion(policy, tag, "production");
+      }
     } else if (command === "production")
       output(productionCandidate(policy, first));
     else if (command === "wait-ci") {
       requireThat(hashPattern.test(first), "Expected a full CI commit SHA");
-      const deadline = Date.now() + 45 * 60_000;
-      for (;;) {
-        try {
-          verifyCi(policy, first);
-          break;
-        } catch (error) {
-          if (Date.now() >= deadline) throw error;
-          await new Promise((resolve) => setTimeout(resolve, 20_000));
-        }
-      }
+      await waitForCi(policy, first);
     } else if (command === "resolve")
       output(resolveCandidate(policy, first, second));
     else if (command === "open") openPromotion(policy, first, second);
     else
       throw new Error(
-        "Usage: promotion.mjs admit | production <SHA> | resolve <tag> [tree] | open <tag> <target>",
+        "Usage: promotion.mjs auto | admit | production <SHA> | wait-ci <SHA> | resolve <tag> [tree] | open <tag> <target>",
       );
   } catch (error) {
     console.error(error.message);
