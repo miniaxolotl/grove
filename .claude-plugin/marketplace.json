@@ -12,7 +12,7 @@
       "source": {
         "source": "npm",
         "package": "@miniaxolotl/grove-claude-plugin",
-        "version": "1.11.36"
+        "version": "1.11.37"
       },
       "description": "Private memory across your agents"
     }
