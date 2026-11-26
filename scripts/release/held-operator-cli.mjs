@@ -37,6 +37,9 @@ import { readGitHubJson } from "../ci/github-json.mjs";
 import { qualifyIndependent } from "./held-operator-qualification.mjs";
 import { deploymentSpecMatches, providerInstanceInventory } from "./held-provider-response.mjs";
 import { createProviderDispatch } from "./held-operator-provider-io.mjs";
+import {heldProviderView,heldReleaseSpecView} from './held-provider-view.mjs';
+import {randomUUID} from 'node:crypto';
+import {setTimeout as delay} from 'node:timers/promises';
 import {
   verifyOperatorRoot,
   readTrustedPin,
@@ -113,7 +116,7 @@ try {
         actor: user.login,
         protected: true,
         source: manifest.source,
-        production: branch.commit.sha,
+        production: request.releaseProduction??branch.commit.sha,
         tree: git("rev-parse", "HEAD^{tree}"),
         tag: `v${JSON.parse(git("show", "HEAD:package.json")).version}`,
         apiVersion: JSON.parse(git("show", "HEAD:packages/api/package.json"))
@@ -121,7 +124,19 @@ try {
         run: request.publication.run,
         attempt: request.publication.attempt,
         heldDecision: selected.manifest,
+        ...(request.tooling?{tooling:request.tooling}:{}),
       };
+      const operational=request.tooling!==undefined;
+      if(operational){
+        assert.equal(request.providerRepresentation,'digitalocean-release-defaults-v1');
+        assert.equal(request.tooling.production,branch.commit.sha);
+        assert.equal(request.tooling.workflow,'.github/workflows/held-release-operator.yml');
+        assert.equal(git('rev-parse',`refs/tags/${request.tooling.tag}^{commit}`),request.tooling.source);
+        assert.equal(git('rev-parse',`${request.tooling.source}^{tree}`),request.tooling.tree);
+        assert.equal(git('rev-parse',`${branch.commit.sha}^{tree}`),request.tooling.tree);
+        assert.match(context.production,/^[a-f0-9]{40}$/);
+        git('merge-base','--is-ancestor',context.production,branch.commit.sha);
+      }else assert.equal(request.releaseProduction,undefined);
       const p = await loadPublication(
         request.publication.run,
         request.publication.attempt,
@@ -191,6 +206,10 @@ try {
         const page = await remote(`/v2/apps/${appId}/instances`);
         return providerInstanceInventory(page, app);
       };
+      const custody=await control.installedControl();
+      let recordedRepresentation=false;
+      let initialState;
+      const specFingerprint=spec=>appStateFingerprint({id:appId,spec:operational?heldReleaseSpecView(spec):spec});
       const observe = async () => {
         const app = await getApp();
         assert.equal(app.id, appId);
@@ -202,13 +221,22 @@ try {
           appStateFingerprint(await getApp()),
           appStateFingerprint(app),
         );
-        return {
-          app,
+        const view=operational?heldProviderView(app):{app,changes:[]};
+        const state={
+          app:view.app,
           instances,
-          state: appStateFingerprint(app),
-          settings: appStateFingerprint({ id: appId, spec: app.spec }),
+          state: appStateFingerprint(view.app),
+          settings: appStateFingerprint({ id: appId, spec: view.app.spec }),
           generation: app.active_deployment.id,
         };
+        Object.defineProperty(state,'rawApp',{value:app});
+        initialState??=state;
+        if(operational&&verb==='execute'&&!recordedRepresentation){
+          await custody.privateDirectory(request.journalDirectory,{create:true});
+          await custody.durableWrite(`${request.journalDirectory}/${command.id}-representation-${randomUUID()}.json`,JSON.stringify({schema:1,kind:request.providerRepresentation,tooling:request.tooling,command:receiptHash(command),raw:{state:appStateFingerprint(app),settings:appStateFingerprint({id:appId,spec:app.spec})},semantic:{state:state.state,settings:state.settings},changes:view.changes,generation:state.generation,instances:receiptHash(instances),at:Date.now()})+'\n');
+          recordedRepresentation=true;
+        }
+        return state;
       };
       if (
         command.action === "restore" &&
@@ -271,6 +299,25 @@ try {
           control.readJournal(`${request.journalDirectory}/${id}.jsonl`),
         getState: observe,
         verify: async () => {
+          if(operational&&verb==='execute'&&providerSubmitted){
+            const deadline=Math.min(command.expiresAt,Date.now()+240000);
+            while(Date.now()<deadline){
+              const app=await getApp(),settings=specFingerprint(app.spec);
+              assert([initialState.settings,command.proposed].includes(settings),'Unrelated provider settings drift');
+              if(!app.pending_deployment&&!app.in_progress_deployment&&app.active_deployment?.phase==='ACTIVE'&&deploymentSpecMatches(app)){
+                const state=await observe();
+                if(state.settings===command.proposed){
+                  assert.notEqual(state.generation,initialState.generation);
+                  assert.deepEqual(state.instances.map(i=>i.component_name).sort(),['api','worker']);
+                  await external.finishProviderWrite(command,state,{digest:p.release.digest});
+                  return state;
+                }
+                assert.equal(state.state,initialState.state,'Unrelated provider generation drift');
+              }
+              await delay(2000);
+            }
+            throw new Error('Provider acceptance unsettled; read-only reconciliation required');
+          }
           const state = await observe();
           if (verb === "execute" && providerSubmitted)
             await external.finishProviderWrite(command, state, {
@@ -282,7 +329,7 @@ try {
             });
           return state;
         },
-        specFingerprint: (spec) => appStateFingerprint({ id: appId, spec }),
+        specFingerprint,
         put: createProviderDispatch({
           observe,
           current,
@@ -401,7 +448,7 @@ try {
         } else {
           const before = await observe();
           let spec;
-          const params = [before.app, before.instances, p, parent];
+          const params = [before.rawApp, before.instances, p, parent];
           if (before.settings === command.proposed) spec = before.app.spec;
           else if (command.action === "restore")
             spec = prepareHeld(...params.slice(0, 3));
@@ -423,7 +470,7 @@ try {
               request.publicCommand,
             );
             spec = preparePublic(
-              before.app,
+              before.rawApp,
               before.instances,
               p,
               parent.parent,
