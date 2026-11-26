@@ -33,6 +33,9 @@ import { WorkspaceDrag } from "./memory-drag";
 import { NotebookOrganizer } from "./notebook-organizer";
 import { WorkspaceSearch, WorkspaceSearchButton } from "./workspace-search";
 import { ToastProvider } from "./toasts";
+import { PreferenceEditor } from "./preference-editor";
+import { UnsavedChangesProvider } from "./unsaved-changes";
+import { WorkspaceLocation } from "./workspace-location";
 import { WorkspacePlan } from "./account-plan";
 import {
   WorkspaceCommands,
@@ -142,109 +145,124 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       sessionId={session.id}
     >
       <ToastProvider>
-        <NoteDraftsProvider account={user!.id}>
-          <NoteExportProvider>
-            <NotebooksProvider>
-              <WorkspaceCommands>
-                <WorkspaceDrag>
-                  <WorkspaceSearch>
-                    <div className="grove-app" data-private>
-                      <aside
-                        className="app-sidebar"
-                        aria-label="Workspace sidebar"
-                      >
-                        <div className="app-sidebar-heading">
-                          <Brand href="/app" />
-                          <div className="workspace-header-actions">
-                            <NewNoteLink />
-                            <WorkspaceSearchButton />
-                            <div className="sidebar-account-avatar lg:hidden">
-                              <UserButton />
+        <UnsavedChangesProvider>
+          <WorkspaceLocation>
+            <PreferenceEditor>
+              <NoteDraftsProvider account={user!.id}>
+                <NoteExportProvider>
+                  <NotebooksProvider>
+                    <WorkspaceCommands>
+                      <WorkspaceDrag>
+                        <WorkspaceSearch>
+                          <div className="grove-app" data-private>
+                            <aside
+                              className="app-sidebar"
+                              aria-label="Workspace sidebar"
+                            >
+                              <div className="app-sidebar-heading">
+                                <Brand href="/app" />
+                                <div className="workspace-header-actions">
+                                  <NewNoteLink />
+                                  <WorkspaceSearchButton />
+                                  <div className="sidebar-account-avatar lg:hidden">
+                                    <UserButton />
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="workspace-utilities">
+                                <CommandMenuButton />
+                                <ShortcutHelpButton compact />
+                              </div>
+                              <nav
+                                aria-label="Workspace"
+                                className="app-navigation"
+                              >
+                                <SidebarSection>Workspace</SidebarSection>
+                                {workspaceLinks.map((item) => (
+                                  <WorkspaceNavLink
+                                    key={item.href}
+                                    item={item}
+                                    current={current}
+                                  />
+                                ))}
+                              </nav>
+                              <NotebookExplorer />
+                              <div className="app-sidebar-footer">
+                                <div className="sidebar-account-avatar">
+                                  <UserButton />
+                                </div>
+                                <span className="sidebar-account-text">
+                                  <strong>
+                                    {user?.firstName ?? "Your account"}
+                                  </strong>
+                                  <small>Private Grove</small>
+                                </span>
+                                <WorkspacePlan />
+                              </div>
+                              <nav
+                                aria-label="Account settings"
+                                className="app-settings-navigation"
+                              >
+                                <WorkspaceNavLink
+                                  item={settingsLink}
+                                  current={current}
+                                />
+                              </nav>
+                            </aside>
+                            <div className="app-main">
+                              <header className="app-topbar">
+                                <span className="app-breadcrumb">
+                                  <span>Your Grove</span>
+                                  <span aria-hidden="true">/</span>
+                                  <strong>
+                                    {path === "/app/graph"
+                                      ? "Note graph"
+                                      : path === "/app/archive"
+                                        ? "Archive"
+                                        : path === "/app/profile"
+                                          ? "About you"
+                                          : (links.find(
+                                              ({ href }) => href === current,
+                                            )?.name ?? "Your notes")}
+                                  </strong>
+                                </span>
+                                <div className="flex items-center gap-3">
+                                  <span className="app-private-label">
+                                    <LockKeyhole size={12} aria-hidden="true" />{" "}
+                                    Private
+                                  </span>
+                                </div>
+                              </header>
+                              <main
+                                id="main"
+                                className="app-content"
+                                key={user?.id}
+                              >
+                                {children}
+                              </main>
+                              <footer className="app-footer">
+                                <span>Grove</span>
+                                <nav aria-label="Workspace help and policies">
+                                  <ShortcutHelpButton />
+                                  <TelemetryChoice />
+                                  <Link href="/install">Setup guide</Link>
+                                  <Link href="/privacy">Privacy</Link>
+                                  <Link href="/terms">Terms</Link>
+                                  <Link href="/support">Get help</Link>
+                                </nav>
+                              </footer>
                             </div>
                           </div>
-                        </div>
-                        <div className="workspace-utilities">
-                          <CommandMenuButton />
-                          <ShortcutHelpButton compact />
-                        </div>
-                        <nav aria-label="Workspace" className="app-navigation">
-                          <SidebarSection>Workspace</SidebarSection>
-                          {workspaceLinks.map((item) => (
-                            <WorkspaceNavLink
-                              key={item.href}
-                              item={item}
-                              current={current}
-                            />
-                          ))}
-                        </nav>
-                        <NotebookExplorer />
-                        <div className="app-sidebar-footer">
-                          <div className="sidebar-account-avatar">
-                            <UserButton />
-                          </div>
-                          <span className="sidebar-account-text">
-                            <strong>{user?.firstName ?? "Your account"}</strong>
-                            <small>Private Grove</small>
-                          </span>
-                          <WorkspacePlan />
-                        </div>
-                        <nav
-                          aria-label="Account settings"
-                          className="app-settings-navigation"
-                        >
-                          <WorkspaceNavLink
-                            item={settingsLink}
-                            current={current}
-                          />
-                        </nav>
-                      </aside>
-                      <div className="app-main">
-                        <header className="app-topbar">
-                          <span className="app-breadcrumb">
-                            <span>Your Grove</span>
-                            <span aria-hidden="true">/</span>
-                            <strong>
-                              {path === "/app/graph"
-                                ? "Note graph"
-                                : path === "/app/archive"
-                                  ? "Archive"
-                                  : path === "/app/profile"
-                                    ? "About you"
-                                    : (links.find(
-                                        ({ href }) => href === current,
-                                      )?.name ?? "Your notes")}
-                            </strong>
-                          </span>
-                          <div className="flex items-center gap-3">
-                            <span className="app-private-label">
-                              <LockKeyhole size={12} aria-hidden="true" />{" "}
-                              Private
-                            </span>
-                          </div>
-                        </header>
-                        <main id="main" className="app-content" key={user?.id}>
-                          {children}
-                        </main>
-                        <footer className="app-footer">
-                          <span>Grove</span>
-                          <nav aria-label="Workspace help and policies">
-                            <ShortcutHelpButton />
-                            <TelemetryChoice />
-                            <Link href="/install">Setup guide</Link>
-                            <Link href="/privacy">Privacy</Link>
-                            <Link href="/terms">Terms</Link>
-                            <Link href="/support">Get help</Link>
-                          </nav>
-                        </footer>
-                      </div>
-                    </div>
-                    <NotebookOrganizer />
-                  </WorkspaceSearch>
-                </WorkspaceDrag>
-              </WorkspaceCommands>
-            </NotebooksProvider>
-          </NoteExportProvider>
-        </NoteDraftsProvider>
+                          <NotebookOrganizer />
+                        </WorkspaceSearch>
+                      </WorkspaceDrag>
+                    </WorkspaceCommands>
+                  </NotebooksProvider>
+                </NoteExportProvider>
+              </NoteDraftsProvider>
+            </PreferenceEditor>
+          </WorkspaceLocation>
+        </UnsavedChangesProvider>
       </ToastProvider>
     </WorkspaceCacheProvider>
   );

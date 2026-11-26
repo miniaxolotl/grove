@@ -339,6 +339,11 @@ test("preference drafts survive settings tabs, discard restores saved choices, a
   await aiTab.click();
   await organization.click();
   await expect(titles).not.toBeChecked();
+  await page.getByRole("link", { name: "Notes", exact: true }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await aiTab.click();
+  await organization.click();
+  await expect(titles).not.toBeChecked();
   await discard.click();
   await expect(titles).toBeChecked();
   await expect(save).toBeDisabled();

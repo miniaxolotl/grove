@@ -3,7 +3,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -16,6 +15,7 @@ import {
 import { DashboardApiError } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import type { WorkspaceCache } from "@/lib/workspace-cache";
+import { useUnsavedChanges } from "./unsaved-changes";
 
 export type NoteValues = {
   content: string;
@@ -440,15 +440,8 @@ export function NoteDraftsProvider({
       drafts.stop();
     };
   }, [drafts, cache, account]);
-  useEffect(() => {
-    const protectDrafts = (event: BeforeUnloadEvent) => {
-      if (!drafts.size) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", protectDrafts);
-    return () => window.removeEventListener("beforeunload", protectDrafts);
-  }, [drafts]);
+  useSyncExternalStore(drafts.subscribe, drafts.snapshot, zero);
+  useUnsavedChanges(drafts.size > 0);
   return <Drafts.Provider value={drafts}>{children}</Drafts.Provider>;
 }
 

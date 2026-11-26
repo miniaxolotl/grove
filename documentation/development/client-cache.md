@@ -9,6 +9,11 @@ is a separate encrypted store, not a persisted query cache. Requests use
 `cache: "no-store"` and the BFF sends `Cache-Control: private, no-store`; this cache
 belongs to the mounted workspace.
 
+The same session owner retains explicit AI-preference edits when leaving Settings
+for Notes and returning. Save/Discard, base values and newer edits during a save
+remain distinct. Notes and preferences share one best-effort browser unload guard;
+no on-disk or crash recovery is added. Terminal access loss destroys this owner.
+
 `WorkspaceNavigationState` separately owns optional browser UI metadata, keyed by
 Clerk account under `grove:navigation:v1:<account>`. Its bounded schema includes at
 most 500 UUID/boolean expansion overrides, separate desktop/mobile scroll offsets
