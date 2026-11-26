@@ -21,6 +21,10 @@ or vertical dividers**, improve settings/toggle hierarchy and layout, link
 directly to all released extension stores, and update URLs as navigation changes
 so Back/Forward and reload preserve the exact location and return context.
 
+The overall standard is a professional, task-focused product: show what people
+can do, what happened and what needs attention—not how Grove is assembled.
+Apply that standard across the web app and extension, not only to settings copy.
+
 ## Evidence and limits
 
 - Source: development `622ca2b0b5b98801c21166be9d00965f72bfe42d`, product
@@ -158,6 +162,9 @@ Remove explanations that merely restate labels. Move optional formatting help an
 rule examples to focusable contextual help. Keep local-vs-remote processing and
 save-model information brief but visible where the choice is made. Do not put
 critical meaning in a hover-only tooltip.
+
+Use the compact unavailable-control treatment in the copy guidance below rather
+than adding installation/build explanations to each row.
 
 ### Medium: the editor spends persistent space on occasional tools
 
@@ -554,9 +561,9 @@ creating another unrelated navigation prescription.
   inherited access and expiry information when applicable. Choosing public access
   is not publication until **Create link / Save**; never replace that distinction
   with optimism.
-- AI settings explain local versus remote effects and unavailable providers.
-  These are not all redundant descriptions. Shorten by grouping related choices,
-  not by hiding what leaves the device or what an unavailable option means.
+- AI settings explain local versus remote effects. Keep those consequential
+  distinctions visible; move repeated availability reasons into accessible
+  contextual help beside a muted control, using “Temporarily unavailable.”
 - Import/export are purposeful Settings surfaces. The review checks entry/options,
   not upload processing, export completion, download integrity or real email.
 
@@ -573,20 +580,50 @@ are design references, not evidence that Grove passed every guideline.
 
 ## Copy: remove, disclose, or show
 
-| Current                                                        | Recommended treatment                                                                                                               |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| “Spelling — Flag misspellings and suggest corrections.”        | **Spelling**. Remove the repeated description.                                                                                      |
-| “Basic grammar — Flag common grammar issues.”                  | **Grammar**. Put concrete examples in contextual help.                                                                              |
-| “Turn all writing checks in the web app on or off.”            | **Writing checks**, using the control’s state. Remove the sentence.                                                                 |
-| “Live Markdown · select text to format”                        | Remove the permanent instruction. Show formatting on selection; help on focus/tap.                                                  |
-| “What should stay with you?” as the editor’s accessible name   | Use a literal **Note content** label. Personality should not obscure voice or screen-reader targeting.                              |
-| “Did that save?”                                               | **Unconfirmed saves**. Show each note and its actual recovery state.                                                                |
-| “Your earlier note is saved. These changes save on their own.” | Show a stable receipt for the saved version and **Saving…** for current changes when work is actually pending.                      |
-| “What’s on your mind?” plus three generic suggestions          | Let the question field and chosen sources lead. Optional examples should use existing notes.                                        |
-| Repeated rewrite-allowance paragraph in the tool menu          | Show concise, accurate usage context where needed; details in Settings/contextual help. Keep first-use processing consent explicit. |
+### Professional, user-focused presentation
 
-Tooltips must work on keyboard focus; touch needs a tap-triggered popover or
-disclosure. Do not rely on `title` alone. Essential labels remain visible.
+- Lead with the task or outcome. Use direct labels and calm, specific language;
+  remove rhetorical prompts, repeated instructions and implementation jargon.
+- Show only what helps someone choose, act or recover. Put optional examples in
+  contextual help and technical diagnostics in support details, not routine UI
+  paragraphs or tooltips. Required setup belongs beside its action in Settings.
+- Use one term for each concept across web and extension. State what failed and
+  offer a valid next action; do not expose raw service errors or promise recovery
+  times. Keep progress and completion distinct in plain language.
+- Make the hierarchy visual: align labels and controls, group related settings,
+  use consistent role-based sizing and remove redundant panels/dividers. A shorter
+  paragraph is not a substitute for a clearer layout.
+
+Acceptance: someone should understand the current scope, available action and
+result without knowing Grove’s providers, deployment configuration or internal
+processing. Keep the engineering evidence in this review; do not turn it into
+customer-facing explanatory copy.
+
+### Concrete copy changes
+
+| Current                                                        | Recommended treatment                                                                                                                                                       |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| “Spelling — Flag misspellings and suggest corrections.”        | **Spelling**. Remove the repeated description.                                                                                                                              |
+| “Basic grammar — Flag common grammar issues.”                  | **Grammar**. Put concrete examples in contextual help.                                                                                                                      |
+| “Turn all writing checks in the web app on or off.”            | **Writing checks**, using the control’s state. Remove the sentence.                                                                                                         |
+| “Live Markdown · select text to format”                        | Remove the permanent instruction. Show formatting on selection; help on focus/tap.                                                                                          |
+| “What should stay with you?” as the editor’s accessible name   | Use a literal **Note content** label. Personality should not obscure voice or screen-reader targeting.                                                                      |
+| “Did that save?”                                               | **Unconfirmed saves**. Show each note and its actual recovery state.                                                                                                        |
+| “Your earlier note is saved. These changes save on their own.” | Show a stable receipt for the saved version and **Saving…** for current changes when work is actually pending.                                                              |
+| “What’s on your mind?” plus three generic suggestions          | Let the question field and chosen sources lead. Optional examples should use existing notes.                                                                                |
+| Repeated rewrite-allowance paragraph in the tool menu          | Show concise, accurate usage context where needed; details in Settings/contextual help. Keep first-use processing consent explicit.                                         |
+| “Unavailable on this installation / in this build”             | Dim the affected control and move **Temporarily unavailable** plus optional detail into accessible contextual help. Remove the permanent implementation-specific paragraph. |
+
+For example, `packages/website/src/components/dashboard/writing-preferences.tsx:210`
+uses the installation-specific Enhanced grammar paragraph. Keep its label legible
+and saved value intact; mute only the unavailable action. Preserve the ability to
+turn off or revoke access. Use “Temporarily unavailable” for temporary feature
+availability—not intentional Off states, deleted resources, missing permissions
+or unsupported browsers. Those need an accurate explanation and any recovery action.
+
+Help must work on keyboard focus and tap, not just hover. A native disabled input
+cannot receive focus: use an adjacent focusable help control and associate its
+explanation accessibly. Do not rely on grey or `title` alone. Essential labels remain visible.
 Statuses announce meaningful transitions accessibly without repeating toasts or
 moving controls. Do not remove persisted pending/failed/uncertain distinctions.
 
