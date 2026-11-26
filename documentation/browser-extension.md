@@ -5,13 +5,12 @@ Official listings are available on the
 [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
 and [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
 Each store approves versions independently; a public listing does not mean the
-latest submitted update is live. Unsigned local ZIPs are separate downloads from
-the [install page](https://grovenote.app/install#browser-extension) or source builds.
-Install lists all three official items and marks a recognized desktop browser. The
-current Chrome control still links to manual setup despite the public item. In
-**Settings → Connections**, choose **Add to Firefox**, **Add to Edge**, or the
-**Chrome setup guide** for manual installation. Local packages are
-also available for Firefox and Edge. The
+latest submitted update is live. Install and **Settings → Connections** link directly
+to each store with **Add to Chrome / Firefox / Edge**, marking a recognized desktop
+browser without hiding the other choices. Local packages for all three browsers
+are under **Advanced: install a local package** on the
+[install page](https://grovenote.app/install#browser-extension), with unsigned
+downloads and source-build instructions kept separate from store installation. The
 [design](design/browser-extension.md) retains the release requirements and deferred scope.
 
 ## Install and connect

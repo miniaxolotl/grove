@@ -38,7 +38,7 @@ export const faqs = [
   {
     question: "Is there a browser extension?",
     answer:
-      "Yes. Get Grove from Firefox Add-ons or Microsoft Edge Add-ons. For Chrome, use the local installation guide on the setup page. Save notes from any tab and search your library from the panel. Spelling and grammar checks run on your device; sentence-level AI rewrites need your explicit consent, a separate connection permission and a configured provider.",
+      "Yes. Add Grove from the Chrome Web Store, Firefox Add-ons or Microsoft Edge Add-ons. Save notes from any tab and search your library from the panel. Spelling and grammar checks run on your device; sentence-level AI rewrites need your explicit consent, a separate connection permission and a configured provider.",
   },
   {
     question: "Can I run Grove on my own server?",

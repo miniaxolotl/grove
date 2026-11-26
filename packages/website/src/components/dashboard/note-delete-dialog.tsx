@@ -71,7 +71,8 @@ export function NoteDeleteDialog({
     const noteKey = `note:${note.id}`;
     const draft = drafts?.get(noteKey);
     return { note, key: noteKey, draft };
-  });  const currentFor = (entry: (typeof entries)[number]) =>
+  });
+  const currentFor = (entry: (typeof entries)[number]) =>
     [entry.note, entry.draft?.base, single ? settled : undefined]
       .filter((note): note is Memory => !!note)
       .reduce(
@@ -132,12 +133,7 @@ export function NoteDeleteDialog({
     }
   }
   async function remove() {
-    if (
-      anySaving ||
-      uncertainCount > 0 ||
-      needsReview ||
-      submitting.current
-    )
+    if (anySaving || uncertainCount > 0 || needsReview || submitting.current)
       return;
     submitting.current = true;
     setBusy(true);
@@ -187,9 +183,7 @@ export function NoteDeleteDialog({
         );
       } else {
         for (const entry of entries) drafts?.delete(entry.key);
-        toast(
-          single ? "Note deleted." : `${memories.length} notes deleted.`,
-        );
+        toast(single ? "Note deleted." : `${memories.length} notes deleted.`);
       }
     } catch (reason) {
       cache.restoreNoteRecords(
@@ -211,12 +205,12 @@ export function NoteDeleteDialog({
       {single ? (
         <p className="mb-4 text-sm">
           Delete “{memoryTitle(currentFor(entries[0]))}”? It and its history
-          will be hidden from your Grove.
+          will be hidden from your Grove. You can’t restore it in Grove.
         </p>
       ) : (
         <p className="mb-4 text-sm">
-          Delete {memories.length} notes? They and their history will be
-          hidden from your Grove.
+          Delete {memories.length} notes? They and their history will be hidden
+          from your Grove. You can’t restore them in Grove.
         </p>
       )}
       {!!draftCount && (
@@ -276,9 +270,7 @@ export function NoteDeleteDialog({
         <button
           type="button"
           className="app-button danger"
-          disabled={
-            busy || anySaving || uncertainCount > 0 || needsReview
-          }
+          disabled={busy || anySaving || uncertainCount > 0 || needsReview}
           onClick={() => void remove()}
         >
           {busy

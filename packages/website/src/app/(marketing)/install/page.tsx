@@ -43,23 +43,26 @@ export default async function InstallPage() {
           your consent.
         </p>
         <ExtensionStoreLinks />
-        <p className="mt-2 max-w-2xl text-base leading-7">
-          For a local Chrome installation, choose a browser ZIP from the{" "}
-          <a
-            className="underline"
-            href="https://github.com/miniaxolotl/grove/releases"
-          >
-            release assets
-          </a>{" "}
-          and follow the{" "}
-          <a
-            className="underline"
-            href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/browser-extension.md"
-          >
-            extension setup guide
-          </a>
-          .
-        </p>
+        <details className="mt-4 max-w-2xl text-base leading-7">
+          <summary>Advanced: install a local package</summary>
+          <p>
+            Choose a browser ZIP from the{" "}
+            <a
+              className="underline"
+              href="https://github.com/miniaxolotl/grove/releases"
+            >
+              release assets
+            </a>{" "}
+            and follow the{" "}
+            <a
+              className="underline"
+              href="https://github.com/miniaxolotl/grove/blob/HEAD/documentation/browser-extension.md"
+            >
+              extension setup guide
+            </a>
+            .
+          </p>
+        </details>
       </section>
       <section aria-labelledby="ai-tools" className="setup-tools max-w-[68ch]">
         <h2 id="ai-tools">Connect an AI tool</h2>
