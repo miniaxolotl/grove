@@ -6,7 +6,6 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import process from "node:process";
 import { packArtifact } from "./release/pack.mjs";
-import { resolveDecision } from "./release/selected-decision.mjs";
 import {
   assertRepository,
   registryIntegrity,
@@ -33,8 +32,6 @@ const version = JSON.parse(
 const temporary = process.env.CI ? tmpdir() : "/tmp/opencode";
 const pending = [];
 const verified = [];
-// Even a direct invocation cannot turn an admitted hosted-only decision into
-// coordinated npm publication. Structural/source validation precedes any npm read.
 const head = execFileSync("git", ["rev-parse", "HEAD"], {
   encoding: "utf8",
 }).trim();
@@ -43,32 +40,18 @@ assert.equal(
   head,
   "Publisher checkout differs from admitted source",
 );
-const decision = resolveDecision(head, true);
-if (verifyOnly)
-  assert(
-    !decision,
-    "Complete coordinated publication verification cannot omit selected packages",
-  );
-if (process.env.RELEASE_DECISION_HASH)
-  assert.equal(
-    decision?.hash,
-    process.env.RELEASE_DECISION_HASH,
-    "Publisher decision drift",
-  );
 await mkdir(temporary, { recursive: true });
 const directory = await mkdtemp(join(temporary, "grove-publish-"));
 try {
   // Preflight every artifact before publishing any package. A historical version
   // must never silently skip changed code while newer sibling packages publish.
-  for (const name of decision
-    ? []
-    : [
-        "api",
-        "mcp",
-        "grove-opencode-plugin",
-        "grove-claude-plugin",
-        "grove-codex-plugin",
-      ]) {
+  for (const name of [
+    "api",
+    "mcp",
+    "grove-opencode-plugin",
+    "grove-claude-plugin",
+    "grove-codex-plugin",
+  ]) {
     const path = join(root, "packages", name);
     const pkg = JSON.parse(await readFile(join(path, "package.json"), "utf8"));
     assertRepository(pkg);
