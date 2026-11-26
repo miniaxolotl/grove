@@ -632,6 +632,128 @@ processing, irreversible consequences, errors and uncertain saves. Shorten these
 without hiding them. Demonstrate with the actual selected note or passage whenever
 possible instead of writing a paragraph about what the system will do.
 
+## Screenshot follow-up: sidebar, account and notebook actions
+
+The owner’s crops highlight real presentation questions, but their browser zoom
+and capture scale are unknown. Do not copy their pixel sizes into CSS targets.
+A focused fixture check uses ten synthetic notebooks at 1440×900, 1440×600,
+1024×600, coarse-pointer 390×600 and 320×480 with the same product snapshot.
+
+| Before / observed area                                                                                         | After / recommendation                                                                                                                             | Why                                                                                                                                                            |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The account row combines an avatar, name, “Private Grove” and a framed Pro badge inside a second hover surface | One aligned account row and one quiet plan affordance; remove redundant reassurance when it conveys no distinct scope                              | Reduce competing outlines/surfaces without removing account identity or the plan action.                                                                       |
+| Pro opens an interactive usage dialog on hover/focus, including a second AI/audio disclosure                   | Keep a concise plan summary; put the full breakdown behind a clear details action in Settings                                                      | A quick plan check should not cover most of the sidebar with technical allowance categories. Keep relevant limits, pending usage and recovery truthful.        |
+| The notebook heading has separate collapse, manage-title/count, Organize and create actions                    | Establish one heading hierarchy: clear disclosure, quiet total count, create action and a secondary organization entry                             | Make each target’s job obvious; do not make the hovered title/count look like the current notebook. Preserve distinct browse, create and reorder capabilities. |
+| Folder icons also act as drag/organize buttons, while row titles navigate                                      | Keep disclosure, open and organization targets visually distinct; reveal management affordances on hover/focus and make them discoverable on touch | Avoid accidental organization when someone expects to open a notebook. Do not remove the drag/keyboard alternative or the indentation slots.                   |
+| Move, Rearrange and Files & storage share the same folder-input icon                                           | Use distinct meaningful icons and concise contextual labels such as Move to…, Reorder… and Files                                                   | These are different destinations, not three copies of the same action. Keep notebook scope and avoid repeated “notebook” in every visible label.               |
+| The nine-action menu repeats long labels and separates Archive and Delete individually                         | Group creation, management and lifecycle actions deliberately; retain safe confirmation and clear destructive styling                              | Tighten the menu by hierarchy and copy, not by shrinking touch rows or removing useful actions.                                                                |
+
+Source owners: `shell.tsx:171`, `notebook-explorer.tsx:156`,
+`notebook-tree.tsx:319` and `notebook-actions.tsx:33` under
+`packages/website/src/components/dashboard/`. **Move notebook** opens a focused
+destination picker; **Rearrange notebook** opens Organize with that notebook
+selected. Both dialogs cancel back to the same menu trigger in the desktop
+fixture. Clarify this overlap before deciding whether to consolidate entry points;
+do not delete one as a proven duplicate.
+
+There is a concrete destructive-style mismatch: Delete uses `danger`, while
+`packages/website/src/app/app/actions.css:7` targets `action-danger`. The rendered
+Delete text has the same `rgb(40, 76, 56)` as ordinary actions. Align the semantic
+style contract while preserving the text label, separation and confirmation;
+colour alone is not the warning. No deletion was submitted.
+
+The Pro action is approximately 44×44px around a 36×24px badge. Retain the hit area
+while simplifying its visible treatment. The expanded usage panel is 300×527px
+on desktop; at 320×480 it clamps to 300×464px and scrolls. Menu rows are 36px for
+fine pointer and 44px for coarse input, with aligned icon columns. The complete
+menu is 200×346px or 200×418px respectively. End reaches Delete and Escape returns
+to the opener in all five contexts; no horizontal page overflow or page errors.
+These are density/discoverability findings, not a reproduced clipping failure.
+A synthetic failed usage read preserves Pro and offers Try again. Preserve that
+recovery rather than turning a failed read into an empty or successful usage total.
+
+### Hover, highlighting, sizing and action indicators
+
+Audit these as different states, not one pale background reused everywhere:
+
+| Before / area to check                                                    | After / required treatment                                                                                                             | Why                                                                                        |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Notebook heading/count, row and Pro hover surfaces can resemble selection | Subtle hover for the exact target; a distinct persistent current/selected state and a visible keyboard focus ring                      | Make “under the pointer,” “open” and “selected” distinguishable.                           |
+| Actions appear on row hover                                               | Reveal them on focus-within too; keep a discoverable touch equivalent and a stable action slot                                         | Avoid hidden management controls, width changes and hover-only access.                     |
+| One row contains disclosure, folder/drag, title and More                  | Use a caret for expansion, a clear open link and a separate management affordance; retain expanded/pressed semantics                   | The indicator must predict the action, not merely decorate the row.                        |
+| Visual glyphs and target sizes differ                                     | Align icon/text baselines and control heights by context; keep 44px touch targets independently of glyph size                          | Tightening means less visual clutter, not smaller tap areas.                               |
+| Pending, disabled and successful actions look similar                     | Show a scoped pending indicator and a confirmed result in reserved space; disable only conflicting actions and keep recovery available | A press is not a save, a job acceptance is not completion, and grey is not an explanation. |
+
+Check hover-to-popover travel, delayed opening/cancellation, click-to-pin,
+outside-click/Escape dismissal and focus return. Verify that hover/focus never
+executes the action, opens a modal unexpectedly or changes selection. Exercise
+touch, keyboard, mixed input, long labels, forced colours and zoom; do not turn
+this source review into a blanket accessibility acceptance claim.
+
+In the focused desktop fixture, notebook-heading hover changes only background;
+keyboard focus adds a 2px outline without changing its box. Row actions change
+opacity from 0 to 1 on hover/focus while retaining their slot; selected notes have
+a persistent tinted background. Preserve these working distinctions. A temporary
+diagnostic class substitution makes Delete red, confirming the semantic class
+mismatch above; it was restored and no source fix or deletion was made.
+
+### Loading and skeleton polish
+
+The latest owner screenshots show two distinct layers: Safari’s own refresh/
+loading chrome above the page, and Grove’s shell/list placeholders. Do not infer
+the spinner’s cause, loading duration or layout shift from still images. Real
+iOS browser chrome, pull-to-refresh, visual viewport and keyboard behavior need
+device testing; the Chromium fixture cannot certify them.
+
+Source already separates the session-opening shell (`workspace-opening.tsx:143`)
+from a data-pending list (`memory-library.tsx:669`) and retained-row refresh.
+Keep those jobs distinct. The list skeleton renders five rows, with excerpts only
+in search; normal loaded notes may have excerpts, multiline titles and tags.
+Match the shared header, search, selection and row rhythm so the handoff does not
+feel like rebuilding the page. Keep placeholder rows decorative/inert and use one
+concise status per loading region—not fake checkboxes or working-looking actions.
+
+A controlled check at 1440×900 fine pointer and 390×844 coarse input confirms
+several useful behaviors: Settings→Notes warm returns add no note reads or
+skeletons; a held refresh retains the same mounted first row, keyboard focus and
+sampled geometry without a skeleton. The refresh indicator starts hidden and is
+visible after 450ms, consistent with the existing 350ms CSS delay. Preserve this
+quiet retained-content path rather than replacing it with a page loader.
+
+The separately forced session shell and data-pending list differ: the phone list
+starts at y=323 versus y=335; desktop y=160 versus y=164. Sampled ordinary skeleton
+rows are 112px versus about 131px loaded on phone, and 85px versus about 94.5px on
+desktop. The loaded sample has excerpts and tags. Align shared shell/search/list
+geometry and provide realistic row structure, not a claim that every note has a
+fixed height. Six seeded notes initially expose four via progressive loading;
+these measurements do not cover all rows or long-title acceptance. The session
+shell was forced independently, not observed during real authentication; these
+are fixture comparisons, not production CLS or authentication timing results.
+
+An induced refresh failure keeps the row and its geometry, but the screenshot
+shows only Retry beside the count: “Couldn’t refresh. Showing saved notes.” is
+screen-reader-only. Keep the working recovery and add a concise visible freshness
+explanation within reserved status space. Do not mistake `innerText` containing
+that clipped message for proof that sighted users see it. Both contexts had no
+page errors or horizontal overflow; the deliberate 1,200ms transport hold is not
+a production latency benchmark.
+
+Time the complete journey separately: session ready, safe navigation ready,
+first useful rows, background enrichment and any external approval. Test cached,
+fast, moderately slow and stalled reads; do not benchmark production with a
+synthetic transport delay. A warm return should reuse authorized content instead
+of flashing a full skeleton. A refresh should retain mounted rows, focus, scroll
+and edits; show unobtrusive feedback only for sustained work. Never add a minimum
+spinner duration just to make animation visible or smooth over a failed request.
+
+Keep skeletons static or very restrained, without shimmer/idle pulsing, and
+respect reduced motion. Preserve readable, non-motion loading status. When data
+cannot load, end the placeholder state with scoped recovery; when refresh fails,
+keep authorized content but visibly indicate freshness. “Organizing…” on a note
+is background processing, not a reason to block reading or restore the whole
+page skeleton. Verify unchanged and long-content results, empty/error states,
+pagination, retries, cancellation and account/access changes before acceptance.
+
 ## Sorting: notes and notebooks
 
 Provide a consistent **Sort by** control for both notes and notebooks:

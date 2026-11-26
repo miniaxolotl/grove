@@ -7,8 +7,9 @@ These are **before** captures, not redesign previews.
 
 Development `622ca2b0b5b98801c21166be9d00965f72bfe42d`, product 1.11.37.
 Actual components in the existing isolated dashboard fixture, built production
-CSS, system UI text and synthetic notes/account/API responses. All viewports are
-900px tall. No real account content, provider calls or production authentication.
+CSS, system UI text and synthetic notes/account/API responses. The ten initial
+workspace viewports below are 900px tall; follow-ups state their own sizes.
+No real account content, provider calls or production authentication.
 
 | Notes, desktop                     | Notes, tablet                    | Notes, phone                     | Notes, narrow phone              |
 | ---------------------------------- | -------------------------------- | -------------------------------- | -------------------------------- |
@@ -194,6 +195,54 @@ glyphs. Writing rows expand with wrapped copy; menu glyphs remain 16px. Earlier
 390px captures with a mouse are not evidence that touch expansion failed. The
 review’s sizing table records density and panel proportions as well as hit areas;
 it does not recommend shrinking all controls or scaling every icon up.
+
+### Sidebar/account and notebook menu follow-up
+
+Owner-supplied crops prompted this check; their capture zoom/scale is unknown.
+New evidence uses actual components and the same production CSS/product snapshot,
+ten synthetic notebooks and synthetic Pro usage. Allowance constants come from
+source; used counts are illustrative, not the owner’s account. The Clerk avatar
+is the existing test stub, so actual account-menu behavior is not assessed.
+
+| Sidebar controls                                                        | Expanded plan details                                             | Notebook actions                                                  | Short touch menu                                                                  |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| ![Synthetic sidebar controls at 1440 by 900](sidebar-controls-1440.png) | ![Expanded Pro usage panel at 1440 by 900](plan-details-1440.png) | ![Notebook action menu at 1440 by 900](notebook-actions-1440.png) | ![Notebook action menu at 320 by 480 with coarse input](notebook-actions-320.png) |
+
+| Failed usage read                                                                                  |
+| -------------------------------------------------------------------------------------------------- |
+| ![Synthetic usage failure retaining the Pro badge and Try again at 390 by 600](plan-error-390.png) |
+
+Five contexts: fine pointer 1440×900, 1440×600, 1024×600; coarse input 390×600,
+320×480. All had no page errors or horizontal overflow. Menu rows measure 36/44px
+with aligned icons; End reaches Delete and Escape returns to the trigger. Move
+and Rearrange open different dialogs; cancelling each returns focus in the desktop
+sample. Expanded plan details scroll within the 320×480 viewport. No grant,
+purchase, notebook move/reorder, archive or deletion was submitted. No axe,
+physical-device, real Clerk-menu or production acceptance is claimed.
+
+### Loading and skeleton follow-up
+
+Same source/build; controlled fine-pointer 1440×900 and coarse-input 390×844
+contexts with six synthetic notes, initially exposing four via progressive
+loading. The session shell is separately forced with `fixtureOpening=1`; it does
+not measure Clerk readiness or prove a real authentication transition. The list
+read is deliberately held for 1,200ms, not a production latency benchmark.
+
+| Forced session shell                                            | Data-pending list                                               | Initial loaded rows                                                                    | Failed refresh                                                                                               |
+| --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| ![Forced session shell at 390 by 844](session-skeleton-390.png) | ![Data-pending note list at 390 by 844](notes-skeleton-390.png) | ![First four progressively loaded synthetic notes at 390 by 844](notes-loaded-390.png) | ![Rows retained with Retry but no visible freshness explanation at 390 by 844](notes-refresh-failed-390.png) |
+
+Phone list tops differ between forced shell and pending list (323/335px);
+sampled pending/loaded row heights are 112/about 131px. Desktop equivalents are
+160/164px and 85/about 94.5px. These comparisons are not production CLS or a
+complete long-title/all-row check. Warm Settings→Notes returns add no note reads
+or skeletons in either context. Held refreshes keep the same mounted first row,
+focus and sampled geometry without a skeleton; the indicator starts hidden and
+is visible after 450ms, consistent with the existing 350ms CSS delay. On failure,
+the screenshot visibly shows Retry; the detailed freshness explanation remains
+screen-reader-only. No page errors, horizontal overflow or blocked effect
+attempts were recorded. No axe, real Safari chrome/pull-to-refresh, physical-device
+or production timing acceptance is claimed.
 
 ## Public entry pages
 
