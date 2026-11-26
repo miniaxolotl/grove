@@ -108,6 +108,8 @@ import { semanticMatches } from "./search.ts";
 import {
   lexicalMatches,
   lexicalQuery,
+  noteTitleSql,
+  orderedPage,
   relevancePage,
   searchVersion,
   type SearchRow,
@@ -1532,6 +1534,7 @@ export class MemoryService {
     ceiling: string;
     updatedAt?: string;
     state?: string;
+    order?: { fingerprint: string; key: string };
     search?: {
       fingerprint: string;
       position: SearchPosition;
@@ -1557,6 +1560,12 @@ export class MemoryService {
         !Number.isFinite(Date.parse(decoded.ceiling)) ||
         (decoded.updatedAt !== undefined &&
           !Number.isFinite(Date.parse(decoded.updatedAt)))
+      )
+        throw new Error();
+      if (
+        decoded.order &&
+        (typeof decoded.order.fingerprint !== "string" ||
+          typeof decoded.order.key !== "string")
       )
         throw new Error();
       if (
@@ -1756,11 +1765,16 @@ export class MemoryService {
         const { cursor, limit, ...filters } = input;
         const relevance =
           !!input.query && (!input.sort || input.sort === "relevance");
+        const explicitSort = !!input.sort && input.sort !== "relevance";
+        const direction = input.sort?.endsWith("_asc") ? "asc" : "desc";
         const binding = digest(
           stable({
             account: principal.accountId,
             connection: principal.connectionId,
             filters,
+            ...(explicitSort
+              ? { orderingVersion: "full-set-c-ascii-fold-v1" }
+              : {}),
             ...(relevance
               ? {
                   searchVersion,
@@ -1790,45 +1804,27 @@ export class MemoryService {
             409,
           );
         const q = this.query(trx, grant).where("createdAt", "<=", page.ceiling);
-        let datePosition:
-          | {
-              column: string;
-              direction: "asc" | "desc";
-              time: string;
-              id: string;
-            }
-          | undefined;
-        if (input.sort && !relevance) {
-          const direction = input.sort === "updated_asc" ? "asc" : "desc";
-          const column =
-            input.sort === "created_desc" ? "created_at" : "updated_at";
+        if (explicitSort) {
+          const column = input.sort!.startsWith("created_")
+            ? "created_at"
+            : "updated_at";
           q.select(
             "memories.*",
-            trx.raw(
-              `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sortTime"`,
-            ),
+            input.sort!.startsWith("title_")
+              ? trx.raw(
+                  `translate(?, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') COLLATE "C" AS sort_key`,
+                  [noteTitleSql(trx, this.providers, account)],
+                )
+              : trx.raw(
+                  `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS sort_key`,
+                ),
           );
-          q.orderBy(column, direction).orderBy("id", direction);
-          if (page.after) {
-            if (!page.updatedAt)
-              throw new GroveError(
-                "invalid_cursor",
-                "Cursor is missing its sort position",
-                400,
-              );
-            if (input.query)
-              datePosition = {
-                column,
-                direction,
-                time: page.updatedAt,
-                id: page.after,
-              };
-            else
-              q.whereRaw(
-                `(${column}, id) ${direction === "desc" ? "<" : ">"} (?::timestamptz, ?::uuid)`,
-                [page.updatedAt, page.after],
-              );
-          }
+          if (page.after && !page.order)
+            throw new GroveError(
+              "invalid_cursor",
+              "Cursor is missing its sort position",
+              400,
+            );
         } else if (!relevance) {
           q.orderBy("id");
           if (page.after) q.where("id", ">", page.after);
@@ -1868,6 +1864,24 @@ export class MemoryService {
           q.where({ status: "active" }).where("expiresAt", "<=", trx.fn.now());
         let rows: MemoryModel[];
         let fingerprint: string | undefined;
+        let orderFingerprint: string | undefined;
+        const readOrdered = async (query: Knex.QueryBuilder) => {
+          const result = await orderedPage(
+            trx,
+            query,
+            limit,
+            direction,
+            page.order ? { key: page.order.key, id: page.after } : undefined,
+          );
+          if (cursor && page.order?.fingerprint !== result.fingerprint)
+            throw new GroveError(
+              "stale_search",
+              "The note order changed. Refresh these results.",
+              409,
+            );
+          orderFingerprint = result.fingerprint;
+          return result.rows;
+        };
         if (input.query) {
           await trx.raw(
             "SELECT set_config('pg_trgm.word_similarity_threshold',?,true)",
@@ -1901,24 +1915,14 @@ export class MemoryService {
             rows = pageResult.rows;
             fingerprint = pageResult.fingerprint;
           } else {
-            if (datePosition)
-              ranked.whereRaw(
-                `(??,id) ${datePosition.direction === "desc" ? "<" : ">"} (?::timestamptz,?::uuid)`,
-                [datePosition.column, datePosition.time, datePosition.id],
-              );
-            if (input.sort)
-              ranked.orderBy(
-                input.sort === "created_desc" ? "created_at" : "updated_at",
-                input.sort === "updated_asc" ? "asc" : "desc",
-              );
-            rows = await ranked
-              .orderBy(
-                "id",
-                input.sort && input.sort !== "updated_asc" ? "desc" : "asc",
-              )
-              .limit(limit + 1);
+            rows = explicitSort
+              ? await readOrdered(ranked)
+              : await ranked.orderBy("id").limit(limit + 1);
           }
-        } else rows = await q.limit(limit + 1);
+        } else
+          rows = explicitSort
+            ? await readOrdered(q.toKnexQuery())
+            : await q.limit(limit + 1);
         const items = await this.presentMany(
           trx,
           rows.slice(0, limit),
@@ -1965,13 +1969,16 @@ export class MemoryService {
                         },
                       }
                     : {}),
-                  ...(input.sort && !relevance
+                  ...(explicitSort
                     ? {
-                        updatedAt: (
-                          rows[items.length - 1] as MemoryModel & {
-                            sortTime: string;
-                          }
-                        ).sortTime,
+                        order: {
+                          fingerprint: orderFingerprint,
+                          key: (
+                            rows[items.length - 1] as MemoryModel & {
+                              sortKey: string;
+                            }
+                          ).sortKey,
+                        },
                       }
                     : {}),
                 })
