@@ -12,46 +12,57 @@ function letter(event: EmailEvent) {
   switch (event.kind) {
     case "welcome":
       return {
-        section: "Your workspace",
         subject: "Welcome to Grove",
-        preview: "Your workspace is ready for its first note.",
-        body: "Start with a thought you want to keep. Open Grove to write a note, or make a notebook for a project.",
+        heading: "Welcome to Grove",
+        preview: "Open Grove to write your first note.",
+        body: ["Write your first note, or create a notebook for a project."],
         action: "Open Grove",
         path: "/app",
       };
     case "connection_approved":
       return {
-        section: "Account security",
         subject: "A connection was approved in Grove",
+        heading: "Connection approved",
         preview: "You can review its permissions in Settings.",
-        body: "A connection was granted access to your Grove. If you don’t recognize this change, review your connections and revoke any access you didn’t approve.",
+        body: [
+          "A connection was granted access to your Grove.",
+          "If you didn’t approve this, review your connections and revoke any access you don’t recognize.",
+        ],
         action: "Review connections",
         path: "/app/settings/connections",
       };
     case "connection_revoked":
       return {
-        section: "Account security",
         subject: "A connection was revoked in Grove",
+        heading: "Connection revoked",
         preview: "The connection can no longer access your Grove.",
-        body: "Access has been revoked for a connection to your Grove. Your notes are still in your account. You can see which connections still have access in Settings.",
+        body: [
+          "A connection’s access to your Grove was revoked. Revoking a connection does not delete your notes.",
+          "Review your connections to see which still have access.",
+        ],
         action: "Review connections",
         path: "/app/settings/connections",
       };
     case "deletion_requested":
       return {
-        section: "Your account",
         subject: "We received your Grove account deletion request",
-        preview: "Access is turned off while cleanup continues.",
-        body: "Access to your Grove account has been turned off. If you requested this, there is nothing else you need to do. If you didn’t request this change, contact support.",
+        heading: "Account deletion requested",
+        preview: "Access to your Grove account is off.",
+        body: [
+          "Access to your Grove account is off. This email confirms your request; it does not confirm that cleanup is complete.",
+          "If you didn’t request this, contact support.",
+        ],
         action: "Contact support",
         path: "/support",
       };
     case "export_ready":
       return {
-        section: "Your data",
         subject: "Your Grove export is ready",
+        heading: "Your export is ready",
         preview: "Sign in to view and download your export.",
-        body: "Your file is ready. Sign in to the Grove account that requested the export to download it.",
+        body: [
+          "Sign in to the Grove account that requested the export to download it.",
+        ],
         detail: `Download before ${new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }).format(new Date(event.expiresAt))} UTC.`,
         action: "View export",
         path: `/app/settings/data?export=${encodeURIComponent(event.taskId)}`,
@@ -65,6 +76,18 @@ const escape = (s: string) =>
     .replaceAll('"', "&quot;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+
+// Email-safe counterparts of globals.css's interface stack, brand ink, and
+// dashboard.css's paper/muted/line/sage tokens. Keep styles inline: mail clients
+// cannot load the app stylesheet, and no remote assets are needed to read mail.
+const style = {
+  font: "system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,Helvetica,sans-serif",
+  paper: "#fbfcfb",
+  ink: "#284c38",
+  muted: "#535f57",
+  line: "#dce2dc",
+  sage: "#edf0ec",
+};
 
 export function renderEmail(
   event: EmailEvent,
@@ -91,16 +114,43 @@ export function renderEmail(
     subject: `${preview ? "[Preview] " : ""}${m.subject}`,
     text: [
       preview ? sample : "",
-      m.subject,
-      m.body,
+      m.heading,
+      ...m.body,
       m.detail,
       `${m.action}: ${link}`,
       footer,
     ]
       .filter(Boolean)
       .join("\n\n"),
-    html: `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(m.subject)}</title></head><body style="margin:0;background:#f7f6f0;color:#253e31;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${preview ? sample : escape(m.preview)}</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 12px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;background:#fffffc;border:1px solid #dce0d3;border-top:4px solid #326349"><tr><td style="padding:28px 24px 12px"><b style="font: bold 28px Georgia,serif;color:#253e31">Grove</b></td></tr><tr><td style="padding:16px 24px 28px">
-${preview ? `<p style="font-size:14px;color:#505d54">${sample}</p>` : ""}<p style="margin:0 0 10px;font-size:14px;color:#526458">${m.section}</p><h1 style="margin:0 0 16px;font:normal 29px/1.2 Georgia,serif;color:#253e31">${escape(m.subject)}</h1><p style="margin:0 0 20px;font-size:16px;line-height:1.65">${escape(m.body)}</p>${m.detail ? `<p style="padding:12px;background:#e8eee6;font-size:15px">${escape(m.detail)}</p>` : ""}<a href="${escape(link)}" style="display:inline-block;background:#253e31;color:white;border:12px solid #253e31;border-left-width:18px;border-right-width:18px;border-radius:6px;line-height:22px;text-decoration:none;font-weight:bold">${m.action}</a><p style="font-size:14px;line-height:1.6;color:#526458">Or open this address:<br><a href="${escape(link)}" style="color:#326349;word-break:break-all">${escape(link)}</a></p></td></tr><tr><td style="border-top:1px solid #dce0d3;padding:18px 24px;color:#526458;font-size:13px">${footer}</td></tr></table></td></tr></table></body></html>`,
+    html: `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>${escape(m.subject)}</title>
+<style>a:focus-visible{outline:2px solid ${style.ink};outline-offset:4px}</style>
+</head>
+<body style="margin:0;padding:0;background:${style.paper};color:${style.ink};font-family:${style.font}">
+<div aria-hidden="true" style="display:none;max-height:0;overflow:hidden;mso-hide:all">${preview ? sample : escape(m.preview)}</div>
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background:${style.paper};border-collapse:collapse">
+<tr><td align="center" style="padding:32px 20px">
+<!--[if mso]><table role="presentation" width="560" border="0" cellspacing="0" cellpadding="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="width:100%;max-width:560px;table-layout:fixed;border-collapse:collapse">
+<tr><td style="padding:0 0 28px;font-family:${style.font};color:${style.ink};font-size:20px;font-weight:600;line-height:24px">Grove</td></tr>
+<tr><td style="padding:0 0 28px;font-family:${style.font};color:${style.ink}">
+${preview ? `<p style="margin:0 0 24px;padding:12px;background:${style.sage};border-radius:5px;color:${style.muted};font-size:13px;line-height:20px">${sample}</p>` : ""}
+<h1 style="margin:0 0 16px;font-size:24px;font-weight:600;line-height:30px;letter-spacing:-0.5px;color:${style.ink}">${escape(m.heading)}</h1>
+${m.body.map((paragraph) => `<p style="margin:0 0 16px;font-size:16px;line-height:24px">${escape(paragraph)}</p>`).join("\n")}
+${m.detail ? `<p style="margin:0 0 24px;color:${style.muted};font-size:14px;line-height:22px">${escape(m.detail)}</p>` : ""}
+<p style="margin:8px 0 0"><a class="email-action" href="${escape(link)}" style="display:inline-block;background:${style.ink};color:#ffffff;border:12px solid ${style.ink};border-left-width:18px;border-right-width:18px;border-radius:5px;font-size:14px;font-weight:600;line-height:20px;text-decoration:none">${m.action}</a></p>
+<p style="margin:24px 0 0;color:${style.muted};font-size:13px;line-height:20px">If the button doesn’t work, open this address:<br><a href="${escape(link)}" style="color:${style.ink};text-decoration:underline;overflow-wrap:anywhere;word-break:break-all">${escape(link)}</a></p>
+</td></tr>
+<tr><td style="border-top:1px solid ${style.line};padding:20px 0 0;font-family:${style.font};color:${style.muted};font-size:13px;line-height:20px">${footer}</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table>
+</body></html>`,
   };
 }
