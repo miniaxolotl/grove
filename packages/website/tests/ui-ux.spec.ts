@@ -9,6 +9,50 @@ import {
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 
+for (const width of [390, 320]) {
+  test(`mobile navigation keeps one compact header and restores focus at ${width}px`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 480 });
+    await fixture(page);
+    await page.goto(`${base}/app`);
+    const sidebar = page.getByRole("complementary", {
+      name: "Workspace sidebar",
+    });
+    expect((await sidebar.boundingBox())!.height).toBeLessThanOrEqual(80);
+    const firstRow = page.locator(".memory-row").first();
+    const before = (await firstRow.boundingBox())!;
+    expect(before.y).toBeLessThan(288);
+    await page.screenshot({
+      path: info.outputPath(`mobile-header-${width}.png`),
+    });
+    const trigger = page.getByRole("button", { name: /^Grove navigation:/ });
+    await trigger.click();
+    const navigation = page.getByRole("dialog", {
+      name: "Grove navigation",
+      exact: true,
+    });
+    await expect(navigation).toBeVisible();
+    const destinations = navigation.locator(".app-nav");
+    await expect(destinations.last()).toHaveText("Settings");
+    await expect(destinations.last()).toBeInViewport({ ratio: 1 });
+    await expect(
+      navigation.getByRole("link", { name: project.name, exact: true }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: info.outputPath(`mobile-navigation-${width}.png`),
+    });
+    await page.keyboard.press("Escape");
+    await expect(navigation).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect((await firstRow.boundingBox())!.y).toEqual(before.y);
+    await page.keyboard.press("Control+k");
+    await expect(
+      page.getByRole("dialog", { name: "Search your Grove" }),
+    ).toBeVisible();
+  });
+}
+
 test("billing keeps mounted usage on a failed refresh and clears it on access loss", async ({
   page,
 }) => {

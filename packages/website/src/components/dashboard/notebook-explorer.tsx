@@ -30,15 +30,19 @@ const subscribeDesktop = (callback: () => void) => {
   return () => media.removeEventListener("change", callback);
 };
 
-export function NotebookExplorer() {
+export function useWideWorkspace() {
+  return useSyncExternalStore(subscribeDesktop, desktop, () => false);
+}
+
+export function NotebookExplorer({ expanded = false }: { expanded?: boolean }) {
   const { projects, loading, error, reload, openOrganizer } = useNotebooks();
   const path = usePathname();
   const currentNotebook = useCurrentNotebook();
   const [action, setAction] = useState<NotebookAction | null>(null);
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [sharing, setSharing] = useState<string | null>(null);
-  const open = openPath === path;
-  const wide = useSyncExternalStore(subscribeDesktop, desktop, () => false);
+  const open = expanded || openPath === path;
+  const wide = useWideWorkspace();
   const id = useId();
   const bodyId = useId();
   const [sectionCollapsed, setSectionCollapsed] = useState(() => {

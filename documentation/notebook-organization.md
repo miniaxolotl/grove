@@ -21,8 +21,8 @@ open. See the [Ask Grove example](design/screenshots/dropdown-contrast/ask-noteb
 
 ## Organize in the website
 
-- Open **Organize** in the sidebar’s Notebooks heading. On a phone, first expand
-  **Notebooks** to see the full-width tree. The heading links to the notebook manager;
+- Open **Organize** in the sidebar’s Notebooks heading. On a phone, first open
+  **Grove navigation** from the compact scope button. The heading links to the notebook manager;
   the plus button creates a notebook. Organize selects the current
   notebook when there is one; otherwise choose from the tree. The manager’s
   **Organize** button and a row’s **Rearrange notebook** action also open it.

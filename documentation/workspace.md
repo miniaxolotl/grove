@@ -2,8 +2,11 @@
 
 Start in **Notes** to write and browse, or **Ask Grove** to work with your notes.
 The sidebar puts **Notes** and **Ask Grove** first, then **Notebooks** (Unfiled
-and your notebook tree), with **Settings** last. On phones, open **Notebooks**
-beneath Notes and Ask Grove. The Grove logo returns to Notes. Connected agents
+and your notebook tree), with **Settings** last. Phones and narrow windows use one
+compact scope button, **New note** and finder header. Open **Grove navigation**
+from that scope button for Notes, Ask Grove, notebooks, commands and Settings;
+Escape returns focus without moving the underlying list. Desktop keeps its rail
+and Grove logo link to Notes. Connected agents
 share these notes and their approved permissions; technical references stay in
 **Note properties → Agent details**.
 

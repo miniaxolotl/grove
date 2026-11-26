@@ -205,6 +205,14 @@ test("mobile setup links lead to the browser extension and AI tools", async ({
     page.getByRole("heading", { name: "Browser extension", exact: true }),
   ).toBeInViewport();
   await expect(
+    page
+      .getByRole("list", { name: "Browser extension stores" })
+      .getByRole("link"),
+  ).toHaveCount(3);
+  await page
+    .getByText("Advanced: install a local package", { exact: true })
+    .click();
+  await expect(
     page.getByRole("link", { name: "Extension setup guide" }),
   ).toHaveAttribute("href", /documentation\/browser-extension\.md$/);
   await options.getByRole("link", { name: "AI tool setup" }).click();

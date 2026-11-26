@@ -1,4 +1,5 @@
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
+import { openWorkspaceNavigation } from "./fixtures/workspace-navigation";
 import { test, expect, type Page } from "@playwright/test";
 import type { Memory } from "@lib/shared/contracts";
 import { applySourceEdits } from "@lib/shared/document-edits";
@@ -432,10 +433,13 @@ for (const { width, hasTouch } of [
       });
       await page.goto(`${base}/app`);
       const skeleton = page.locator(".library-skeleton");
-      const nav = page.getByRole("navigation", {
-        name: "Workspace",
-        exact: true,
-      });
+      const nav =
+        width < 1024
+          ? page.locator(".app-sidebar-heading")
+          : page.getByRole("navigation", {
+              name: "Workspace",
+              exact: true,
+            });
       await expect(skeleton).toBeVisible();
       expect(
         await page.evaluate(() => matchMedia("(pointer: coarse)").matches),
@@ -742,7 +746,7 @@ test("notebook and note reads start independently and hidden mobile previews sta
   expect(
     state.reads.filter((path) => path === "/memories/search"),
   ).toHaveLength(1);
-  await page.getByRole("button", { name: "Notebooks", exact: true }).click();
+  await openWorkspaceNavigation(page);
   await expect(page.locator(".notebook-pages")).toContainText("Cached thought");
   expect(
     state.reads.filter((path) => path === "/memories/search"),
