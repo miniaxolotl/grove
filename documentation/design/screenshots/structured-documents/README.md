@@ -62,3 +62,34 @@ authored content and date/version labels—no credentials or private user notes.
 It does not establish automatic external-edit freshness, provider health, durable
 draft recovery, WebKit or physical-device acceptance. No runtime behavior was
 changed to produce this image.
+
+## Internal links — 26 November 2026
+
+Synthetic Chromium captures from `feat/ui-ux-implementation` on parent
+`5f8e6ad99b153862a35f4b7706988ae42c7279b0` plus the internal-link implementation,
+optimized website build `rtSbT9mBE8I9AuQEuGm2w`. This is local source evidence,
+not a deployed release or a replacement for the historical history captures above.
+Viewports: 1440×900, 390×900 and short 320×480.
+
+The real Markdown renderer/editor shows separately navigable links and on-demand
+native previews, literal custom captions and exact revision/hash destinations.
+The Link inspector retains the captured selection, allows a title-following choice
+and keeps its actions within the available viewport. All six images were visually
+reviewed: preview text remains readable, the inspector fits its content rather than
+an empty fixed-height panel, and the checkbox stays beside its label.
+
+| Preview, desktop                                        | Preview, phone                                       | Preview, short phone                                       |
+| ------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| ![Desktop internal-link preview](link-preview-1440.png) | ![Phone internal-link preview](link-preview-390.png) | ![Short-phone internal-link preview](link-preview-320.png) |
+
+| Insert link, desktop                            | Insert link, phone                           | Insert link, short phone                           |
+| ----------------------------------------------- | -------------------------------------------- | -------------------------------------------------- |
+| ![Desktop link insertion](link-editor-1440.png) | ![Phone link insertion](link-editor-390.png) | ![Short-phone link insertion](link-editor-320.png) |
+
+Focused checks cover keyboard/Escape/focus, scoped axe, viewport geometry,
+on-demand request bounds, held-read cancellation, private-cache invalidation,
+transient failure/Retry, source/version fences and isolated Undo/Redo. Public
+readers retain source captions without private preview requests. Transport is
+fixture-backed; separate real PostgreSQL/API tests cover authorization, lifecycle,
+expiry and exact revision reads. These images do not establish authenticated
+Next-router, physical-device, screen-reader or live-provider acceptance.

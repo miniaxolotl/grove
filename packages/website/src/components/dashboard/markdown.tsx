@@ -17,6 +17,8 @@ import { Square, SquareCheck } from "lucide-react";
 import { mediaReferenceId } from "@lib/shared/media";
 import { RecordingPlayer } from "./recording-player";
 import { mediaSource } from "@/lib/media-path";
+import { followsGroveTitle } from "@lib/shared/internal-links";
+import { InternalLink } from "./internal-link";
 
 type SharedLinks = { root: string; origin: string; linkedNoteIds: string[] };
 type MarkdownOptions = {
@@ -166,8 +168,9 @@ const components: Components = {
   ),
   li: TaskItem,
   input: TaskCheckbox,
-  a: function Link({ href, children, node }) {
-    const { shared, media, onUseTranscript } = useContext(MarkdownContext);
+  a: function Link({ href, children, node, title }) {
+    const { shared, media, onUseTranscript, source } =
+      useContext(MarkdownContext);
     const recording = mediaReferenceId(href ?? "");
     if (recording) {
       if (!media) return <span>{children}</span>;
@@ -201,6 +204,28 @@ const components: Components = {
       );
     }
     const target = sharedLink(href, shared);
+    if (target && !shared) {
+      const start = node?.position?.start.offset,
+        end = node?.position?.end.offset;
+      const syntax =
+        typeof start === "number" && typeof end === "number"
+          ? source.slice(start, end)
+          : "";
+      const autolink = syntax === target || syntax === `<${target}>`;
+      return (
+        <InternalLink
+          href={target}
+          followTitle={followsGroveTitle(
+            node ? textContent(node) : "",
+            target,
+            title,
+            autolink,
+          )}
+        >
+          {children}
+        </InternalLink>
+      );
+    }
     return target ? (
       <a
         href={target}

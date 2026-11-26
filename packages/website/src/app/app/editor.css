@@ -1107,3 +1107,30 @@ button.grove-writing-status:hover {
     border: 1px solid CanvasText;
   }
 }
+.link-editor-form {
+  display: grid;
+  gap: 10px;
+}
+.inspector-dialog:has(.link-editor-form) {
+  height: auto;
+  max-height: calc(var(--overlay-viewport-height, 100dvh) - 24px);
+}
+.link-editor-form > label:not(:first-child) {
+  margin-top: 6px;
+}
+.link-editor-form > .link-editor-title-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.link-editor-title-choice input {
+  width: auto;
+}
+.link-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}

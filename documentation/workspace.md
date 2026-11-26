@@ -146,6 +146,13 @@ explain current evidence, partial coverage and retained Dismiss/Undo decisions.
 
 ### Private section links
 
+Supported note/notebook links have a separate **Preview linked note/notebook**
+button inside the signed-in reader. Open still navigates normally; Preview reads
+only a bounded title/type/excerpt on demand. Literal captions remain yours.
+Title-following links may display an authorized resolved title without changing
+their saved Markdown. Unavailable previews reveal no private metadata; they do
+not create access or public sharing. See [internal links](structured-documents.md#internal-links-and-private-previews).
+
 Copy a heading link from **Note outline** after saving. It grants no access or public
 sharing. Links reopen that section in reading/writing, including reload/Back/Forward.
 Heading names generate anchors; renaming/reordering duplicate headings may change

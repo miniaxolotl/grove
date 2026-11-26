@@ -106,6 +106,14 @@ Use `useWorkspaceCache()` and the query factories in
 - `note(id)` shares complete list and mutation snapshots with the reader/editor.
   Higher content versions win. Equal-version enrichment can refresh, but a read
   begun before a newer snapshot cannot overwrite it.
+- `linkPreview(target)` is an explicit on-demand reader, deduplicated by kind,
+  ID and exact revision. Closing its last reader cancels the transport. Resolved
+  current metadata can label mounted internal links without initiating reads;
+  inactive metadata expires after one minute, historical metadata on close.
+  Relevant edits/lifecycle changes clear metadata before revalidation, and
+  expiry, denial, deletion and session teardown fence held replies. A preview
+  denial does not erase an otherwise readable archived note. Public/shared
+  Markdown mounts no private query reader and never borrows this cache.
 - `resource<T>(path, body)` handles projects, preferences, models, usage, connection
   metadata, briefs, revision history and conversations/search. POST search is a read.
   Conversation history uses `/conversations/search` with a separate infinite-query

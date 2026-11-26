@@ -36,6 +36,45 @@ history is never rewritten. Existing version-fenced assistance Undo refuses stal
 state instead of overwriting later edits. Drafts remain memory-only unless the
 owner explicitly enables [encrypted device recovery](development/client-cache.md#device-draft-recovery).
 
+## Internal links and private previews
+
+**Link** in the writing toolbar, or Ctrl/Cmd+K while editing, opens a focused
+Insert link dialog using the captured text selection. For an existing Grove link,
+place the cursor inside it to edit its destination, caption or **Follow the linked
+title** choice. Apply is one isolated local Undo step; Cancel/Escape changes no
+source. Validation errors retain the inputs. A changed editor/source/version or
+read-only state requires reopening the dialog rather than applying stale offsets.
+
+Ordinary note/notebook ID links keep their original destination, revision query
+and section fragment. Explicit Markdown captions stay literal. The optional title
+`"grove:title:v1"` opts a readable fallback caption into displaying a resolved
+private title; actual bare/angle autolinks can do the same. Rendering never edits
+the saved Markdown or historical revision. Plain-Markdown exports and public
+readers retain the authored fallback, not private resolved metadata.
+
+In an authenticated workspace, the separate **Preview linked note/notebook**
+button reads a compact title, type and optional excerpt on demand. The adjacent
+link navigates normally. Merely rendering or focusing a link does not request a
+preview. External links are never fetched, and a recognized cloud URL in another
+self-hosted installation cannot resolve a coincidentally matching local ID.
+
+`GET /v1/link-previews/:kind/:id` is session-only (`note` or `notebook`), with one
+optional positive integer `revision` for notes. It returns only kind, ID, title
+(up to 90 UTF-16 units), excerpt (up to 180 units, null for notebooks), version and
+expiry. Exact revisions use that revision's source, never the current note as a
+substitute. Missing, foreign, inactive, expired and deleted targets disclose no
+preview. These bounded reads create no revisions, jobs or permissions; responses
+are private/no-store. Deploy the API before the corresponding website; an older
+API leaves the ordinary link usable with unavailable-preview feedback.
+
+Verify with `internal-links.test.ts` and `internal-link-previews.test.ts` against
+real non-owner PostgreSQL roles, plus website `internal-links.spec.ts`,
+`link-editor.spec.ts`, `cache.spec.ts` and `sharing.spec.ts`. Cover held/denied/
+expired reads, literal versus title-following captions, private/public separation,
+source changes during editing, Undo and keyboard/focus at desktop/390/short-320.
+The [gallery](design/screenshots/structured-documents/README.md#internal-links--26-november-2026)
+records synthetic captures and qualification limits.
+
 ## API and connected agents
 
 `GET /v1/me` advertises `documentEditing` capabilities. Older servers that lack

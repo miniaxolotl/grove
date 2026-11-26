@@ -30,6 +30,9 @@ async function forward(
     return fail(403, "Request origin is not allowed");
   const path = (await context.params).path.join("/");
   const proofing = proofingRoute(path, request.method);
+  const linkPreview =
+    request.method === "GET" &&
+    /^link-previews\/(?:note|notebook)\/[0-9a-f-]+$/.test(path);
   if (
     proofing &&
     (!session.sessionId ||
@@ -90,6 +93,7 @@ async function forward(
     !billing &&
     !admin &&
     !proofing &&
+    !linkPreview &&
     !speech &&
     !allowed.test(path) &&
     !(
@@ -146,6 +150,12 @@ async function forward(
           );
     if (content === null) return fail(413, "Request body is too large");
     const target = new URL(`/v1/${path}`, origin.origin);
+    if (linkPreview && request.nextUrl.searchParams.has("revision")) {
+      const revisions = request.nextUrl.searchParams.getAll("revision");
+      if (revisions.length !== 1)
+        return fail(400, "Use one revision per preview");
+      target.searchParams.set("revision", revisions[0]);
+    }
     if (path === "projects/catalog")
       for (const key of ["status", "limit", "cursor"])
         if (request.nextUrl.searchParams.has(key))

@@ -65,6 +65,9 @@ import {
   type OrganizeNote,
 } from "@lib/shared/note-organization";
 import { organizeNote, noteOrderState, noteRank } from "./note-organization.ts";
+import type { GroveLinkPreview } from "@lib/shared/internal-links";
+import { linkPreviewRequestSchema } from "@lib/shared/internal-link-contract";
+import { noteTitle, plainExcerpt } from "@lib/shared/search";
 import {
   organizeNotebook,
   notebookFields,
@@ -1273,6 +1276,72 @@ export class MemoryService {
       const row = await this.query(trx, grant).findById(id);
       if (!row) throw missing();
       return this.present(trx, row);
+    });
+  }
+  async linkPreview(
+    principal: Principal,
+    request: unknown,
+  ): Promise<GroveLinkPreview> {
+    if (principal.type !== "session") throw forbidden();
+    const input = linkPreviewRequestSchema.parse(request);
+    const bounded = (text: string, maximum: number) => {
+      if (text.length <= maximum) return text;
+      const prefix = text
+        .slice(0, maximum - 1)
+        .replace(/[\uD800-\uDBFF]$/, "")
+        .trimEnd();
+      return `${prefix}…`;
+    };
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      if (input.kind === "notebook") {
+        const notebook = await trx("projects")
+          .where({ id: input.id, status: "active" })
+          .whereNull("deletedAt")
+          .first("id", "name", "version");
+        if (!notebook) throw missing();
+        return {
+          kind: "notebook",
+          id: notebook.id,
+          title: bounded(notebook.name, 90),
+          excerpt: null,
+          version: notebook.version,
+          expiresAt: null,
+        };
+      }
+      const note = await this.query(trx, grant)
+        .findById(input.id)
+        .where({ status: "active" })
+        .where((q) =>
+          q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+        );
+      if (!note) throw missing();
+      if (input.revision !== undefined) {
+        const saved = await trx("memory_revisions")
+          .where({ memoryId: input.id, version: input.revision })
+          .first("content", "version");
+        if (!saved) throw missing();
+        return {
+          kind: "note",
+          id: note.id,
+          title: bounded(noteTitle(saved.content) || "Untitled note", 90),
+          excerpt: bounded(plainExcerpt(saved.content, 180), 180),
+          version: saved.version,
+          expiresAt: note.expiresAt?.toISOString() ?? null,
+        };
+      }
+      const current = await this.present(trx, note);
+      return {
+        kind: "note",
+        id: current.id,
+        title: bounded(
+          noteTitle(current.content, current.enrichment?.title) ||
+            "Untitled note",
+          90,
+        ),
+        excerpt: bounded(plainExcerpt(current.content, 180), 180),
+        version: current.version,
+        expiresAt: current.expiresAt,
+      };
     });
   }
   async listNoteMedia(

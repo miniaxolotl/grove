@@ -8,6 +8,35 @@ const one = "00000000-0000-4000-a000-000000000011";
 const two = "00000000-0000-4000-a000-000000000012";
 const hidden = "00000000-0000-4000-a000-000000000099";
 
+test("title-following Markdown in a public reader keeps its source fallback and makes no private preview reads", async ({
+  page,
+  request,
+}) => {
+  const shared = newShareToken();
+  const privateReads: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/grove")) privateReads.push(request.url());
+  });
+  await request.post(`${fixture}/_fixture/${shared}`, {
+    data: {
+      content: `# Shared fallback\n\n[Readable source caption](/app/memories/${two} "grove:title:v1")`,
+    },
+  });
+  try {
+    await page.goto(`/s/${shared}`);
+    await expect(
+      page.getByText("Readable source caption", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Preview linked/ }),
+    ).toHaveCount(0);
+    await page.waitForLoadState("networkidle");
+    expect(privateReads).toEqual([]);
+  } finally {
+    await request.post(`${fixture}/_fixture/${shared}`, { data: {} });
+  }
+});
+
 test("configured authentication stays off public readers and marketing pages", async ({
   page,
   context,

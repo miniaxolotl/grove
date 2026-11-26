@@ -63,6 +63,8 @@ export function useWorkspaceCache() {
     throw new Error("Workspace queries need an authenticated cache provider");
   return cache;
 }
+/** Public Markdown must never require or manufacture a private query owner. */
+export const useOptionalWorkspaceCache = () => useContext(Context);
 export const useWorkspaceApi = () => useWorkspaceCache().api;
 
 export function noteListWarmup(

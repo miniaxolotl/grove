@@ -59,6 +59,9 @@ navigation IDs. They omit owner/repository identity, source/task metadata, histo
 enrichment, relationships, conversations and credentials. Markdown excludes HTML
 and active controls; remote images are click-to-open links. Internal note links
 navigate only within this capability's scope.
+Title-following `grove:title:v1` links retain their authored readable captions in
+public Markdown. Public readers do not mount private preview controls, resolve
+owner-only titles or use the authenticated workspace cache.
 
 ## Public reader
 

@@ -1785,6 +1785,46 @@ html:has(.grove-app) {
 .action-menu::backdrop {
   background: transparent;
 }
+.grove-link .app-icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  vertical-align: middle;
+  margin-inline-start: 2px;
+}
+.grove-link-preview {
+  width: 320px;
+  padding: 16px;
+}
+.grove-link-preview-body {
+  display: grid;
+  gap: 10px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.grove-link-preview-body p {
+  margin: 0;
+}
+.grove-link-type {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.grove-link-title {
+  font-weight: 600;
+}
+.grove-link-preview-body > .app-button {
+  justify-self: start;
+  margin-top: 2px;
+}
+@media (pointer: coarse) {
+  .grove-link .app-icon {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
 .settings-navigation {
   display: flex;
   flex-wrap: wrap;

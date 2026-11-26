@@ -77,6 +77,8 @@ import {
   WritingStatusButton,
 } from "./note-writing";
 import { WritingSuggestions } from "./writing-suggestions";
+import { findGroveLinks } from "@lib/shared/internal-link-source";
+import { LinkEditor, type LinkDraft } from "./link-editor";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -115,12 +117,6 @@ const formattingActions = [
     name: "Code",
     icon: Code,
     run: (view: EditorView) => wrapSelection(view, "`"),
-  },
-  {
-    name: "Link",
-    icon: LinkIcon,
-    run: (view: EditorView) =>
-      wrapSelection(view, "[", "](https://example.com)", "link text"),
   },
 ];
 
@@ -171,6 +167,42 @@ export function MarkdownEditor({
   const scrollPositions = useRef(new Map<string, number>());
   const previousScroll = useRef(0);
   const view = useRef<EditorView | null>(null);
+  const [linkDraft, setLinkDraft] = useState<
+    | (LinkDraft & {
+        editor: EditorView;
+        doc: EditorState["doc"];
+        from: number;
+        to: number;
+        noteId?: string;
+        version?: number;
+      })
+    | null
+  >(null);
+  function openLink(editor: EditorView) {
+    if (disabled || preview || editor.state.readOnly) return false;
+    const source = editor.state.doc.toString();
+    const selection = editor.state.selection.main;
+    const existing = findGroveLinks(source, window.location.origin).find(
+      (link) => selection.from >= link.from && selection.to <= link.to,
+    );
+    const label = existing?.label ?? source.slice(selection.from, selection.to);
+    setLinkDraft({
+      editor,
+      doc: editor.state.doc,
+      from: existing?.from ?? selection.from,
+      to: existing?.to ?? selection.to,
+      noteId,
+      version: media?.version,
+      href: existing?.resource.href ?? "",
+      label: label || "Link",
+      followTitle: existing?.followTitle ?? !label.trim(),
+      editing: !!existing,
+    });
+    return true;
+  }
+  const openLinkFromKey = useEffectEvent((editor: EditorView) =>
+    openLink(editor),
+  );
   const fileInput = useRef<HTMLInputElement>(null);
   const [recordingStatus, setRecordingStatus] = useState<HTMLDivElement | null>(
     null,
@@ -402,8 +434,7 @@ export function MarkdownEditor({
             { key: "Mod-i", run: (view) => wrapSelection(view, "_") },
             {
               key: "Mod-k",
-              run: (view) =>
-                wrapSelection(view, "[", "](https://example.com)", "link text"),
+              run: (editor) => openLinkFromKey(editor),
             },
             ...historyKeymap,
             ...defaultKeymap,
@@ -621,6 +652,10 @@ export function MarkdownEditor({
       </button>
     );
   }
+  const actions = [
+    ...formattingActions,
+    { name: "Link", icon: LinkIcon, run: openLink },
+  ];
   return (
     <div
       ref={root}
@@ -673,11 +708,11 @@ export function MarkdownEditor({
           role="group"
           aria-label="Markdown formatting"
         >
-          {formattingActions.map((action) => formatButton(action))}
+          {actions.map((action) => formatButton(action))}
         </div>
         <span className="editor-format-menu">
           <ActionMenu label="Formatting" icon={<Type size={18} />}>
-            {formattingActions.map((action) => formatButton(action, true))}
+            {actions.map((action) => formatButton(action, true))}
           </ActionMenu>
         </span>
         <IconButton
@@ -920,6 +955,52 @@ export function MarkdownEditor({
             </aside>
           )}
         </div>
+        {linkDraft && (
+          <LinkEditor
+            initial={linkDraft}
+            close={() => setLinkDraft(null)}
+            onDismissed={() => {
+              if (
+                view.current === linkDraft.editor &&
+                root.current?.isConnected
+              )
+                linkDraft.editor.focus();
+            }}
+            apply={(markdown) => {
+              const editor = view.current;
+              if (
+                !editor ||
+                editor !== linkDraft.editor ||
+                disabled ||
+                preview ||
+                editor.state.readOnly ||
+                editor.state.doc !== linkDraft.doc ||
+                noteId !== linkDraft.noteId ||
+                media?.version !== linkDraft.version
+              )
+                throw new Error(
+                  "The note changed. Close and reopen Link before applying this edit.",
+                );
+              if (
+                editor.state.doc.length -
+                  (linkDraft.to - linkDraft.from) +
+                  markdown.length >
+                NOTE_CONTENT_MAX
+              )
+                throw new Error("Shorten the note before inserting this link.");
+              editor.dispatch({
+                changes: {
+                  from: linkDraft.from,
+                  to: linkDraft.to,
+                  insert: markdown,
+                },
+                selection: { anchor: linkDraft.from + markdown.length },
+                annotations: isolateHistory.of("full"),
+                userEvent: "input.link",
+              });
+            }}
+          />
+        )}
         {outline && (
           <InspectorDialog
             title="Note outline"

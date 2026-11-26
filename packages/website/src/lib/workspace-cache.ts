@@ -16,6 +16,10 @@ import type {
 } from "@lib/shared/notebook-organization";
 import type { AskResult } from "@lib/shared/models";
 import type {
+  GroveLinkPreview,
+  LinkPreviewRequest,
+} from "@lib/shared/internal-links";
+import type {
   ConnectionPage,
   ConnectionQuery,
 } from "@lib/shared/relationships";
@@ -25,6 +29,12 @@ import { notebookOrder } from "./notebooks";
 
 type Filters = Omit<MemoryList, "cursor">;
 type Change = { ids?: string[]; scopes?: (string | null)[]; resource?: string };
+const previewResource = (path: unknown) =>
+  typeof path === "string"
+    ? /^\/link-previews\/(note|notebook)\/([^/?]+)(?:\?revision=\d+)?$/.exec(
+        path,
+      )
+    : null;
 /** A staged optimistic change. commit() drops the journal; rollback() restores it. */
 export type StagedChange = { commit(): void; rollback(): void };
 type NotePages = InfiniteData<Page<Memory>, string | null>;
@@ -235,6 +245,21 @@ export class WorkspaceCache {
         if (error.status === 401) {
           this.endSession();
         } else if (
+          [403, 404, 410].includes(error.status) &&
+          previewResource(path)
+        ) {
+          const target = previewResource(path)!;
+          const predicate = (query: Query) => {
+            const linked = previewResource(query.queryKey[2]);
+            return (
+              query.queryKey[1] === "resource" &&
+              linked?.[1] === target[1] &&
+              linked[2] === target[2]
+            );
+          };
+          void this.client.cancelQueries({ predicate });
+          this.client.setQueriesData({ predicate }, null);
+        } else if (
           [403, 404].includes(error.status) &&
           path !== "/memories/search" &&
           /^\/memories\/[^/]+$/.test(path)
@@ -347,6 +372,30 @@ export class WorkspaceCache {
               ? 60_000
               : 15_000,
       gcTime: path === "/ask" ? 60_000 : 300_000,
+    });
+  }
+  linkPreview(input: LinkPreviewRequest) {
+    const path = `/link-previews/${input.kind}/${input.id}${input.revision === undefined ? "" : `?revision=${input.revision}`}`;
+    const key = workspaceKeys.resource(path);
+    return queryOptions({
+      queryKey: key,
+      queryFn: async ({ signal }): Promise<GroveLinkPreview | null> => {
+        if (input.kind === "note" && this.deleted.has(input.id)) return null;
+        const value = await this.read<GroveLinkPreview>(
+          path,
+          undefined,
+          signal,
+        );
+        if (value.expiresAt && Date.parse(value.expiresAt) <= Date.now())
+          return null;
+        this.client.setQueryData(key, value);
+        this.scheduleExpiry();
+        return value;
+      },
+      // Only explicit preview readers fetch. Historical metadata is never retained
+      // after its reader closes; current metadata may label other mounted links.
+      staleTime: 0,
+      gcTime: input.revision === undefined ? 60_000 : 0,
     });
   }
   notebookCatalog(status: "active" | "archived" = "active") {
@@ -501,6 +550,16 @@ export class WorkspaceCache {
 
   private affected(query: Query, change: Change) {
     const [, kind, key, body] = query.queryKey;
+    const preview = kind === "resource" && previewResource(key);
+    if (preview) {
+      if (change.resource)
+        return (
+          preview[1] === "notebook" && change.resource.startsWith("/projects")
+        );
+      return preview[1] === "note"
+        ? !change.ids || change.ids.includes(preview[2])
+        : !change.ids;
+    }
     if (change.resource === "/memories/order") {
       if (
         kind === "resource" &&
@@ -581,6 +640,12 @@ export class WorkspaceCache {
     void this.client.cancelQueries({ predicate });
     for (const query of this.client.getQueryCache().getAll()) {
       if (
+        predicate(query) &&
+        query.queryKey[1] === "resource" &&
+        previewResource(query.queryKey[2])
+      )
+        this.client.setQueryData(query.queryKey, null);
+      if (
         !predicate(query) ||
         query.queryKey[1] !== "resource" ||
         typeof query.queryKey[2] !== "string" ||
@@ -624,6 +689,18 @@ export class WorkspaceCache {
       typeof query.queryKey[2] === "string" &&
       (query.queryKey[2] === `/memories/${id}/revisions` ||
         query.queryKey[2].startsWith(`/memories/${id}/revisions/`));
+    const previews = (query: Query) => {
+      const target = previewResource(query.queryKey[2]);
+      return (
+        query.queryKey[1] === "resource" &&
+        target?.[1] === "note" &&
+        target[2] === id
+      );
+    };
+    void this.client.cancelQueries({
+      predicate: (query) => revisions(query) || previews(query),
+    });
+    this.client.setQueriesData({ predicate: previews }, null);
     this.client.setQueriesData({ predicate: revisions }, null);
     this.client.removeQueries({ predicate: revisions });
   }
@@ -1045,6 +1122,12 @@ export class WorkspaceCache {
       .getAll()
       .flatMap((query) => {
         const kind = query.queryKey[1];
+        if (kind === "resource" && previewResource(query.queryKey[2])) {
+          const value = query.state.data as GroveLinkPreview | null;
+          return value?.expiresAt && Date.parse(value.expiresAt) > now
+            ? [Date.parse(value.expiresAt)]
+            : [];
+        }
         if (kind === "resource" && query.queryKey[2] === "/ask") {
           const data = query.state.data as AskResult | undefined;
           return (

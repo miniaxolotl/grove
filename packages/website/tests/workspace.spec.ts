@@ -3692,7 +3692,15 @@ test("commands and shortcut help work from notes, preserve focus, and create in 
   await page.keyboard.press("Escape");
   await expect(editor).toBeFocused();
   await editor.press("Control+k");
-  await expect(editor).toContainText("https://example.com");
+  const linkEditor = page.getByRole("dialog", {
+    name: "Insert link",
+    exact: true,
+  });
+  await expect(
+    linkEditor.getByRole("textbox", { name: "Destination", exact: true }),
+  ).toBeFocused();
+  await linkEditor.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(editor).toBeFocused();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .locator(".app-sidebar")
