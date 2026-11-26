@@ -168,7 +168,7 @@ an account command.
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | ![Existing aligned icon-and-text More menu](more-menu-390.png) | ![Two-column filter form squeezes Topic tag beside Apply tag](filters-menu-390.png) | ![Source options have no visible search input](source-select-768.png) | ![Phone Source options and keyboard-focused CLI](source-select-390.png) |
 
-More rows share a 36px height and icon x-position; they are not evidence of ragged
+Fine-pointer More rows share a 36px height and icon x-position; they are not evidence of ragged
 alignment or missing icons. The settled tablet filter panel is 480px wide at
 x=249 in a 768px viewport; initial pre-placement geometry was not used as a
 clipping finding. Source exposes eight options, no input. Phone keyboard
@@ -176,6 +176,24 @@ typeahead focuses CLI without filtering the list. The separate Notebook picker
 does expose Filter notebooks and narrows “Website” to Website redesign. These are
 different control capabilities, not one universal search defect. Search policies
 and grouping/alignment recommendations are in the review.
+
+### Component sizing and input mode
+
+Five additional contexts compare fine pointer at 1440/768/390px with coarse/touch
+emulation at 390/320px, all 600px tall. Notes, menu, Writing settings and empty
+Unfiled were measured in each. No page errors; measured Notes/Settings pages had
+no horizontal overflow. No axe or physical-device acceptance is claimed.
+
+| Coarse-pointer Notes                                            | Coarse-pointer More menu                                                         |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| ![Notes at 320 by 600 with coarse pointer](touch-notes-320.png) | ![44px menu rows with 16px icons in the same coarse context](touch-menu-320.png) |
+
+The coarse contexts confirm the active media query, not just a narrow viewport.
+More rows expand from 36 to 44px; row checkbox labels expand to 44×44px around 16px
+glyphs. Writing rows expand with wrapped copy; menu glyphs remain 16px. Earlier
+390px captures with a mouse are not evidence that touch expansion failed. The
+review’s sizing table records density and panel proportions as well as hit areas;
+it does not recommend shrinking all controls or scaling every icon up.
 
 ## Public entry pages
 

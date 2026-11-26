@@ -301,7 +301,7 @@ inventory.
 
 Grove already has a good starting point: List/Graph use icons plus text, and
 Archive / Today’s note / Import notes already have aligned icons and labels.
-The measured More-menu rows share a 36px pitch and icon column. Do not report
+The fine-pointer fixture’s More-menu rows share a 36px pitch and icon column. Do not report
 those as missing icons or randomly spaced rows. The inconsistent part is their
 composition: view choices and the text-only **More** trigger compete as peer
 buttons while search, Filters and result metadata occupy another band.
@@ -358,6 +358,40 @@ Every searchable select needs a visible search label, a scrollable bounded resul
 list, retained selection, keyboard/IME support and an honest no-match state.
 Server-backed ones also need loading/failure/partial-result states; local ones
 should respond immediately. A failed or incomplete fetch is never “no matches.”
+
+### Medium: size components by role and input mode, not one global scale
+
+Width alone is not a touch-device test. A dedicated sizing check compares fine
+pointer at 1440/768/390px with actual coarse-pointer emulation at 390/320px, all
+600px high. The earlier narrow captures use fine-pointer contexts. These are
+CSS/fixture measurements, not physical-device acceptance.
+
+| Measured component     | Fine pointer                 | Coarse pointer / narrow layout    | Implication                                                                                                                               |
+| ---------------------- | ---------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| More-menu row          | 36px high                    | 44px high                         | Existing touch expansion works; do not flag the earlier 36px capture as the mobile target size.                                           |
+| List / More trigger    | 36px high                    | 44px high                         | Keep shared control heights within a toolbar; do not reduce touch targets to make the header fit.                                         |
+| Note-row selection     | 16×16px glyph; 16×21px label | Same glyph inside a 44×44px label | Measure the actual hit area. A small checkbox drawing is not automatically a small touch target.                                          |
+| Note row               | 94.5px at 1440px             | 151.5px at 320px                  | Repeated metadata, selection/drag affordances and wrapping determine density, not just padding.                                           |
+| Writing preference row | 59.2px at 1440px             | 78.4px at 320px                   | Let labels/descriptions wrap; retain the labelled hit area rather than squeezing text.                                                    |
+| Empty scoped panel     | 1121×164px at 1440px         | 296×172px at 320px                | The same full-result card spans a very different amount of useful space; simplify its content/hierarchy before imposing a new fixed size. |
+
+Menu icons remain 16px and view icons 15px; at 320px the view icons intentionally
+hide while text remains. Do not enlarge every icon to 44px or replace a readable
+label with an oversized glyph. Size the surrounding action target independently.
+
+Set a small role-based scale for compact desktop controls, touch controls, list
+rows, section headings and overlays. Keep short toolbar controls compact; make
+long text fields use the available width; constrain menu/dialog width to content
+and usable viewport gutters. Short screens need bounded scrolling with reachable
+actions, not a panel that grows past the viewport. Preserve the successful
+320×480 nested-picker behavior.
+
+At 320×600 with coarse input, only one complete note fits below the shell and
+selection header. Recover space by simplifying those bands and repeated metadata,
+not by shrinking 44px targets, body text or the note excerpt. The same review
+should cover long translated labels, larger text/zoom and mixed-input devices;
+those are follow-up acceptance cases, not measurements claimed here. No new
+blanket target-size/WCAG failure is inferred from this sample.
 
 ### High: access management comes after installation
 
