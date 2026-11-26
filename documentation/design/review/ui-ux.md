@@ -632,6 +632,35 @@ processing, irreversible consequences, errors and uncertain saves. Shorten these
 without hiding them. Demonstrate with the actual selected note or passage whenever
 possible instead of writing a paragraph about what the system will do.
 
+## Sorting: notes and notebooks
+
+Provide a consistent **Sort by** control for both notes and notebooks:
+
+- **Custom order** — arrange items manually, with drag and keyboard/menu
+  alternatives. Keep this order when switching to another sort and back.
+- **Date created** and **Last edited** — newest or oldest first.
+- **Title** — A–Z or Z–A, using language-aware comparison.
+
+This extends existing behavior rather than adding sorting from scratch: note
+filters already offer Automatic, Recently edited, Least recently edited and
+Recently created (`library-filters.tsx:264` in the dashboard components).
+Notebook sibling ordering already uses saved position, name and a stable fallback
+(`packages/website/src/lib/notebooks.ts:4`). Reuse those foundations.
+
+Keep the selected sort/direction clear and remember the user’s choice per view
+and scope, including return navigation. Sort notebooks within their parent;
+sorting must not move items between notebooks or flatten the hierarchy. Manual
+reordering should explicitly use Custom order, not silently override date/title
+sorting. Label notebook dates accurately; do not imply they include child-note
+activity unless that is the chosen, supported measure.
+
+Apply ordering to the complete authorized result set before pagination, with
+stable ties—not only loaded rows. Preserve search and filters; offer Best match
+when searching without replacing an explicit sort choice. Verify custom-order
+save/reload, toggling modes, new/renamed items, equal dates/titles, nested notebooks,
+multiple result pages and keyboard/touch access. These are proposed acceptance
+checks, not newly implemented or browser-verified behavior.
+
 ## Internal integration: useful note and notebook links
 
 Owner-requested addition to the proposed update; not an implemented capability
@@ -723,7 +752,7 @@ every action. A short sentence is fine when it says something useful.
 2. Establish working chat/note URLs, return state and unsaved-draft protection.
 3. Group scope/count/empty states and settings; remove redundant divider bands.
 4. Recompose mobile/Ask/editor and shared source trails without hiding recovery.
-5. Add parsed internal links, compact previews and editable labels under existing access rules.
+5. Add consistent sorting and parsed internal links with compact previews and editable labels.
 
 Before accepting a redesign, verify populated/empty/error/offline states, long
 titles, slow saves, drafts, keyboard and touch alternatives, reduced motion,
