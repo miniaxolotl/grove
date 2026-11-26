@@ -34,6 +34,7 @@ import { useNotebooks } from "./notebooks-provider";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
 import { memoryExcerpt } from "@/lib/memory-display";
 import "./files.css";
+import { ReturnLink, useWorkspaceView } from "./workspace-location";
 
 const viewLabels: Record<FileSearch["view"], string> = {
   all: "All files",
@@ -61,7 +62,10 @@ function Failure({ error, retry }: { error: unknown; retry: () => void }) {
 function FilePlaces({ file }: { file: UploadedFile }) {
   const { projects } = useNotebooks();
   const cache = useWorkspaceCache(),
-    [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
+    [cursors, setCursors] = useWorkspaceView<(string | undefined)[]>(
+      `file:${file.source}:${file.id}:locations`,
+      [undefined],
+    );
   const query = useQuery({
     ...cache.resource<FileLocations>("/files/locations", {
       source: file.source,
@@ -120,10 +124,10 @@ function FilePlaces({ file }: { file: UploadedFile }) {
             <div>
               {location.memoryId ? (
                 <>
-                  <Link href={`/app/memories/${location.memoryId}`}>
+                  <ReturnLink href={`/app/memories/${location.memoryId}`}>
                     {memoryExcerpt({ content: location.title }, 110) ||
                       "Untitled note"}
-                  </Link>
+                  </ReturnLink>
                   <p>
                     {!location.projectId ? "Unfiled" : ""}
                     {location.archived ? " · Archived note" : ""}
@@ -147,9 +151,9 @@ function FilePlaces({ file }: { file: UploadedFile }) {
                 </>
               ) : location.conversationId ? (
                 <>
-                  <Link href={`/app/ask?chat=${location.conversationId}`}>
+                  <ReturnLink href={`/app/ask?chat=${location.conversationId}`}>
                     {location.title}
-                  </Link>
+                  </ReturnLink>
                   <p>Ask Grove chat · Separate from your notebooks</p>
                 </>
               ) : (
@@ -208,7 +212,10 @@ function FilePlaces({ file }: { file: UploadedFile }) {
   );
 }
 function FileRow({ file }: { file: UploadedFile }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useWorkspaceView(
+    `file:${file.source}:${file.id}:open`,
+    false,
+  );
   const Icon =
     file.kind === "image"
       ? ImageIcon
@@ -282,8 +289,14 @@ function FileRow({ file }: { file: UploadedFile }) {
 }
 function FilesView({ initial }: { initial: FileSearch }) {
   const cache = useWorkspaceCache(),
-    [queryText, setQueryText] = useState(initial.query),
-    [filters, setFilters] = useState(initial);
+    [queryText, setQueryText] = useWorkspaceView(
+      `files:${initial.memoryId ?? initial.conversationId ?? initial.projectId ?? "all"}:query`,
+      initial.query,
+    ),
+    [filters, setFilters] = useWorkspaceView(
+      `files:${initial.memoryId ?? initial.conversationId ?? initial.projectId ?? "all"}:filters`,
+      initial,
+    );
   const notebooks = useNotebooks();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const change = (patch: Partial<FileSearch>) => {
@@ -305,7 +318,10 @@ function FilesView({ initial }: { initial: FileSearch }) {
     Number(!!filters.kind) +
     Number(filters.view !== "all") +
     Number(!!filters.projectId);
-  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
+  const [cursors, setCursors] = useWorkspaceView<(string | undefined)[]>(
+    `files:${initial.memoryId ?? initial.conversationId ?? initial.projectId ?? "all"}:cursors`,
+    [undefined],
+  );
   const storage = useQuery({
     ...cache.resource<FileStorage>("/files/storage"),
     staleTime: 0,

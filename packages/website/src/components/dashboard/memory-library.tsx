@@ -3,6 +3,8 @@ import { ImportNotesPanel } from "./import-notes-button";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useWorkspaceView } from "./workspace-location";
 import dynamic from "next/dynamic";
 import {
   X,
@@ -13,6 +15,7 @@ import {
   Archive,
 } from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
+import { noteSorts } from "@lib/shared/search";
 import { errorMessage } from "@/lib/dashboard-api";
 import { noteListWarmup, useWorkspaceCache } from "./workspace-cache";
 import {
@@ -96,32 +99,49 @@ export function MemoryLibrary({
   onVisit?: (visit: NotebookVisit) => void;
 }) {
   const cache = useWorkspaceCache();
+  const path = usePathname();
+  const params = useSearchParams();
+  const router = useRouter();
+  const project =
+    fixedProject === undefined
+      ? (params.get("notebook") ?? initialProject)
+      : (fixedProject ?? "personal");
+  const viewKey = `library:${path}:${project}`;
   const api = cache.api;
   const workspace = useWorkspaceDrag();
-  const [view, setView] = useState(initialView);
+  const [view, setView] = useWorkspaceView(`${viewKey}:view`, initialView);
   const [importing, setImporting] = useState(false);
   const {
     projects,
     error: notebookError,
     reload: reloadNotebooks,
   } = useNotebooks();
-  const [filters, setFilters] = useState<LibraryFilters>(() => ({
-    ...initialFilters(archive),
-    kind: initialKind,
-    project: initialProject,
-    sort: initialSort === "created_desc" ? initialSort : "auto",
-  }));
+  const [filters, setFilters] = useWorkspaceView<LibraryFilters>(
+    `${viewKey}:filters`,
+    () => ({
+      ...initialFilters(archive),
+      kind: initialKind,
+      project: initialProject,
+      sort: initialSort === "created_desc" ? initialSort : "auto",
+    }),
+  );
   const {
     search,
-    project,
     kind,
     tag,
     status,
     sourceAgent,
     updatedAfter,
-    sort: preferredSort,
+    sort: savedSort,
     lifetime,
   } = filters;
+  const locationSort = params.get("sort");
+  const preferredSort =
+    locationSort &&
+    locationSort !== "relevance" &&
+    (noteSorts as readonly string[]).includes(locationSort)
+      ? (locationSort as LibraryFilters["sort"])
+      : savedSort;
   const sort =
     preferredSort === "auto"
       ? search
@@ -135,14 +155,20 @@ export function MemoryLibrary({
   const searchCancelled = cancelledFilters === filters;
   const [failures, setFailures] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
-  const [selectedId, selectId] = useState<string | null>(initialId ?? null);
+  const selectedId = params.get("note") ?? initialId ?? null;
   const detail = useQuery({
     ...cache.note(selectedId ?? ""),
     enabled: !!selectedId && selectedId !== "new",
   });
   const selected = selectedId === "new" ? "new" : detail.data;
-  const setSelected = (note: Memory | "new" | null) =>
-    selectId(typeof note === "string" ? note : (note?.id ?? null));
+  const setSelected = (note: Memory | "new" | null) => {
+    const id = typeof note === "string" ? note : note?.id;
+    if ((id ?? null) === selectedId) return;
+    const next = new URLSearchParams(params);
+    if (id) next.set("note", id);
+    else next.delete("note");
+    router.push(`${path}${next.size ? `?${next}` : ""}`, { scroll: false });
+  };
   const detailError = detail.error ? errorMessage(detail.error) : "";
   const [deleting, setDeleting] = useState<Memory[] | null>(null);
   const focusAfterDelete = useRef<string | null | undefined>(undefined);
@@ -229,7 +255,6 @@ export function MemoryLibrary({
     sourceAgent ||
     updatedAfter ||
     lifetime ||
-    (fixedProject === undefined && project !== "all") ||
     status !== (archive ? "archived" : "active")
   );
   const emptyCandidate = !archive && !filtered && !items.length && !next;
@@ -516,8 +541,26 @@ export function MemoryLibrary({
           )}
           <LibraryFilterBar
             input={searchInput}
-            value={filters}
+            value={{ ...filters, project, sort: preferredSort }}
             onChange={setFilters}
+            onSortChange={(sort) => {
+              setFilters((current) => ({ ...current, sort }));
+              const next = new URLSearchParams(params);
+              if (sort === "auto") next.delete("sort");
+              else next.set("sort", sort);
+              router.push(`${path}${next.size ? `?${next}` : ""}`, {
+                scroll: false,
+              });
+            }}
+            onScopeChange={(project) => {
+              const next = new URLSearchParams(params);
+              if (project === "all") next.delete("notebook");
+              else next.set("notebook", project);
+              next.delete("note");
+              router.push(`${path}${next.size ? `?${next}` : ""}`, {
+                scroll: false,
+              });
+            }}
             projects={projects}
             fixedProject={fixedProject}
             archive={archive}
@@ -684,9 +727,11 @@ export function MemoryLibrary({
               <h2>
                 {filtered
                   ? "No matching notes"
-                  : archive
-                    ? "No archived notes"
-                    : "No notes yet"}
+                  : scopedProject !== undefined
+                    ? "No notes here yet"
+                    : archive
+                      ? "No archived notes"
+                      : "No notes yet"}
               </h2>
               {filtered ? (
                 <p>Try a different phrase or clear a filter.</p>
@@ -703,6 +748,7 @@ export function MemoryLibrary({
                     searchInput.current?.focus();
                     setFilters((current) => ({
                       ...initialFilters(archive),
+                      project: current.project,
                       sort: current.sort,
                     }));
                   }}
@@ -710,13 +756,15 @@ export function MemoryLibrary({
                   Clear filters
                 </button>
               )}
-              {emptyLibrary && (
+              {(emptyLibrary || (!filtered && scopedProject !== undefined)) && (
                 <div className="mt-4">
                   <Link
                     className="app-button"
                     href={`/app/notes/new${scopedProject ? `?notebook=${encodeURIComponent(scopedProject)}` : ""}`}
                   >
-                    Write your first note
+                    {scopedProject !== undefined
+                      ? "New note"
+                      : "Write your first note"}
                   </Link>
                 </div>
               )}

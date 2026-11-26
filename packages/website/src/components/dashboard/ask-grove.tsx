@@ -13,6 +13,8 @@ import type {
 import { AskDocuments } from "./ask-documents";
 import { Dialog } from "./dialog";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useResourceTitle, useReturnLocation } from "./workspace-location";
 import {
   ArrowUpRight,
   ArrowDown,
@@ -103,14 +105,33 @@ function reconcileReply(
 export function AskGrove({
   projectId,
   embedded = false,
+  locationChat,
   sessionKey = `ask:${projectId === undefined ? "global" : (projectId ?? "personal")}`,
 }: {
   projectId?: string | null;
   embedded?: boolean;
+  locationChat?: string | null;
   sessionKey?: string;
 }) {
   const sessions = useWorkspaceSearch()?.sessions;
   const [session] = useState(() => sessions?.get(sessionKey));
+  const router = useRouter();
+  const path = usePathname();
+  const params = useSearchParams();
+  const returnToOrigin = useReturnLocation();
+  const location = useRef<{
+    initialized: boolean;
+    id: string | null | undefined;
+  }>({ initialized: false, id: locationChat });
+  function navigateChat(id?: string, replace = false) {
+    if (embedded || locationChat === undefined) return;
+    location.current = { initialized: true, id: id ?? null };
+    const next = new URLSearchParams(params);
+    if (id) next.set("chat", id);
+    else next.delete("chat");
+    const href = `${path}${next.size ? `?${next}` : ""}`;
+    router[replace ? "replace" : "push"](href, { scroll: false });
+  }
   const { projects, error: projectError } = useNotebooks();
   const cache = useWorkspaceCache();
   const api = cache.api;
@@ -133,10 +154,17 @@ export function AskGrove({
   const mention = useRef<
     { value: string; start: number; end: number } | undefined
   >(undefined);
-  const [conversationId, setConversationId] = useState(session?.conversationId);
+  const [conversationId, setConversationId] = useState(
+    locationChat ?? session?.conversationId,
+  );
   const [conversation, setConversation] = useState<Conversation>();
   const [unconfirmed, setUnconfirmed] = useState(session?.unconfirmed);
-  const [loading, setLoading] = useState(!!session?.conversationId);
+  const [loading, setLoading] = useState(
+    !!(locationChat ?? session?.conversationId),
+  );
+  useResourceTitle(
+    !embedded ? (conversation?.title ?? "Ask Grove") : undefined,
+  );
   const [pending, setPending] = useState(false);
   const [actionError, setError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -158,6 +186,7 @@ export function AskGrove({
     ...cache.resource<Conversation>(`/conversations/${conversationId ?? ""}`),
     enabled:
       !!conversationId &&
+      !!conversation &&
       !loading &&
       (!unconfirmed || pending) &&
       !actionBusy &&
@@ -252,31 +281,24 @@ export function AskGrove({
     unconfirmed,
   ]);
   useEffect(() => () => request.current?.abort(), []);
-  useEffect(() => {
-    if (!session?.conversationId) return;
-    const controller = new AbortController();
-    request.current = controller;
-    void api<Conversation>(
-      `/conversations/${session.conversationId}`,
-      undefined,
-      undefined,
-      controller.signal,
+  const readLocation = useEffectEvent((id: string | null | undefined) => {
+    const first = !location.current.initialized;
+    if (
+      !first &&
+      id === location.current.id &&
+      !request.current?.signal.aborted
     )
-      .then((chat) => {
-        if (!controller.signal.aborted) {
-          setConversation(reconcileReply(chat, session.unconfirmed));
-          if (chat.turns.some((turn) => turn.id === session.unconfirmed?.id))
-            setUnconfirmed(undefined);
-        }
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(errorMessage(e));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [session, api]);
+      return;
+    location.current = { initialized: true, id };
+    const target = first ? (id ?? session?.conversationId) : id;
+    if (target) {
+      if (!id) navigateChat(target, true);
+      void openChat(target, undefined, true);
+    } else if (!first) reset();
+  });
+  useEffect(() => {
+    readLocation(locationChat);
+  }, [locationChat]);
   const followReply = useEffectEvent(() => {
     const element = conversationElement.current;
     if (!element || !conversation?.turns.length) return;
@@ -317,6 +339,7 @@ export function AskGrove({
     running.current = false;
     creation.current = undefined;
     setConversationId(undefined);
+    navigateChat();
     setConversation(undefined);
     setUnconfirmed(undefined);
     setPending(false);
@@ -371,8 +394,12 @@ export function AskGrove({
         },
     );
   }
-  async function openChat(id: string, historySignal?: AbortSignal) {
-    if (actionBusy || toolsBusy) return;
+  async function openChat(
+    id: string,
+    historySignal?: AbortSignal,
+    fromLocation = false,
+  ) {
+    if (!fromLocation && (actionBusy || toolsBusy)) return;
     const controller = new AbortController();
     const signal = historySignal
       ? AbortSignal.any([historySignal, controller.signal])
@@ -385,7 +412,19 @@ export function AskGrove({
       running.current = false;
       setError("");
     }
+    if (fromLocation && id !== conversationId) {
+      rememberDraft(conversationId ?? "new");
+      setConversation(undefined);
+    }
     try {
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
+        )
+      )
+        throw new Error(
+          "This conversation link is invalid. Open History or start a new conversation.",
+        );
       const chat = await api<Conversation>(
         `/conversations/${id}`,
         undefined,
@@ -393,6 +432,10 @@ export function AskGrove({
         signal,
       );
       if (signal.aborted) return;
+      cache.client.setQueryData(
+        cache.resource<Conversation>(`/conversations/${id}`).queryKey,
+        chat,
+      );
       following.current = !historySignal;
       reviewFromStart.current = !!historySignal;
       setShowLatest(false);
@@ -416,6 +459,7 @@ export function AskGrove({
           : retained,
       );
       setConversationId(id);
+      if (!fromLocation) navigateChat(id);
       creation.current = id;
       setScope(
         chat.scope.projectId === undefined
@@ -426,7 +470,17 @@ export function AskGrove({
       setMode("answer");
     } catch (e) {
       if (historySignal) throw e;
-      if (!signal.aborted) setError(errorMessage(e));
+      if (!signal.aborted) {
+        if (fromLocation) {
+          setConversationId(id);
+          setConversation(undefined);
+          setUnconfirmed(conversationDrafts.current[id]?.unconfirmed);
+          setDraft(conversationDrafts.current[id]?.draft ?? "");
+          setSources(conversationDrafts.current[id]?.sources);
+          setRejected(conversationDrafts.current[id]?.rejected);
+        }
+        setError(errorMessage(e));
+      }
     } finally {
       if (!historySignal && !signal.aborted) setLoading(false);
     }
@@ -439,6 +493,7 @@ export function AskGrove({
     const question = refresh?.question ?? retry?.question ?? draft.trim();
     if (
       !question ||
+      (conversationId && !conversation) ||
       running.current ||
       loading ||
       actionBusy ||
@@ -491,6 +546,7 @@ export function AskGrove({
         );
         if (controller.signal.aborted) return;
         setConversationId(chat.id);
+        navigateChat(chat.id, true);
         // The scratch message now belongs to this persisted conversation (and
         // its uncertain-turn identity). Do not revive it as a new draft later.
         delete conversationDrafts.current.new;
@@ -704,6 +760,11 @@ export function AskGrove({
           title="Ask Grove"
           actions={
             <div className="ask-page-actions">
+              {returnToOrigin && (
+                <Button variant="secondary" onClick={returnToOrigin}>
+                  Back to Files
+                </Button>
+              )}
               {historyButton}
               <Button
                 variant="secondary"
@@ -830,6 +891,19 @@ export function AskGrove({
             >
               {loading ? (
                 <p role="status">Opening conversation…</p>
+              ) : conversationId && !conversation ? (
+                <div className="ask-welcome">
+                  <h2>This conversation couldn’t open</h2>
+                  <p>Your link has not opened a new conversation.</p>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      void openChat(conversationId, undefined, true)
+                    }
+                  >
+                    Retry conversation
+                  </Button>
+                </div>
               ) : !conversation?.turns.length ? (
                 <div className="ask-welcome">
                   <h2>What’s on your mind?</h2>
@@ -1053,6 +1127,7 @@ export function AskGrove({
                 });
                 setConversation(chat);
                 setConversationId(chat.id);
+                navigateChat(chat.id, true);
                 return chat.id;
               }}
               disabled={pending || loading || !!actionBusy}
@@ -1064,7 +1139,9 @@ export function AskGrove({
               onSend={(format) => void ask(format)}
               onStop={stop}
               pending={pending}
-              disabled={loading || !!actionBusy}
+              disabled={
+                loading || !!actionBusy || (!!conversationId && !conversation)
+              }
               sendDisabled={
                 toolsBusy ||
                 !!toolsError ||

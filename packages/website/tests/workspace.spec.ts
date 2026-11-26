@@ -2258,6 +2258,7 @@ test("visible row deletion confirms directly and rejects a stale revision", asyn
   await row.getByRole("button", { name: "Delete note…", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Delete note?" });
   await expect(page.locator(".note-editor")).toHaveCount(0);
+  await expect(dialog).toContainText("You can’t restore it in Grove.");
   await expect(
     dialog.getByRole("button", { name: "Cancel", exact: true }),
   ).toBeFocused();
@@ -7221,7 +7222,7 @@ test("combined project, kind, topic and query filters stay in POST bodies and cl
       status: "active",
       sort: "relevance",
     });
-  expect(page.url()).toBe(`${base}/app`);
+  expect(page.url()).toBe(`${base}/app?notebook=${project.id}`);
   await page.getByRole("button", { name: "Filters", exact: true }).click();
   await page
     .getByRole("button", { name: "Clear filters", exact: true })

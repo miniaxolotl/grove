@@ -67,6 +67,13 @@ owns connection commands and approval.
   kind, topic, source, date, lifetime and sorting. They apply to the entire matching
   library, not just loaded rows. Queries remain in POST bodies. See
   [search](search.md) for relevance, typo/prefix matching and partial evidence.
+- Quick-open note selection has a `?note=<id>` location. Browser Back closes it
+  and Forward reopens it; reload resolves that authorized note again. Note names
+  remain real links to the canonical `/app/memories/<id>` for new-tab navigation.
+  Opened resources name the browser tab from authorized current data.
+- Conversation links use `/app/ask?chat=<id>`. Entry reads the selected chat without
+  submitting a question; missing or denied chats offer a read retry, not a fresh
+  conversation. Unsent finder drafts still use their separate opaque session handle.
 - Scroll to the end of Notes, Archive, a notebook’s list, or the notes in an
   expanded sidebar notebook to load the next page. **Load more notes** is also
   available to screen readers and appears on keyboard focus. If your browser
@@ -87,6 +94,8 @@ owns connection commands and approval.
   [organization guide](notebook-organization.md) owns full move/retry/Undo behavior
   and device qualification limits. Parent access never grants child access.
 - Select up to 50 loaded notes for batch move/archive/restore/**Delete**.
+  Delete hides the note and retained history; there is no in-app restore. The
+  single-note and batch confirmations state this consequence before submission.
   Confirmations apply instantly: rows move the moment you confirm while the
   request settles in the background, and only that note's controls lock during
   its own request. A row with a request in flight dims without moving the list.
