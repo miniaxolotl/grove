@@ -165,6 +165,11 @@ parent recursively. A continuation chain uses one frozen operational identity;
 development runs, local attestations and invented run IDs cannot substitute.
 Website recording checks out and builds the **original release source** afresh,
 retaining its source/production identity in Vercel and `/release.json`.
+Lifecycle recording may retain an older immutable held parent only with its fresh
+current named-instance lifecycle proof bound to that exact parent. A long website
+build similarly retains its public parent but records a new post-deployment public
+proof. Other action/observation deadlines remain unchanged; stale current proofs
+still reject, and no parent timestamp is rewritten.
 
 Provider phase checks interpret only omitted `maintenance.archive/enabled` false
 values and the release-control environment's `GENERAL` type default. Invalid
@@ -172,6 +177,24 @@ types or explicit conflicting values still reject. Observations and fingerprints
 remain raw; this does not silently rewrite provider state or clear an accepted
 command's mismatching hash. Such an existing intent requires explicit, separately
 reviewed representation-equivalence reconciliation with raw and semantic hashes.
+The local CLI accepts this route only through explicit `releaseProduction`,
+`tooling` and `providerRepresentation:"digitalocean-release-defaults-v1"` request
+fields. It verifies the current protected tooling tree/tag and the real original
+publication/parent artifacts. Its separately labelled semantic provider view is
+confined to those defaults; raw/semantic hashes and changed paths are retained
+privately before execution. Provider completion waits within the original command
+deadline; unknown acceptance is never retried.
+
+An ordinary coordinated successor must not retain a source-bound held control.
+After public acceptance, an owner-dispatched Deploy may explicitly request
+`retire_held_runtime:true`. Both current named instances must prove the same
+persisted public phase, approval and complete reconciliation, with real public
+readiness. The expected-state guarded update removes only the three release
+controls **in the same spec update as the different, ordinary image**. It preserves
+unrelated settings, credentials and retained approval/history rows. Pending,
+unreconciled, held or foreign generations reject; controls are never removed from
+the existing held image in a separate update. This option cannot enable a checker
+or publish from development and is off for automatic push deployments.
 
 The local `scripts/release/held-operator-cli.mjs` composes the independently
 qualified operator's private-file, manifest, transaction and fsynced journal

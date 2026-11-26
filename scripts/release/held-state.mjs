@@ -15,6 +15,9 @@ const phases = [
   "website_verified",
 ];
 const lifetime = 600000;
+export function assertHeldRecorderActors(actor,triggeringActor){
+  assert.equal(actor,'miniaxolotl');assert.equal(triggeringActor,'miniaxolotl');
+}
 const canonical = (value) =>
   Array.isArray(value)
     ? value.map(canonical)
@@ -146,7 +149,14 @@ function record(p, parent, phase, evidence, context, now) {
     phases.indexOf(parent.phase) + 1,
     "Held-release phase jump",
   );
-  if (parent.phase !== "published_held") fresh(parent.at, now);
+  if (parent.phase !== "published_held") {
+    // Operational lifecycle startup and a fresh website build can exceed a
+    // receipt's observation lifetime. Their immutable parent remains linked,
+    // but the actual current named-instance proof must be fresh instead.
+    if(context.tooling&&phase==='lifecycle_verified')fresh(evidence.observedAt,now);
+    else if(context.tooling&&phase==='website_verified')fresh(evidence.parentVerification.observedAt,now);
+    else fresh(parent.at, now);
+  }
   return {
     schema: 1,
     phase,
@@ -450,7 +460,17 @@ export function advance(p, parent, phase, context, now, evidence) {
       "sourceSha",
       "productionSha",
       "deploymentUrl",
+      ...(context.tooling?['parentVerification']:[]),
     ]);
+    if(context.tooling){
+      const {lifecycle,ingress,command,public:publicEvidence,...snapshot}=evidence.parentVerification;
+      validateSnapshot(snapshot,now);validateLifecycleEvidence(lifecycle);
+      assert.equal(ingress,true);assert.equal(lifecycle.control.phase,'public');
+      assert.equal(command,parent.evidence.command);assert.equal(lifecycle.control.publicHash,command);
+      assert.equal(lifecycle.control.approvalHash,parent.evidence.lifecycle.control.approvalHash);
+      assert.equal(lifecycle.release,parent.evidence.lifecycle.release);assert.equal(lifecycle.receipt,parent.evidence.lifecycle.receipt);
+      assert.deepEqual(publicEvidence,{status:'ready'});
+    }
     assert.equal(evidence.repository, "miniaxolotl/grove");
     assert.equal(evidence.sourceSha, p.release.source);
     assert.equal(evidence.productionSha, p.release.production);

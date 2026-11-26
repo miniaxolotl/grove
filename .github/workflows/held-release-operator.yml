@@ -39,7 +39,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   candidate:
-    if: github.repository == 'miniaxolotl/grove' && github.ref == 'refs/heads/production' && github.ref_protected == true && github.actor == 'miniaxolotl'
+    if: github.repository == 'miniaxolotl/grove' && github.ref == 'refs/heads/production' && github.ref_protected == true && github.actor == 'miniaxolotl' && github.triggering_actor == 'miniaxolotl'
     runs-on: ubuntu-latest
     outputs:
       operator_sha: ${{ steps.operator.outputs.sha }}
@@ -68,6 +68,7 @@ jobs:
         run: node scripts/release/held-operator-source.mjs
   record:
     needs: candidate
+    if: github.actor == 'miniaxolotl' && github.triggering_actor == 'miniaxolotl'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     environment: production

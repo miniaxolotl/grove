@@ -12,6 +12,7 @@ import {
   approve,
   advance,
   receiptHash,
+  assertHeldRecorderActors,
 } from "./held-state.mjs";
 import {
   verifyHeld,
@@ -33,7 +34,7 @@ try {
   assert.equal(env.GITHUB_ACTIONS, "true");
   assert.equal(env.GITHUB_REF, "refs/heads/production");
   assert.equal(env.GITHUB_REF_PROTECTED, "true");
-  assert.equal(env.GITHUB_ACTOR, "miniaxolotl");
+  assertHeldRecorderActors(env.GITHUB_ACTOR,env.GITHUB_TRIGGERING_ACTOR);
   const source = env.RELEASE_SOURCE_SHA;
   const operational=env.HELD_OPERATOR_SOURCE_SHA!==undefined;
   assert.equal(git("rev-parse", "HEAD"), operational?env.HELD_OPERATOR_SOURCE_SHA:source);
@@ -217,17 +218,17 @@ try {
           encoding: "utf8",
           stdio: ["ignore", "pipe", "inherit"],
           timeout: 20 * 60_000,
-           env: { ...websiteEnv, VERCEL_GIT_COMMIT_SHA: source },
+          env: { ...websiteEnv, VERCEL_GIT_COMMIT_SHA: source },
         }),
     });
-    await verifyPublic(p, parent.parent.parent, parent.evidence.command, io);
+    const parentVerification=await verifyPublic(p, parent.parent.parent, parent.evidence.command, io);
     receipt = advance(
       p,
       parent,
       "website_verified",
       context,
       Date.now(),
-      evidence,
+      operational?{...evidence,parentVerification}:evidence,
     );
   }
   current();

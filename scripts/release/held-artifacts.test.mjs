@@ -133,8 +133,17 @@ for(const operational of [false,true])test(`actual ${operational?'separate tooli
     sourceSha: context.source,
     productionSha: context.production,
     deploymentUrl: "https://grove-fixture.vercel.app",
+    ...(operational?{parentVerification:pub.evidence}:{}),
   });
   const receipts = [p, h, l, e, r, pub, site];
+  const later=now+600001;
+  const refreshedWebsite={...site.evidence,...(operational?{parentVerification:{...pub.evidence,observedAt:new Date(later).toISOString()}}:{})};
+  const lateWebsite=()=>advance(p,pub,'website_verified',next(),later,refreshedWebsite);
+  const lateLifecycle=()=>recordLifecycle(p,h,{...snapshot,observedAt:new Date(later).toISOString(),ingress:true,lifecycle:evidence},next(),later);
+  if(operational){
+    assert.doesNotThrow(lateWebsite);assert.doesNotThrow(lateLifecycle);
+    assert.throws(()=>advance(p,pub,'website_verified',next(),later,site.evidence));
+  }else{assert.throws(lateWebsite);assert.throws(lateLifecycle);}
   const bundles = new Map(
     receipts.map((receipt) => {
       const zip = zipSync({
