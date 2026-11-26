@@ -53,6 +53,15 @@ test('action-pin repair has one exact coordinated 1.11.36 admission',()=>{
   for(const change of [{number:341},{merged:false},{head:{ref:'another-branch'}},{base:{ref:'production'}}])assert.equal(releaseRoutes.routeHeldActionPin(merged,{...pinPr,...change},false,io),'website-only');
   assert.throws(()=>releaseRoutes.routeHeldActionPin(stamp,pinPr,true,fixture('\npackages/api/src/server.ts',()=>{},'1.11.35','1.11.36','0ec31adf20c68bc909a59d05cbb4e6e07681d3b6')));
 });
+test('current-proof recorder repair has one exact coordinated 1.11.37 admission',()=>{
+  assert.equal(typeof releaseRoutes.routeHeldObservation,'function');
+  const proofPr={...pr,number:343,head:{ref:'fix/release-current-runtime-proof',repo:{full_name:'miniaxolotl/grove'}}};
+  const io=fixture('',()=>{},'1.11.36','1.11.37','a55f9e89df2131fdc993fc41bdbe648c8ec8e9d2');
+  assert.equal(releaseRoutes.routeHeldObservation(merged,proofPr,false,io),'coordinated');
+  assert.equal(releaseRoutes.routeHeldObservation(stamp,proofPr,true,io),'coordinated');
+  for(const change of [{number:344},{merged:false},{head:{ref:'foreign'}},{base:{ref:'production'}}])assert.equal(releaseRoutes.routeHeldObservation(merged,{...proofPr,...change},false,io),'website-only');
+  assert.throws(()=>releaseRoutes.routeHeldObservation(stamp,proofPr,true,fixture('\npackages/api/src/server.ts',()=>{},'1.11.36','1.11.37','a55f9e89df2131fdc993fc41bdbe648c8ec8e9d2')));
+});
 test("only the actual proofing merge can request the coordinated source release", () => {
   assert.equal(route(merged, pr, false, fixture()), "coordinated");
   for (const p of [
