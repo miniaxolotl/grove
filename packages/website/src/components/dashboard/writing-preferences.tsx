@@ -158,7 +158,7 @@ export function WritingPreferences() {
       </header>
       <fieldset className="ai-preference-group">
         <legend>
-          <h3>Checks</h3>
+          <h3>On-device checks</h3>
         </legend>
         <Row
           id="writing-enabled"
@@ -167,20 +167,80 @@ export function WritingPreferences() {
           checked={settings.enabled}
           onChange={(enabled) => update({ enabled })}
         />
-        <Row
-          id="writing-spelling"
-          label="Spelling"
-          description="Flag misspellings and suggest corrections."
-          checked={settings.spelling}
-          onChange={(spelling) => update({ spelling })}
-        />
-        <Row
-          id="writing-grammar"
-          label="Basic grammar"
-          description="Flag common grammar issues."
-          checked={settings.grammar}
-          onChange={(grammar) => update({ grammar })}
-        />
+        <p className="writing-paused-status" role="status">
+          {!settings.enabled
+            ? "Checks paused. Your saved choices are kept."
+            : "Your text stays on this device for these checks."}
+        </p>
+        <fieldset
+          className="writing-local-options"
+          disabled={!settings.enabled}
+        >
+          <legend className="sr-only">Local writing options</legend>
+          <Row
+            id="writing-spelling"
+            label="Spelling"
+            description="Flag misspellings and suggest corrections."
+            checked={settings.spelling}
+            onChange={(spelling) => update({ spelling })}
+          />
+          <Row
+            id="writing-grammar"
+            label="Basic grammar"
+            description="Flag common grammar issues."
+            checked={settings.grammar}
+            onChange={(grammar) => update({ grammar })}
+          />
+          <details className="settings-options">
+            <summary>More writing options</summary>
+            <Row
+              id="writing-automatic"
+              label="Check as I type"
+              description="Check after a pause in typing. You can still check manually when this is off."
+              checked={settings.automatic}
+              onChange={(automatic) => update({ automatic })}
+            />
+            <Row
+              id="writing-highlights"
+              label="Inline highlights"
+              description="Underline issues in the note. Off keeps the accessible issue list."
+              checked={settings.highlights}
+              onChange={(highlights) => update({ highlights })}
+            />
+            <div className="ai-preference-group mt-3">
+              <button
+                type="button"
+                className="text-button"
+                aria-expanded={advanced}
+                onClick={() => setAdvanced(!advanced)}
+              >
+                {advanced ? "Hide advanced rules" : "Show advanced rules"}
+              </button>
+              {advanced && (
+                <fieldset
+                  className="ai-preference-group"
+                  disabled={!settings.grammar}
+                >
+                  <legend>
+                    <h3>Grammar rules</h3>
+                  </legend>
+                  {writingRules.map((rule) => (
+                    <Row
+                      key={rule}
+                      id={`writing-rule-${rule}`}
+                      label={ruleLabels[rule].label}
+                      description={ruleLabels[rule].description}
+                      checked={settings.rules[rule]}
+                      onChange={(checked) =>
+                        update({ rules: { [rule]: checked } })
+                      }
+                    />
+                  ))}
+                </fieldset>
+              )}
+            </div>
+          </details>
+        </fieldset>
       </fieldset>
       <fieldset className="ai-preference-group">
         <legend>
@@ -191,7 +251,11 @@ export function WritingPreferences() {
           label="Enhanced grammar"
           description="Send only the paragraph you check to Grove’s private grammar service for additional suggestions."
           checked={enhanced.preference?.enabled ?? false}
-          disabled={!enhanced.preference || (!enhanced.preference.available && !enhanced.preference.enabled)}
+          disabled={
+            (!settings.enabled && !enhanced.preference?.enabled) ||
+            !enhanced.preference ||
+            (!enhanced.preference.available && !enhanced.preference.enabled)
+          }
           onChange={(enabled) =>
             void enhanced.refresh({ enabled, automatic: false })
           }
@@ -202,12 +266,18 @@ export function WritingPreferences() {
             label="Automatically check edited paragraphs"
             description="Send the edited paragraph after a typing pause. Leave off to check only when you ask."
             checked={enhanced.grant.automatic}
+            disabled={!settings.enabled}
             onChange={(automatic) =>
               void enhanced.refresh({ enabled: true, automatic })
             }
           />
         )}
-        {enhanced.preference?.available === false && <p role="status">Enhanced grammar is unavailable on this installation. On-device checks still work.</p>}
+        {enhanced.preference?.available === false && (
+          <p role="status">
+            Enhanced grammar is unavailable on this installation. On-device
+            checks still work.
+          </p>
+        )}
         {enhanced.failed && (
           <p role="status">
             Enhanced settings couldn’t be confirmed.{" "}
@@ -222,53 +292,6 @@ export function WritingPreferences() {
         )}
       </fieldset>
       <div className="writing-secondary">
-        <details className="settings-options">
-          <summary>More writing options</summary>
-          <Row
-            id="writing-automatic"
-            label="Check as I type"
-            description="Check after a pause in typing. You can still check manually when this is off."
-            checked={settings.automatic}
-            onChange={(automatic) => update({ automatic })}
-          />
-          <Row
-            id="writing-highlights"
-            label="Inline highlights"
-            description="Underline issues in the note. Off keeps the accessible issue list."
-            checked={settings.highlights}
-            onChange={(highlights) => update({ highlights })}
-          />
-          <div className="ai-preference-group mt-3">
-            <button
-              type="button"
-              className="text-button"
-              aria-expanded={advanced}
-              onClick={() => setAdvanced(!advanced)}
-            >
-              {advanced ? "Hide advanced rules" : "Show advanced rules"}
-            </button>
-            {advanced && (
-              <fieldset className="ai-preference-group">
-                <legend>
-                  <h3>Grammar rules</h3>
-                </legend>
-                {writingRules.map((rule) => (
-                  <Row
-                    key={rule}
-                    id={`writing-rule-${rule}`}
-                    label={ruleLabels[rule].label}
-                    description={ruleLabels[rule].description}
-                    checked={settings.grammar && settings.rules[rule]}
-                    disabled={!settings.grammar}
-                    onChange={(checked) =>
-                      update({ rules: { [rule]: checked } })
-                    }
-                  />
-                ))}
-              </fieldset>
-            )}
-          </div>
-        </details>
         <details className="settings-options">
           <summary>Personal dictionary</summary>
           <fieldset className="ai-preference-group">

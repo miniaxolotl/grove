@@ -4,6 +4,51 @@ import { fixture } from "./fixtures/workspace-fixture";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 
+test("pausing writing assistance keeps saved child preferences and resumes them unchanged", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.route("**/api/grove/admin", (route) =>
+    route.fulfill({ json: { success: true, data: { role: "member" } } }),
+  );
+  await page.goto(`${base}/app/settings`);
+  const master = page.getByRole("checkbox", {
+    name: "Writing assistance",
+    exact: true,
+  });
+  const spelling = page.getByRole("checkbox", {
+    name: "Spelling",
+    exact: true,
+  });
+  const grammar = page.getByRole("checkbox", {
+    name: "Basic grammar",
+    exact: true,
+  });
+  await spelling.uncheck();
+  await master.uncheck();
+  await expect(
+    page.getByText("Checks paused. Your saved choices are kept.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(spelling).not.toBeChecked();
+  await expect(grammar).toBeChecked();
+  await expect(spelling).toBeDisabled();
+  await expect(grammar).toBeDisabled();
+  await master.check();
+  await expect(spelling).toBeEnabled();
+  await expect(spelling).not.toBeChecked();
+  await expect(grammar).toBeChecked();
+  expect(
+    state.calls.some(
+      (call) =>
+        call.body &&
+        (call.path.startsWith("/proofing") ||
+          call.path === "/account/settings"),
+    ),
+  ).toBe(false);
+});
+
 const draft: Memory = {
   id: "00000000-0000-4000-a000-000000000021",
   projectId: null,
@@ -36,12 +81,16 @@ const draft: Memory = {
 async function openDraft(page: Page) {
   await fixture(page, [draft]);
   await page.goto(`${base}/app/memories/${draft.id}?mode=edit`);
-  await page.getByRole("textbox", { name: "What should stay with you?" }).waitFor();
+  await page
+    .getByRole("textbox", { name: "What should stay with you?" })
+    .waitFor();
   // The webapp advertises native proofing so the extension never double-binds.
   await expect(page.locator("html[data-grove-native-writing]")).toHaveCount(1);
 }
 
-test("superseding a check during worker startup keeps the next check usable", async ({ page }) => {
+test("superseding a check during worker startup keeps the next check usable", async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
   });
@@ -54,12 +103,17 @@ test("superseding a check during worker startup keeps the next check usable", as
     await route.continue();
   });
   await openDraft(page);
-  const check = page.getByRole("button", { name: "Check writing", exact: true });
+  const check = page.getByRole("button", {
+    name: "Check writing",
+    exact: true,
+  });
   await check.click();
   await requested;
   await check.click();
   gate.resolve();
-  await expect(page.locator(".grove-writing-status").first()).toContainText(/suggestion/);
+  await expect(page.locator(".grove-writing-status").first()).toContainText(
+    /suggestion/,
+  );
   expect(requests).toBe(1);
 });
 
@@ -81,7 +135,9 @@ for (const width of [1440, 390]) {
       await expect(
         page.locator(".codemirror-host .grove-writing-spelling").first(),
       ).toBeVisible();
-      await page.screenshot({ path: info.outputPath("writing-underlines.png") });
+      await page.screenshot({
+        path: info.outputPath("writing-underlines.png"),
+      });
       // Click the first underline to review it.
       const first = page
         .locator(".codemirror-host .grove-writing-spelling")
@@ -101,7 +157,9 @@ for (const width of [1440, 390]) {
       await card.locator(".grove-writing-replacement").first().click();
       expect(await editor.textContent()).not.toBe(before);
       expect(replacement?.trim().length).toBeGreaterThan(0);
-      await page.keyboard.press(process.platform === "darwin" ? "Meta+z" : "Control+z");
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+z" : "Control+z",
+      );
       // Native undo restores the exact original text.
       await expect(editor).toContainText("teh", { timeout: 5000 });
       // Dismissal returns focus to the editor for uninterrupted writing.
@@ -138,7 +196,9 @@ for (const width of [1440, 390]) {
       await page.keyboard.press("Alt+Enter");
       const list = page.getByRole("dialog", { name: "Writing suggestions" });
       await expect(list).toBeVisible();
-      await expect(list.locator(".grove-writing-list button").first()).toBeVisible();
+      await expect(
+        list.locator(".grove-writing-list button").first(),
+      ).toBeVisible();
       await page.screenshot({ path: info.outputPath("writing-list.png") });
       await page.keyboard.press("Escape");
       await expect(list).not.toBeVisible();
@@ -181,10 +241,15 @@ test("switching to manual checks discards an automatic check still loading", asy
   await otherTab.evaluate(() => {
     localStorage.setItem("grove.writing.settings.v1", '{"automatic":false}');
   });
-  const manual = page.getByRole("button", { name: "Check writing", exact: true });
+  const manual = page.getByRole("button", {
+    name: "Check writing",
+    exact: true,
+  });
   await expect(manual).toBeVisible();
   await expect(checking).toHaveCount(0);
   gate.resolve();
   await manual.click();
-  await expect(page.locator(".grove-writing-status").first()).toContainText(/suggestion/);
+  await expect(page.locator(".grove-writing-status").first()).toContainText(
+    /suggestion/,
+  );
 });

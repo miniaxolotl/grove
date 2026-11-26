@@ -1986,6 +1986,28 @@ html:has(.grove-app) {
 .writing-preferences-panel > .ai-preference-group {
   margin-top: 16px;
 }
+.writing-local-options {
+  min-width: 0;
+  margin-left: 8px;
+  padding-left: 16px;
+  border-left: 2px solid var(--color-line);
+}
+.writing-paused-status {
+  min-height: 36px;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+.writing-local-options .ai-preference:has(input:disabled) {
+  cursor: default;
+}
+.connection-add-options {
+  margin-top: 24px;
+}
+.connection-add-options > .connection-methods {
+  margin-top: 12px;
+}
 .writing-preferences-panel .ai-preference > input {
   accent-color: var(--color-forest);
   width: 18px;

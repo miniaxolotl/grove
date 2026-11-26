@@ -38,6 +38,8 @@ immediately and stays on this device:
   **Check writing** when you want results in manual mode.
 - **Advanced rules**: ten independent rule switches. Turning a parent off keeps
   the individual choices for when it returns.
+  Local child controls are nested under the master and paused while it is off;
+  a checked child records the saved choice, not an effective running check.
 - **Personal dictionary**: save up to 1,000 names, brands and terms. Case,
   straight or curly apostrophes, and equivalent forms of accented letters count
   as the same entry. A saved name also covers its possessive.
