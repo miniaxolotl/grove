@@ -13,6 +13,7 @@ import {
   advance,
   receiptHash,
   assertHeldRecorderActors,
+  recordObservation,
 } from "./held-state.mjs";
 import {
   verifyHeld,
@@ -179,25 +180,17 @@ try {
       }),
     );
   } else if (phase === "runtime")
-    receipt = advance(
-      p,
-      parent,
-      "runtime_verified",
-      context,
-      Date.now(),
-      await verifyRuntime(p, parent, io),
+    receipt = await recordObservation(
+      () => verifyRuntime(p, parent, io),
+      (evidence, now) => advance(p, parent, "runtime_verified", context, now, evidence),
     );
   else if (phase === "public") {
     const command = JSON.parse(env.HELD_COMMAND ?? "null"),
-      hash = validateOperatorCommand(p, parent, command);
+      hash = validateOperatorCommand(p, parent, command, Date.now(), true);
     assert.equal(command.action, "open-public");
-    receipt = advance(
-      p,
-      parent,
-      "public_verified",
-      context,
-      Date.now(),
-      await verifyPublic(p, parent.parent, hash, io),
+    receipt = await recordObservation(
+      () => verifyPublic(p, parent.parent, hash, io),
+      (evidence, now) => advance(p, parent, "public_verified", context, now, evidence),
     );
   } else {
     assert.equal(parent.phase, "public_verified");

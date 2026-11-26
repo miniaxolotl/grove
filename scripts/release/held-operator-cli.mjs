@@ -468,6 +468,8 @@ try {
               p,
               parent,
               request.publicCommand,
+              Date.now(),
+              true,
             );
             spec = preparePublic(
               before.rawApp,
