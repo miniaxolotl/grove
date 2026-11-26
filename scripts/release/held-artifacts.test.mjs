@@ -28,9 +28,12 @@ const context = {
 };
 const p = publication(context, `sha256:${"d".repeat(64)}`, now);
 const releaseContext=context;
-for(const operational of [false,true])test(`actual ${operational?'separate tooling':'legacy'} continuation artifacts load the entire seven-stage source chain`, async () => {
-  const tooling={source:'4'.repeat(40),production:'5'.repeat(40),tree:'6'.repeat(40),tag:'v1.11.35',workflow:'.github/workflows/held-release-operator.yml'};
-  const context={...releaseContext,...(operational?{tooling}:{})};
+for(const mode of [false,true,'repaired37'])test(`actual ${mode==='repaired37'?'reviewed v36-to-v37':mode?'separate tooling':'legacy'} continuation artifacts load the entire seven-stage source chain`, async () => {
+  const operational=Boolean(mode),repaired=mode==='repaired37';
+  let tooling=repaired?{source:'a55f9e89df2131fdc993fc41bdbe648c8ec8e9d2',production:'e1a7baf8eae1e2874f963416f3d01336db745d06',tree:'345abbcbc6f079ee2fbcbd6096434b3e485b25c1',tag:'v1.11.36',workflow:'.github/workflows/held-release-operator.yml'}:{source:'4'.repeat(40),production:'5'.repeat(40),tree:'6'.repeat(40),tag:'v1.11.35',workflow:'.github/workflows/held-release-operator.yml'};
+  const original=repaired?{...releaseContext,source:'4cd44cc891fbb4013b4465bde1eced4ebaedbee0',production:'51048850e1895635febf142996390c7c893f8e89',tag:'v1.11.34',apiVersion:'1.11.34'}:releaseContext;
+  const p=publication(original,`sha256:${'d'.repeat(64)}`,now);
+  let context={...original,...(operational?{tooling}:{})};
   const snapshot = {
     fingerprint: "1".repeat(64),
     generation: "fixture",
@@ -101,6 +104,7 @@ for(const operational of [false,true])test(`actual ${operational?'separate tooli
       contract: "qualified-lifecycle-and-remote-reconciliation",
     }),
   );
+  if(repaired){tooling={source:'7'.repeat(40),production:'8'.repeat(40),tree:'9'.repeat(40),tag:'v1.11.37',workflow:tooling.workflow};context={...context,tooling};}
   const r = advance(p, e, "runtime_verified", next(), now, {
     ...snapshot,
     ingress: true,
@@ -129,7 +133,7 @@ for(const operational of [false,true])test(`actual ${operational?'separate tooli
   });
   const site = advance(p, pub, "website_verified", next(), now, {
     repository: context.repository,
-    version: "1.11.30",
+    version: p.release.tag.slice(1),
     sourceSha: context.source,
     productionSha: context.production,
     deploymentUrl: "https://grove-fixture.vercel.app",
@@ -174,7 +178,7 @@ for(const operational of [false,true])test(`actual ${operational?'separate tooli
     run: async (id) => ({
       id,
       run_attempt: 1,
-      head_sha: operational&&id!==123?tooling.production:context.production,
+      head_sha: operational&&id!==123?bundles.get(id).receipt.operator.tooling.production:context.production,
       head_branch: "production",
       path:
         id === 123
@@ -195,7 +199,7 @@ for(const operational of [false,true])test(`actual ${operational?'separate tooli
           name,
           run_id: id,
           run_attempt: 1,
-          head_sha: operational&&id!==123?tooling.production:context.production,
+          head_sha: operational&&id!==123?bundles.get(id).receipt.operator.tooling.production:context.production,
           status: "completed",
           conclusion: "success",
         }),
@@ -236,6 +240,7 @@ for(const operational of [false,true])test(`actual ${operational?'separate tooli
     for(const changed of [{...context,tooling:undefined},{...context,tooling:{...tooling,production:context.production}}])
       await assert.rejects(artifacts.loadReceipt({run:site.operator.run,attempt:1,phase:'website_verified',publication:p},changed,io,now));
   }
+  if(repaired)await assert.rejects(artifacts.loadReceipt({run:site.operator.run,attempt:1,phase:'website_verified',publication:p},context,{...io,jobs:async id=>(await io.jobs(id)).map(job=>id===e.operator.run?{...job,head_sha:tooling.production}:job)},now));
 });
 function fixture(change = () => {}) {
   const zip = zipSync({ "held-state.json": strToU8(JSON.stringify(p)) });

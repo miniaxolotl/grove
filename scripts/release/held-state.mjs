@@ -150,10 +150,9 @@ function record(p, parent, phase, evidence, context, now) {
     "Held-release phase jump",
   );
   if (parent.phase !== "published_held") {
-    // Operational lifecycle startup and a fresh website build can exceed a
-    // receipt's observation lifetime. Their immutable parent remains linked,
-    // but the actual current named-instance proof must be fresh instead.
-    if(context.tooling&&phase==='lifecycle_verified')fresh(evidence.observedAt,now);
+    // Operational observations retain immutable parent approval/history; a slow
+    // rollout is not permission to reuse an old actual named-instance proof.
+    if(context.tooling&&['lifecycle_verified','runtime_verified','public_verified'].includes(phase))fresh(evidence.observedAt,now);
     else if(context.tooling&&phase==='website_verified')fresh(evidence.parentVerification.observedAt,now);
     else fresh(parent.at, now);
   }
@@ -481,6 +480,11 @@ export function advance(p, parent, phase, context, now, evidence) {
     );
   }
   return record(p, parent, phase, evidence, context, now);
+}
+
+export async function recordObservation(verify, record, now = Date.now) {
+  const evidence = await verify();
+  return record(evidence, now());
 }
 
 export function validateHeldReceipt(receipt, p) {
