@@ -162,11 +162,18 @@ New receipts keep that original `release` and add `operator.tooling` with the ac
 operational source, production merge, tree, tag and workflow path. Readers verify
 the real successful production run/attempt, both jobs, artifact digest and every
 parent recursively. A continuation chain uses one frozen operational identity;
-development runs, local attestations and invented run IDs cannot substitute.
+the v1.11.37 recorder additionally admits only the exact reviewed v1.11.36
+held/lifecycle/approval ancestry of the original v1.11.34 publication. Each old
+run, job and artifact retains and authenticates its original tooling identity.
+Development runs, local attestations and invented run IDs cannot substitute.
 Website recording checks out and builds the **original release source** afresh,
 retaining its source/production identity in Vercel and `/release.json`.
-Lifecycle recording may retain an older immutable held parent only with its fresh
-current named-instance lifecycle proof bound to that exact parent. A long website
+Lifecycle, runtime and public recording may retain an older immutable parent only
+with fresh current named-instance proofs bound to that exact release, persisted
+approval and phase. Observation recording timestamps are captured after the
+asynchronous probes complete. This does not extend owner-command deadlines,
+startup reconciliation freshness or the requirement for actual public readiness.
+A long website
 build similarly retains its public parent but records a new post-deployment public
 proof. Other action/observation deadlines remain unchanged; stale current proofs
 still reject, and no parent timestamp is rewritten.

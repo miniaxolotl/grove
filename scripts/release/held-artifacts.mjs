@@ -12,6 +12,18 @@ import {
 } from "./held-state.mjs";
 import { pendingPublication } from "./held-delivery.mjs";
 const repo = "miniaxolotl/grove";
+const v36Tooling = Object.freeze({source:'a55f9e89df2131fdc993fc41bdbe648c8ec8e9d2',production:'e1a7baf8eae1e2874f963416f3d01336db745d06',tree:'345abbcbc6f079ee2fbcbd6096434b3e485b25c1',tag:'v1.11.36',workflow:'.github/workflows/held-release-operator.yml'});
+// This one repaired recorder retains only the already authenticated, frozen v36
+// ancestry of the original v34 publication. No floating/future-tooling fallback.
+export function heldReceiptContext(run, phase, context) {
+  if(context.source==='4cd44cc891fbb4013b4465bde1eced4ebaedbee0' &&
+    context.production==='51048850e1895635febf142996390c7c893f8e89' &&
+    context.tooling?.tag==='v1.11.37' && context.tooling.workflow===v36Tooling.workflow &&
+    ['held_verified','lifecycle_verified','effects_approved'].includes(phase) &&
+    run.path===v36Tooling.workflow && run.head_sha===v36Tooling.production)
+    return {...context,tooling:v36Tooling};
+  return context;
+}
 export function assertHeldWorkflowRun(run,{runId,attempt,published,context}) {
   const operational=!published && run.path==='.github/workflows/held-release-operator.yml';
   assert(run.id===runId && run.run_attempt===attempt && run.head_branch==='production');
@@ -215,6 +227,7 @@ export async function loadHeldReceipt(
       ].includes(phase),
     );
     const run = await io.run(runId, attempt);
+    context=heldReceiptContext(run,phase,context);
     const operational=assertHeldWorkflowRun(run,{runId,attempt,published,context});
     assert(
       ["push", "workflow_dispatch"].includes(run.event) &&
