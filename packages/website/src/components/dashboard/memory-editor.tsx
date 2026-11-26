@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type ComponentProps,
 } from "react";
 import {
   ArrowLeft,
@@ -34,7 +35,13 @@ import { ActionMenu } from "./ui/action-menu";
 import { InspectorDialog } from "./ui/inspector-dialog";
 import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { RevisionCompare } from "./revision-compare";
-import { useNoteDrafts, useDraftHeld, type NoteValues } from "./note-drafts";
+import {
+  useNoteDrafts,
+  useNoteDraftRevision,
+  useDraftsInitializing,
+  useDraftHeld,
+  type NoteValues,
+} from "./note-drafts";
 import { NoteDeleteDialog } from "./note-delete-dialog";
 import { CommandMenuButton } from "./workspace-commands";
 import { useNoteExport } from "./note-export";
@@ -53,6 +60,44 @@ import {
 } from "@/lib/workspace-shortcuts";
 
 const saveOwners = new WeakMap<Promise<Memory>, object>();
+
+function DraftCheckpointStatus({ draftKey }: { draftKey?: string }) {
+  const drafts = useNoteDrafts();
+  useNoteDraftRevision();
+  const id = useId();
+  if (!drafts?.enabled) return null;
+  const message =
+    drafts.recoveryError ||
+    (draftKey && drafts.checkpoints.has(draftKey)
+      ? `Device checkpoint ${new Date(drafts.checkpoints.get(draftKey)!).toLocaleTimeString()}`
+      : "No unsaved device checkpoint yet.");
+  return (
+    <>
+      <button
+        type="button"
+        className="text-button note-device-trigger"
+        popoverTarget={id}
+        aria-label="Device draft recovery status"
+        title={message}
+      >
+        Device
+      </button>
+      <span
+        popover="auto"
+        id={id}
+        className="note-device-popover"
+        role="status"
+      >
+        <strong>{message}</strong>
+        <span>
+          A device checkpoint is separate from a server save. Recent typing may
+          not be checkpointed yet. Keep this tab open or export your text if
+          recovery is unavailable.
+        </span>
+      </span>
+    </>
+  );
+}
 
 function PropertiesPanel({
   overlay,
@@ -75,7 +120,18 @@ function PropertiesPanel({
     : fields;
 }
 
-export function MemoryEditor({
+export function MemoryEditor(props: ComponentProps<typeof ReadyMemoryEditor>) {
+  const initializing = useDraftsInitializing();
+  return initializing ? (
+    <p role="status" className="settings-loading">
+      Checking device draft recovery…
+    </p>
+  ) : (
+    <ReadyMemoryEditor {...props} />
+  );
+}
+
+function ReadyMemoryEditor({
   memory,
   projects,
   projectId: defaultProject = null,
@@ -87,6 +143,7 @@ export function MemoryEditor({
   fullPage = false,
   draftKey,
   initialPreview = false,
+  freshness,
   workspace = false,
   toolbar,
   details,
@@ -109,6 +166,7 @@ export function MemoryEditor({
   fullPage?: boolean;
   draftKey?: string;
   initialPreview?: boolean;
+  freshness?: { checking: boolean; error: boolean; retry: () => void };
   workspace?: boolean;
   toolbar?: (state: {
     locked: boolean;
@@ -127,6 +185,9 @@ export function MemoryEditor({
 }) {
   const drafts = useNoteDrafts();
   const noteExport = useNoteExport();
+  useLayoutEffect(() => {
+    if (draftKey) drafts?.begin(draftKey);
+  }, [drafts, draftKey]);
   const root = useRef<HTMLFormElement>(null);
   const notebookId = useId();
   const retentionHelp = useId();
@@ -286,6 +347,7 @@ export function MemoryEditor({
         submitted: submitted.current,
         error,
         dailyConflictId,
+        dailyDate,
       });
     else drafts.delete(key);
   }, [
@@ -302,6 +364,7 @@ export function MemoryEditor({
     saving,
     error,
     dailyConflictId,
+    dailyDate,
   ]);
   const settleSave = useEffectEvent(
     async (
@@ -380,6 +443,11 @@ export function MemoryEditor({
           if (stillDirty) drafts.set(`note:${saved.id}`, next);
           else drafts.delete(`note:${saved.id}`);
           if (!base) drafts.delete(draftKey);
+          // Do not leave a durable uncertain-create checkpoint behind while
+          // announcing Saved/routing away. A failed cleanup remains visible in
+          // recovery status, but does not turn a confirmed server save into failure.
+          await drafts.checkpoint(`note:${saved.id}`).catch(() => {});
+          if (!base) await drafts.checkpoint(draftKey).catch(() => {});
         }
         if (!active()) return;
         setBase(saved);
@@ -523,27 +591,33 @@ export function MemoryEditor({
       };
       submitted.current = { content, kind, retention, autoKind, projectId };
     }
-    const request = api<Memory>(
-      !base && dailyDate ? `/memories/daily/${dailyDate}` : "/memories",
-      {
-        ...input,
-        operationId: pending.current.operationId,
-      },
-    );
+    const operationId = pending.current.operationId;
+    const targetDate = draft?.dailyDate ?? dailyDate;
+    const retained = {
+      content,
+      kind,
+      retention,
+      autoKind,
+      projectId,
+      base,
+      task: task.current,
+      pending: pending.current,
+      submitted: submitted.current,
+      dailyDate: targetDate,
+    };
+    if (draftKey) drafts?.set(draftKey, retained);
+    const request = (async () => {
+      // With device recovery enabled, confirm the exact retry identity on disk
+      // before dispatch. Acceptance is not a server save.
+      if (draftKey && drafts)
+        await drafts.checkpoint(base ? `note:${base.id}` : draftKey, retained);
+      return api<Memory>(
+        !base && targetDate ? `/memories/daily/${targetDate}` : "/memories",
+        { ...input, operationId },
+      );
+    })();
     setSaving(request);
-    if (draftKey)
-      drafts?.set(draftKey, {
-        content,
-        kind,
-        retention,
-        autoKind,
-        projectId,
-        base,
-        task: task.current,
-        pending: pending.current,
-        saving: request,
-        submitted: submitted.current,
-      });
+    if (draftKey) drafts?.set(draftKey, { ...retained, saving: request });
   }
   const autosave = useEffectEvent(() => persist(true));
   const openExport = () =>
@@ -635,23 +709,29 @@ export function MemoryEditor({
     root,
     noteTitle,
   );
-  const saveStatus = busy
-    ? "Saving…"
-    : dailyConflictId
-      ? "Daily note already saved"
-      : dirty
-        ? error
-          ? "Not saved · retry"
-          : content.length > 6000
-            ? "Over save limit"
-            : !content.trim()
-              ? "Empty draft"
-              : autoSave
-                ? "Waiting to save…"
-                : "Unsaved changes"
-        : base
-          ? `Saved${base.status === "archived" ? " · Archived" : ""}`
-          : "Start a note";
+  const saveStatus = latest
+    ? "Newer version · review"
+    : busy
+      ? "Saving…"
+      : dailyConflictId
+        ? "Daily note already saved"
+        : dirty
+          ? error
+            ? "Not saved · retry"
+            : content.length > 6000
+              ? "Over save limit"
+              : !content.trim()
+                ? "Empty draft"
+                : autoSave
+                  ? "Waiting to save…"
+                  : "Unsaved changes"
+          : base
+            ? freshness?.error
+              ? "Saved copy · refresh failed"
+              : freshness?.checking
+                ? "Saved copy · checking…"
+                : `Saved${base.status === "archived" ? " · Archived" : ""}`
+            : "Start a note";
   const saveButton = (
     <Button
       type="submit"
@@ -758,10 +838,32 @@ export function MemoryEditor({
                   size={13}
                   aria-hidden="true"
                   style={{
-                    visibility: !busy && !dirty && base ? "visible" : "hidden",
+                    visibility:
+                      !busy &&
+                      !dirty &&
+                      base &&
+                      !latest &&
+                      !freshness?.error &&
+                      !freshness?.checking
+                        ? "visible"
+                        : "hidden",
                   }}
                 />
                 <span title={saveStatus}>{saveStatus}</span>
+                {freshness?.error && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={freshness.retry}
+                    disabled={freshness.checking}
+                    aria-label="Retry refreshing note"
+                  >
+                    Retry
+                  </button>
+                )}
+                <DraftCheckpointStatus
+                  draftKey={base ? `note:${base.id}` : draftKey}
+                />
               </span>
               {toolbar ? (
                 toolbar({

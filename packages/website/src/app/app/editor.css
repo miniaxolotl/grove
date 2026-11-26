@@ -325,6 +325,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.note-device-trigger {
+  flex: 0 0 auto;
+  font-size: 10px;
+}
+.note-save-status > .note-device-popover {
+  position: fixed;
+  inset: auto 12px 12px auto;
+  width: min(320px, calc(100% - 24px));
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: #fcfdfb;
+  color: var(--color-ink);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow: visible;
+}
+.note-device-popover:popover-open {
+  display: grid;
+  gap: 8px;
+}
 .note-save-button {
   flex-shrink: 0;
   width: 96px;

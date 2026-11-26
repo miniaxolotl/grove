@@ -40,6 +40,7 @@ export function MemoryDetail({
   fullPage = false,
   initialPreview = true,
   initialDelete = false,
+  freshness,
   onDeleted,
   close,
 }: {
@@ -60,6 +61,7 @@ export function MemoryDetail({
   fullPage?: boolean;
   initialPreview?: boolean;
   initialDelete?: boolean;
+  freshness?: { checking: boolean; error: boolean; retry: () => void };
   onDeleted: () => void;
   close: () => void;
 }) {
@@ -212,6 +214,7 @@ export function MemoryDetail({
       <MemoryEditor
         key={editorRevision}
         memory={memory}
+        freshness={freshness}
         projectId={creation?.projectId}
         initialContent={creation?.initialContent}
         dailyDate={creation?.dailyDate}

@@ -209,6 +209,7 @@ export function MemoryLibrary({
   const loadingRows = loading || query.isFetchingNextPage;
   const hasListContinuation = view === "list" && next;
   const searchMode = query.data?.pages[0]?.searchMode;
+  const retrieval = query.data?.pages[0]?.retrieval;
   const matches = Object.assign(
     {},
     ...(query.data?.pages.map((page) => page.matches ?? {}) ?? []),
@@ -610,6 +611,18 @@ export function MemoryLibrary({
                     <RefreshCw size={14} aria-hidden="true" />
                     <span className="sr-only">Refreshing notes…</span>
                   </span>
+                ) : search && searchMode === "lexical" ? (
+                  <span
+                    title={
+                      retrieval?.reason
+                        ? `Meaning search did not run (${retrieval.reason}). Start a new search to try again.`
+                        : undefined
+                    }
+                  >
+                    {retrieval?.reason ? "Keyword fallback" : "Keyword"}
+                  </span>
+                ) : search && searchMode === "hybrid" ? (
+                  <span title="Meaning + keyword results">Meaning</span>
                 ) : null}
               </span>
             </span>

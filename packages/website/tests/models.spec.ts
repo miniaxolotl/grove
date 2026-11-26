@@ -729,9 +729,12 @@ for (const editable of [true, false])
         page.getByText("Technical details", { exact: true }),
       ).toHaveCount(0);
       await expect(
-        page.getByText("Search by keyword or meaning is available.", {
-          exact: true,
-        }),
+        page.getByText(
+          "Meaning search is configured. Each search reports whether it used meaning or keyword fallback.",
+          {
+            exact: true,
+          },
+        ),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Save model settings" }),

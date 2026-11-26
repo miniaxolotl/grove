@@ -90,6 +90,30 @@ export class WorkspaceCache {
   private expiry?: ReturnType<typeof setTimeout>;
   private unsubscribe?: () => void;
   private publish?: (change: Change) => void;
+  private privacyListeners = new Set<
+    (change: {
+      terminal?: boolean;
+      ids?: string[];
+      scopes?: (string | null)[];
+    }) => void
+  >();
+  observePrivacy(
+    listener: (change: {
+      terminal?: boolean;
+      ids?: string[];
+      scopes?: (string | null)[];
+    }) => void,
+  ) {
+    this.privacyListeners.add(listener);
+    return () => {
+      this.privacyListeners.delete(listener);
+    };
+  }
+  private endSession() {
+    this.privacyListeners.forEach((listener) => listener({ terminal: true }));
+    this.dispose();
+    this.accessLost();
+  }
 
   constructor(
     private transport: typeof api = api,
@@ -209,8 +233,7 @@ export class WorkspaceCache {
       this.assertActive(generation, signal);
       if (error instanceof DashboardApiError) {
         if (error.status === 401) {
-          this.dispose();
-          this.accessLost();
+          this.endSession();
         } else if (
           [403, 404].includes(error.status) &&
           path !== "/memories/search" &&
@@ -219,6 +242,9 @@ export class WorkspaceCache {
           void this.client.cancelQueries({
             predicate: (query) => query.queryKey[1] === "notes",
           });
+          this.privacyListeners.forEach((listener) =>
+            listener({ ids: [path.split("/")[2]] }),
+          );
           this.forget(path.split("/")[2]);
         } else if ([403, 404].includes(error.status)) {
           this.client.setQueryData(workspaceKeys.resource(path, body), null);
@@ -227,7 +253,14 @@ export class WorkspaceCache {
       throw error;
     }
   }
-  private seed(note: Memory, at: number): Memory | null {
+  private seed(note: Memory, at: number, authoritative = true): Memory | null {
+    if (
+      authoritative &&
+      (note.status === "archived" ||
+        (note.expiresAt && Date.parse(note.expiresAt) <= Date.now()) ||
+        (note.purgeAt && Date.parse(note.purgeAt) <= Date.now()))
+    )
+      this.privacyListeners.forEach((listener) => listener({ ids: [note.id] }));
     if (
       this.deleted.has(note.id) ||
       (note.purgeAt && Date.parse(note.purgeAt) <= Date.now())
@@ -580,6 +613,8 @@ export class WorkspaceCache {
     this.client.removeQueries({ predicate: revisions });
   }
   private notebookLifecycle(action: string, scopes: (string | null)[]) {
+    if (action !== "restore")
+      this.privacyListeners.forEach((listener) => listener({ scopes }));
     void this.client.cancelQueries({ queryKey: root });
     this.applyNotebookLifecycle(action, scopes);
     // Lifecycle previews freeze the reviewed scope; evict them so the next
@@ -651,6 +686,8 @@ export class WorkspaceCache {
     }
   }
   private noteLifecycle(action: string, ids: string[]) {
+    if (action !== "restore" && action !== "refresh")
+      this.privacyListeners.forEach((listener) => listener({ ids }));
     const change = { ids };
     void this.client.cancelQueries({
       predicate: (query) => this.affected(query, change),
@@ -673,7 +710,7 @@ export class WorkspaceCache {
    */
   applyNoteRecords(records: Map<string, Memory | null>) {
     for (const [id, note] of records) {
-      if (note) this.seed(note, Date.now());
+      if (note) this.seed(note, Date.now(), false);
       else this.forget(id);
     }
     this.patchPages(records);
@@ -1108,8 +1145,7 @@ export class WorkspaceCache {
       const result = await request;
       this.assertActive(generation, signal);
       if (path === "/account/delete") {
-        this.dispose();
-        this.accessLost();
+        this.endSession();
         return result;
       }
       if (path.startsWith("/memories")) {
@@ -1157,11 +1193,24 @@ export class WorkspaceCache {
         });
         for (const [noteId, note] of records) {
           if (note) records.set(noteId, this.seed(note, Date.now()));
-          else this.forget(noteId);
+          else {
+            this.privacyListeners.forEach((listener) =>
+              listener({ ids: [noteId] }),
+            );
+            this.forget(noteId);
+          }
         }
         this.patchPages(records);
         this.invalidate(change, new Set(records.keys()));
         this.publish?.(change);
+        const removedIds = [...records]
+          .filter(([, note]) => note === null)
+          .map(([id]) => id);
+        if (removedIds.length)
+          this.publish?.({
+            resource: "/memories/lifecycle/delete",
+            ids: removedIds,
+          });
       } else if (path.startsWith("/assistance")) {
         if (/\/(apply|undo)$/.test(path)) {
           this.invalidate({});
@@ -1365,8 +1414,7 @@ export class WorkspaceCache {
     } catch (error) {
       if (this.active && generation === this.generation) {
         if (error instanceof DashboardApiError && error.status === 401) {
-          this.dispose();
-          this.accessLost();
+          this.endSession();
         } else if (
           path.startsWith("/memories") ||
           /\/(apply|undo)$/.test(path)

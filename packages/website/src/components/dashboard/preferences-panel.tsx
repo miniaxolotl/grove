@@ -99,7 +99,7 @@ export function AiPreferencesPanel() {
             : models.data?.config
               ? models.data.config.embedding.provider === "disabled"
                 ? "Keyword search is available."
-                : "Search by keyword or meaning is available."
+                : "Meaning search is configured. Each search reports whether it used meaning or keyword fallback."
               : "Checking search availability…"}
         </p>
         {models.error && (
