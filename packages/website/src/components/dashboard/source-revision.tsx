@@ -33,36 +33,43 @@ export function SourceRevision({
   });
   const revision = query.data;
   return (
-    <article className="note-document">
+    <article className="note-document source-revision">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-editorial text-2xl">Source · revision {version}</h1>
         <Link href={`/app/memories/${id}`} className="text-button">
           Open current note
         </Link>
       </header>
-      {query.error ? (
-        <LoadError
-          message={errorMessage(query.error)}
-          retry={() => void query.refetch()}
-        />
-      ) : revision === null ? (
-        <p role="status">This source is no longer available.</p>
-      ) : !revision ? (
-        <p role="status">Opening source…</p>
-      ) : (
-        <>
-          {revision.currentVersion !== version && (
-            <p className="mt-4 text-sm text-muted">
-              Current note: revision {revision.currentVersion}
-            </p>
-          )}
-          <div className="mt-6">
-            <Markdown media={{ noteId: id, version }}>
-              {revision.content}
-            </Markdown>
-          </div>
-        </>
-      )}
+      <div
+        className="source-revision-body"
+        role="region"
+        aria-label="Saved source"
+        tabIndex={0}
+      >
+        {query.error ? (
+          <LoadError
+            message={errorMessage(query.error)}
+            retry={() => void query.refetch()}
+          />
+        ) : revision === null ? (
+          <p role="status">This source is no longer available.</p>
+        ) : !revision ? (
+          <p role="status">Opening source…</p>
+        ) : (
+          <>
+            {revision.currentVersion !== version && (
+              <p className="mt-4 text-sm text-muted">
+                Current note: revision {revision.currentVersion}
+              </p>
+            )}
+            <div className="mt-6">
+              <Markdown media={{ noteId: id, version }}>
+                {revision.content}
+              </Markdown>
+            </div>
+          </>
+        )}
+      </div>
     </article>
   );
 }

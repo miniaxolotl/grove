@@ -118,6 +118,30 @@ html:has(.grove-app) {
 .note-document > .app-form {
   padding: 24px;
 }
+.source-revision > header {
+  flex: none;
+  padding: 16px 24px;
+  gap: 8px 16px;
+}
+.source-revision-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  padding: 0 24px 24px;
+  scrollbar-gutter: stable;
+}
+@media (max-width: 600px) {
+  .source-revision > header {
+    padding: 12px 16px;
+  }
+  .source-revision-body {
+    padding: 0 16px 16px;
+  }
+  .grove-app:has(.source-revision) .app-footer {
+    display: none;
+  }
+}
 .note-workspace .note-editor-bar {
   flex-wrap: nowrap;
 }

@@ -22,6 +22,11 @@ grouped diff instead of truncated results. Unsaved drafts above the note limit
 retain full-version comparison rather than crashing the review.
 Revision history opens the latest previous logical revision's diff first; the complete
 current revision follows it. Individual comparisons can still be opened or closed.
+If a highlighted comparison cannot be produced within the bound, the fallback
+offers full versions without calling a saved revision a draft. A failed history
+read has **Retry history**, which only reloads history and never restores a note.
+Saved-source revision links have a bounded, keyboard-focusable reading region;
+**Open current note** remains separate from the cited version.
 
 The editor stays mounted through saves. Existing local Undo, held saves, newer
 typing, session-memory draft ownership and uncertain-operation retry rules remain.

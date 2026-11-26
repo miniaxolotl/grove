@@ -61,8 +61,8 @@ export function RevisionCompare({
         </>
       ) : (
         <p>
-          This draft cannot be compared as a saved note yet. Compare the full
-          versions below.
+          A highlighted comparison isn’t available for these versions. Compare
+          the full versions below.
         </p>
       )}
       <details className="revision-complete">

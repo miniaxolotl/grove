@@ -478,7 +478,15 @@ export function MemoryDetail({
         >
           {historyError && (
             <p role="alert" className="app-error">
-              {historyError}
+              {historyError}{" "}
+              <button
+                type="button"
+                className="text-button"
+                disabled={historyQuery.isFetching}
+                onClick={() => void historyQuery.refetch()}
+              >
+                Retry history
+              </button>
             </p>
           )}
           {!history && !historyError && <p role="status">Loading history…</p>}
