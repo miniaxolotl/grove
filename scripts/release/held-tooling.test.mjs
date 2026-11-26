@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {publication,recordHeld,assertHeldRecorderActors} from './held-state.mjs';
 import * as artifacts from './held-artifacts.mjs';
+import {readFileSync} from 'node:fs';
+test('operational recorder uses the existing verified pnpm setup action pin',()=>{
+  const pin='pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413';
+  assert(readFileSync('.github/workflows/deploy.yml','utf8').includes(pin));
+  assert(readFileSync('.github/workflows/held-release-operator.yml','utf8').includes(pin));
+});
 const now=Date.parse('2026-11-25T12:00:00Z');
 const base={repository:'miniaxolotl/grove',actor:'miniaxolotl',protected:true,source:'a'.repeat(40),production:'b'.repeat(40),tree:'c'.repeat(40),tag:'v1.11.34',apiVersion:'1.11.34',run:1,attempt:1};
 const tooling={source:'d'.repeat(40),production:'e'.repeat(40),tree:'f'.repeat(40),tag:'v1.11.35',workflow:'.github/workflows/held-release-operator.yml'};

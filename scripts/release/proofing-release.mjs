@@ -37,6 +37,10 @@ export function routeHeldOperator(source,pr,released=false,io={git,read}){
   if(pr.head?.ref!=='fix/release-operational-held-workflow'||pr.head?.repo?.full_name!=='miniaxolotl/grove')return 'website-only';
   return routeBound(source,pr,released,io,{baseline:'978f9bc2f80ea9879afd132614d77afef1171690',number:337,before:'1.11.34',after:'1.11.35'});
 }
+export function routeHeldActionPin(source,pr,released=false,io={git,read}){
+  if(pr.head?.ref!=='fix/release-held-action-pin'||pr.head?.repo?.full_name!=='miniaxolotl/grove')return 'website-only';
+  return routeBound(source,pr,released,io,{baseline:'0ec31adf20c68bc909a59d05cbb4e6e07681d3b6',number:340,before:'1.11.35',after:'1.11.36'});
+}
 function routeBound(source, pr, released, io, admission) {
   assert.match(source, /^[0-9a-f]{40}$/);
   const merged = pr.merge_commit_sha;
@@ -96,12 +100,13 @@ if (
       );
     const released = process.argv[3] === "released";
     const operational=routeHeldOperator(source,pull(337),released);
+    const pinRepair=routeHeldActionPin(source,pull(340),released);
     const domain = routeDomain(source, pull(303), released);
     const historical =
       domain === "coordinated"
         ? "website-only"
         : route(source, pull(293), released);
-    const mode = operational==='coordinated'?operational:domain === "coordinated" ? domain : historical;
+    const mode = pinRepair==='coordinated'?pinRepair:operational==='coordinated'?operational:domain === "coordinated" ? domain : historical;
     appendFileSync(
       process.env.GITHUB_OUTPUT,
       `mode=${mode}\nchecker=${historical === "coordinated"}\nconfig=${mode === "coordinated" ? "release-please-config.json" : "release-please-website.json"}\n`,
