@@ -289,6 +289,7 @@ export type RetrievalDiagnostic = {
 };
 export type Page<T> = {
   retrieval?: RetrievalDiagnostic;
+  orderState?: string;
   usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
   visit?: {

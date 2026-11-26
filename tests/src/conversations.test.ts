@@ -9,6 +9,7 @@ import {
   sessionPrincipal,
   exportHandlers,
   runTask,
+  cleanupHandlers,
   configureBillingQuotas,
   type ArtifactStore,
 } from "@lib/memory";
@@ -1506,12 +1507,15 @@ test("Ask notebook organization cannot move or rename a notebook outside convers
 });
 
 async function seedNotes(accountId: string, count: number) {
-  await admin.raw(
-    `INSERT INTO memories(account_id, content, kind, source)
+  // Preserve the exact quota fixture without a giant transaction's quadratic
+  // account-row update chain. Real requests also commit bounded work units.
+  for (let start = 1; start <= count; start += 100)
+    await admin.raw(
+      `INSERT INTO memories(account_id, content, kind, source)
      SELECT ?::uuid, 'Capacity fixture ' || n, 'fact', '{}'::jsonb
-     FROM generate_series(1, ?::integer) n`,
-    [accountId, count],
-  );
+     FROM generate_series(?::integer, ?::integer) n`,
+      [accountId, start, Math.min(count, start + 99)],
+    );
 }
 
 test("conversation creates enforce the account note limit while edits and Undo remain available", async () => {
@@ -3341,8 +3345,37 @@ test("deleted chats and closed accounts retain history that cannot be read or re
     turn("Save a garden plan"),
   );
   await service.deleteAccount(principal);
-  await new MemoryService(workerDb, "conversation-tests").maintenance(
-    async () => {},
+  // Deletion denies reads immediately; accepting cleanup is not completing it.
+  await assert.rejects(service.conversations.get(principal, next.id), {
+    code: "account_unavailable",
+  });
+  await assert.rejects(
+    service.conversations.apply(principal, chat.id, result.turns[0]!.id),
+    {
+      code: "account_unavailable",
+    },
+  );
+  const cleanup = await admin("background_tasks")
+    .where({ accountId: principal.accountId, kind: "account_cleanup" })
+    .first();
+  assert(cleanup, "account deletion commits its durable cleanup task");
+  // Drive the actual fenced worker for this account, not one compatibility
+  // maintenance call whose 20-task budget is shared with other fixture accounts.
+  for (let attempt = 0; attempt < 25; attempt++)
+    if (
+      !(await runTask(
+        workerDb,
+        cleanupHandlers(workerDb, async () => {}),
+        {
+          id: cleanup.id,
+          lane: "maintenance",
+        },
+      ))
+    )
+      break;
+  assert.equal(
+    (await admin("accounts").where({ id: principal.accountId }).first()).status,
+    "deleted",
   );
   assert.equal(
     (

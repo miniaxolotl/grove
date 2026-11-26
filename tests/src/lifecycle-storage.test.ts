@@ -101,8 +101,11 @@ async function account() {
 test("048 is additive; runtime roles cannot author release admission or enumerate lifecycle inbox", async () => {
   const all = await migrationSource.getMigrations([]);
   assert.equal(
-    all.find((m) => m.name.includes("_048_"))?.name,
-    "20261119_048_lifecycle_reconciliation",
+    all.filter(
+      (migration) => migration.name === "20261119_048_lifecycle_reconciliation",
+    ).length,
+    1,
+    "the lifecycle migration remains registered exactly once after additive upgrades",
   );
   await open();
   await assert.rejects(

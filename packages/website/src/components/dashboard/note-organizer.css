@@ -1,0 +1,56 @@
+.note-order-scope {
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.note-order-feedback {
+  min-height: 80px;
+  display: flex;
+  align-items: start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 8px;
+  font-size: 13px;
+}
+.note-order-feedback[role="alert"] {
+  color: var(--color-danger, #833323);
+}
+.note-order-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  max-height: 48dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.note-order-list > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.note-order-list > li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 500;
+}
+.note-order-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.note-order-actions .app-icon {
+  min-width: 36px;
+  min-height: 36px;
+}
+@media (pointer: coarse) {
+  .note-order-actions .app-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

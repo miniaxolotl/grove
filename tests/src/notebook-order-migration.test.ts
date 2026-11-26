@@ -65,6 +65,7 @@ test("notebook order upgrade preserves retained columns and backfills stable sib
         ({
           exportVersion: _version,
           notebookOrderVersion: _order,
+          noteOrderVersion: _noteOrder,
           sentenceRewritesEnabled: _writing,
           ...row
         }) => row,
@@ -72,6 +73,7 @@ test("notebook order upgrade preserves retained columns and backfills stable sib
       accounts.map(({ exportVersion: _version, ...row }) => row),
     );
     assert(currentAccounts.every((a) => a.notebookOrderVersion === "0"));
+    assert(currentAccounts.every((a) => a.noteOrderVersion === "0"));
     assert(currentAccounts.every((a) => a.sentenceRewritesEnabled === true));
     assert.equal(
       Number(currentAccounts.find((a) => a.id === accountId)!.exportVersion),

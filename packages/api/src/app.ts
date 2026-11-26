@@ -50,6 +50,7 @@ import {
   notebookCatalogSchema,
   organizeNotebookSchema,
 } from "@lib/shared/notebook-organization";
+import { organizeNoteSchema } from "@lib/shared/note-organization";
 import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { searchConversationHistory } from "@lib/memory";
 import { createLifecycleIngress } from "./lifecycle-ingress.ts";
@@ -1614,6 +1615,16 @@ export function createApp(deps: AppDependencies) {
         c.get("principal"),
         uuidSchema.parse(c.req.param("id")),
         await body(c, organizeNotebookSchema),
+      ),
+    }),
+  );
+  app.post("/v1/memories/:id/organize", async (c) =>
+    c.json({
+      success: true,
+      data: await service.organizeNote(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, organizeNoteSchema),
       ),
     }),
   );

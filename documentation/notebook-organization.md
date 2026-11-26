@@ -87,6 +87,50 @@ If a newer invalidation cancels the read reconciling a successful move, the UI
 joins/restarts the catalog read once. This is a bounded read retry, not another
 organization operation or an Undo rebase. Other refresh errors remain visible.
 
+## Custom note order
+
+Notes have independent owner-only arrangements for **All notes**, **Unfiled** and
+each notebook. Select **Custom order** in Filters, then **Arrange notes**. The
+dialog reads the complete scope progressively, without applying library search,
+kind or tag refinements. Use up/down beside a note, or its placement menu for the
+start/end; load another page before moving across an unloaded adjacent position.
+Display date/title sorts never rewrite these arrangements.
+
+New notes append. Moving a note appends it in its new container and preserves its
+separate All-notes position. Archive retains rank for restoration; deleted notes
+remain absent. Ordering metadata is separate from source/revision history and does
+not queue inference, change note versions or consume AI allowances.
+
+`sort: "custom"` list responses include an opaque `orderState`. Owning sessions can
+POST `/v1/memories/:id/organize` with `operationId`, `expectedVersion`,
+`expectedState`, optional `projectId` (omit for All notes; null for Unfiled), and
+one optional `beforeId`/`afterId`; omit both to append. The source and anchor must
+be current, active notes in that exact scope. No permission or filing changes occur.
+API keys/OAuth cannot read or change custom ordering.
+
+Writes serialize under the existing account lock and return `{ id, state, undo }`.
+Exact lost-response retries reuse their operation ID and body; changed payloads
+conflict. New moves stop until an uncertain response is reconciled. A changed
+scope/order/source requires review rather than rebasing the original intent or
+Undo. Private retry state remains in the current workspace session, not on disk.
+Custom page cursors reject changed membership/order instead of mixing snapshots.
+An excessively dense insertion is refused atomically before its decimal key can
+outgrow the bounded cursor; other positions, including start/end, remain available.
+
+Private NDJSON exports include versioned `customOrder` decimal strings, never
+lossy JSON numbers. Account exports include All-notes and container ranks;
+notebook-scoped exports include only container ranks. Reordering invalidates an
+existing export. This is portable order evidence, not a new backup-import or
+deleted-note restore feature; ordinary source imports create new notes at the end.
+
+The forward-only **049 note-order migration** must precede the new API/worker code.
+It adds tenant-RLS-protected sparse rank overrides, deterministic creation/ID
+defaults and append behavior for legacy create/move writes. Existing content and
+revisions are not rewritten; runtime readiness rejects an older schema. Populated
+upgrade, real API/worker-role isolation, full-result cursor, replay, move/archive
+and export tests are in `note-order-migration.test.ts` and `note-custom-order.test.ts`.
+Source/browser tests are not deployment or physical-device acceptance.
+
 ## Complete owner catalog
 
 `GET /v1/projects/catalog` requires the owning website session. It accepts:

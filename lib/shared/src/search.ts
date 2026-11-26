@@ -1,6 +1,7 @@
 /** Search evidence is query-scoped, never part of a canonical saved note. */
 import { NOTE_EXCERPT_MAX, NOTE_TITLE_MAX } from "./limits.ts";
 export const noteSorts = [
+  "custom",
   "updated_desc",
   "updated_asc",
   "created_desc",

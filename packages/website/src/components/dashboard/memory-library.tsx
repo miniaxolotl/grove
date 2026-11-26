@@ -71,6 +71,11 @@ const MemoryGraph = dynamic(() => import("./memory-graph"), {
   ssr: false,
   loading: GraphSkeleton,
 });
+const NoteOrganizer = deferredFeature(
+  async () => ({ default: (await import("./note-organizer")).NoteOrganizer }),
+  "Opening note arrangement…",
+  { failureTitle: "Your note order couldn’t open" },
+);
 
 type Action = "move" | "archive" | "restore";
 type Undo = { before: Memory; after: Memory; action: Action };
@@ -111,6 +116,7 @@ export function MemoryLibrary({
   const workspace = useWorkspaceDrag();
   const [view, setView] = useWorkspaceView(`${viewKey}:view`, initialView);
   const [importing, setImporting] = useState(false);
+  const [arranging, setArranging] = useState(false);
   const {
     projects,
     error: notebookError,
@@ -597,6 +603,15 @@ export function MemoryLibrary({
                   </span>
                 )}
               </span>
+              {sort === "custom" && !archive ? (
+                <button
+                  type="button"
+                  className="text-button whitespace-nowrap"
+                  onClick={() => setArranging(true)}
+                >
+                  Arrange notes
+                </button>
+              ) : null}
               <span className="library-sync" role="status">
                 {search && (searchCancelled || loading) ? (
                   <button
@@ -894,7 +909,7 @@ export function MemoryLibrary({
                   <NoteListContinuation
                     key={JSON.stringify(noteOptions.queryKey)}
                     query={query}
-                    paused={!!workspace.active}
+                    paused={!!workspace.active || arranging}
                   />
                 </ul>
               </div>
@@ -936,6 +951,20 @@ export function MemoryLibrary({
             <X size={16} />
           </button>
         </WorkspaceNotice>
+      )}
+      {arranging && (
+        <NoteOrganizer
+          projectId={scopedProject}
+          name={
+            scopedProject === undefined
+              ? "All notes"
+              : scopedProject === null
+                ? "Unfiled"
+                : (projects.find((project) => project.id === scopedProject)
+                    ?.name ?? "This notebook")
+          }
+          close={() => setArranging(false)}
+        />
       )}
       {selected && (
         <Dialog

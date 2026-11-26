@@ -31,6 +31,40 @@ function cacheWith(
 }
 test.afterEach(() => caches.splice(0).forEach((cache) => cache.dispose()));
 
+test("note arrangement refreshes only its custom scope and export status, not source snapshots", async () => {
+  const cache = cacheWith(async (path) =>
+    path.endsWith("/organize")
+      ? { id: note.id, state: "b".repeat(64), undo: {} }
+      : { items: [note], nextCursor: null, orderState: "a".repeat(64) },
+  );
+  const all = cache.notes({ sort: "custom" });
+  const unfiled = cache.notes({ sort: "custom", projectId: null });
+  const titled = cache.notes({ sort: "title_asc" });
+  for (const options of [all, unfiled, titled])
+    await cache.client.fetchInfiniteQuery(options);
+  cache.client.setQueryData(workspaceKeys.resource("/tasks"), { items: [] });
+  cache.client.setQueryData(workspaceKeys.note(note.id), note);
+  await cache.api(`/memories/${note.id}/organize`, {
+    expectedState: "a".repeat(64),
+    expectedVersion: note.version,
+    operationId: "77770000-0000-4000-a000-000000000001",
+  });
+  expect(cache.client.getQueryState(all.queryKey)?.isInvalidated).toBe(true);
+  expect(cache.client.getQueryState(unfiled.queryKey)?.isInvalidated).toBe(
+    false,
+  );
+  expect(cache.client.getQueryState(titled.queryKey)?.isInvalidated).toBe(
+    false,
+  );
+  expect(
+    cache.client.getQueryState(workspaceKeys.resource("/tasks"))?.isInvalidated,
+  ).toBe(true);
+  expect(
+    cache.client.getQueryState(workspaceKeys.note(note.id))?.isInvalidated,
+  ).toBe(false);
+  expect(cache.client.getQueryData(workspaceKeys.note(note.id))).toEqual(note);
+});
+
 test("tool defaults reconcile authoritative choices and fence a held stale read", async () => {
   const original = { exa: true, tavily: false, organize: true };
   const held = Promise.withResolvers<unknown>();

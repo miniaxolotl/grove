@@ -501,6 +501,22 @@ export class WorkspaceCache {
 
   private affected(query: Query, change: Change) {
     const [, kind, key, body] = query.queryKey;
+    if (change.resource === "/memories/order") {
+      if (
+        kind === "resource" &&
+        typeof key === "string" &&
+        key.startsWith("/tasks")
+      )
+        return true;
+      const filters = key as Filters;
+      return (
+        kind === "notes" &&
+        filters.sort === "custom" &&
+        (change.scopes
+          ? change.scopes.includes(filters.projectId!)
+          : filters.projectId === undefined)
+      );
+    }
     if (
       kind === "resource" &&
       typeof key === "string" &&
@@ -1155,7 +1171,15 @@ export class WorkspaceCache {
         this.endSession();
         return result;
       }
-      if (path.startsWith("/memories")) {
+      if (/^\/memories\/[^/]+\/organize$/.test(path)) {
+        const input = body as { projectId?: string | null };
+        const change = {
+          resource: "/memories/order",
+          scopes: input.projectId === undefined ? undefined : [input.projectId],
+        };
+        this.invalidate(change);
+        this.publish?.(change);
+      } else if (path.startsWith("/memories")) {
         const records = new Map<string, Memory | null>();
         if (isMemory(result)) records.set(result.id, result);
         if (path === "/memories/delete") {

@@ -96,6 +96,12 @@ owns connection commands and approval.
   hold; tapping or clicking a grip opens Organize for exact placement. The
   [organization guide](notebook-organization.md) owns full move/retry/Undo behavior
   and device qualification limits. Parent access never grants child access.
+- Choose **Custom order** in Filters, then **Arrange notes** beside the list count.
+  All notes, each notebook and Unfiled keep independent saved arrangements. The
+  arrangement dialog is not limited by the library’s search or other refinements.
+  Arrow buttons and the placement menu work without dragging; they never edit note
+  text or spend AI actions. [Ordering and recovery](notebook-organization.md#custom-note-order)
+  describes concurrent changes, retries and exports.
 - Select up to 50 loaded notes for batch move/archive/restore/**Delete**.
   Delete hides the note and retained history; there is no in-app restore. The
   single-note and batch confirmations state this consequence before submission.

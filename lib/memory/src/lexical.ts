@@ -197,7 +197,9 @@ export async function orderedPage(
   limit: number,
   direction: "asc" | "desc",
   after?: { key: string; id: string },
+  numeric = false,
 ) {
+  const key = numeric ? "sort_key::numeric" : 'sort_key COLLATE "C"';
   const [value] = await trx
     .withMaterialized("ordered_hits", query.clearOrder())
     .select(
@@ -206,8 +208,8 @@ export async function orderedPage(
       ),
       trx.raw(
         `COALESCE((SELECT jsonb_agg(to_jsonb(page)) FROM (SELECT * FROM ordered_hits
-      ${after ? `WHERE (sort_key COLLATE "C",id) ${direction === "asc" ? ">" : "<"} (? COLLATE "C",?::uuid)` : ""}
-      ORDER BY sort_key COLLATE "C" ${direction},id ${direction} LIMIT ?) page),'[]'::jsonb) AS items`,
+      ${after ? `WHERE (${key},id) ${direction === "asc" ? ">" : "<"} (${numeric ? "?::numeric" : '? COLLATE "C"'},?::uuid)` : ""}
+      ORDER BY ${key} ${direction},id ${direction} LIMIT ?) page),'[]'::jsonb) AS items`,
         [...(after ? [after.key, after.id] : []), limit + 1],
       ),
     );

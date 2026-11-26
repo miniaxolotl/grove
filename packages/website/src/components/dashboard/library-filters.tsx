@@ -277,6 +277,7 @@ export function LibraryFilterBar({
                 label: "Automatic",
                 description: "Best match in search, recently edited otherwise",
               },
+              ...(!archive ? [{ value: "custom", label: "Custom order" }] : []),
               { value: "updated_desc", label: "Recently edited" },
               { value: "updated_asc", label: "Least recently edited" },
               { value: "created_desc", label: "Recently created" },

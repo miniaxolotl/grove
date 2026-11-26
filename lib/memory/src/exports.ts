@@ -1,4 +1,5 @@
 import { randomUUID, createHash } from "node:crypto";
+import { noteRank, noteRankForScope } from "./note-organization.ts";
 import { Readable } from "node:stream";
 import { tenant, type Knex } from "@lib/database";
 import { maskDocumentReply } from "./conversation-documents.ts";
@@ -358,6 +359,18 @@ async function page(trx: Knex.Transaction, task: ClaimedTask, stage: number) {
   const q = trx(tables[kind]).orderBy("id").limit(pageSize);
   if (after) q.where("id", ">", after);
   if (kind === "note") {
+    q.select(
+      trx.raw(
+        `jsonb_build_object('version',1,'container',(?)::text) ${projects ? "" : "|| jsonb_build_object('all',(?)::text)"} AS custom_order`,
+        [
+          noteRankForScope(
+            trx,
+            trx.raw("COALESCE(memories.project_id::text,'unfiled')"),
+          ),
+          ...(projects ? [] : [noteRank(trx)]),
+        ],
+      ),
+    );
     q.select(
       "id",
       "projectId",

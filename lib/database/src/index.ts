@@ -148,6 +148,15 @@ export async function probeDatabase(db: Knex) {
   await db.raw(
     "SELECT source_from, source_to FROM memory_embedding_chunks LIMIT 0",
   );
+  await db.raw("SELECT note_order_version FROM accounts LIMIT 0");
+  await db.raw(
+    "SELECT account_id,scope,memory_id,rank FROM note_order_positions LIMIT 0",
+  );
+  const order = await db.raw(
+    "SELECT to_regprocedure('public.grove_note_default_rank(uuid,timestamptz)') IS NOT NULL AS ready",
+  );
+  if (!order.rows[0]?.ready)
+    throw new Error("The note-order migration (049) is required");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */
