@@ -6,6 +6,10 @@ come from the database, never browser state, email-domain rules, token metadata
 or connected-agent permissions. API keys and OAuth agents cannot use admin routes,
 even when their account belongs to a system admin.
 
+Installation-wide provider balances, costs and forecasts are a separate
+[service-cost reporting proposal](service-costs.md), not a currently available
+Admin section. Existing usage counters are operational measurements, not invoices.
+
 ## People and access
 
 Browse all Grove accounts in pages of thirty, or search an **exact email address**
