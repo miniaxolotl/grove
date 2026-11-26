@@ -12,6 +12,13 @@ export const readTrustedPin = async () =>
   JSON.parse(
     await readFile(new URL("./held-operator-trust.json", import.meta.url)),
   );
+export function assertBundledSource(root, sourceRoot) {
+  assert.equal(
+    resolve(sourceRoot),
+    resolve(root, "../../admitted-source"),
+    "BUNDLED_SOURCE_REQUIRED",
+  );
+}
 export async function assertImmutableCode(path) {
   assert(
     process.getuid() !== 0,
@@ -83,6 +90,21 @@ export async function verifyOperatorRoot(
       "OPERATOR_TOOL_DRIFT",
     );
   }
+  if (closure.tools) {
+    assert.equal(
+      await realpath("/usr/bin/python3"),
+      closure.tools.pythonPath,
+      "OPERATOR_PYTHON_LAUNCH_DRIFT",
+    );
+    assert(
+      closure.toolFiles?.some((file) => file.path === closure.tools.pythonPath),
+      "OPERATOR_PYTHON_LAUNCH_NOT_PINNED",
+    );
+    if (!fixtureOnly) {
+      await assertImmutableCode("/usr/bin");
+      assert.equal((await lstat("/usr/bin/python3")).uid, 0);
+    }
+  }
   for (const item of closure.resolutions ?? []) {
     assert(
       !item.from.split("/").includes("..") &&
@@ -113,7 +135,8 @@ export async function verifyOperatorRoot(
     assert(
       closure.resolutions?.length &&
         closure.toolFiles?.length &&
-        closure.tools?.nodeSha256,
+        closure.tools?.nodeSha256 &&
+        closure.tools?.pythonPath,
       "OPERATOR_COMPLETE_CLOSURE_REQUIRED",
     );
     const executable = await realpath(process.execPath);

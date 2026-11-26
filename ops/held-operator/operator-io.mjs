@@ -8,6 +8,7 @@ import { assertOwnerTarget } from "./window-db.mjs";
 import { pinDirectory } from "./pinned-path.mjs";
 import { fileURLToPath, URL } from "node:url";
 import { pythonExecutable, isolatedPythonArgs } from "./python.mjs";
+import { cleanupAgentSockets } from "./agent-sockets.mjs";
 export const IMAGE =
   "sha256:034acfb28d52ed83fe284f4d5309b4bbfd090c9d374148e82e05b4dc20afd9d8";
 export const CA = "/etc/ssl/certs/ca-certificates.crt";
@@ -128,6 +129,7 @@ export function createIO({ control, sourceRoot, manifest }) {
           undefined,
           { timeoutMs: 15000 },
         );
+        await cleanupAgentSockets(pin);
       } finally {
         await pin.close();
       }

@@ -12,6 +12,19 @@ import {
 } from "./held-state.mjs";
 import { pendingPublication } from "./held-delivery.mjs";
 const repo = "miniaxolotl/grove";
+export function assertHeldWorkflowRun(run,{runId,attempt,published,context}) {
+  const operational=!published && run.path==='.github/workflows/held-release-operator.yml';
+  assert(run.id===runId && run.run_attempt===attempt && run.head_branch==='production');
+  if(operational){
+    assert(context.tooling);
+    assert.equal(context.tooling.workflow,run.path);
+    assert.equal(run.head_sha,context.tooling.production);
+  }else{
+    assert.equal(run.head_sha,context.production);
+    assert.equal(run.path,published?'.github/workflows/deploy.yml':'.github/workflows/held-release.yml');
+  }
+  return operational;
+}
 function pages(endpoint, key) {
   const result = [];
   for (let page = 1; page <= 5; page++) {
@@ -202,18 +215,7 @@ export async function loadHeldReceipt(
       ].includes(phase),
     );
     const run = await io.run(runId, attempt);
-    assert(
-      run.id === runId &&
-        run.run_attempt === attempt &&
-        run.head_sha === context.production &&
-        run.head_branch === "production",
-    );
-    assert.equal(
-      run.path,
-      published
-        ? ".github/workflows/deploy.yml"
-        : ".github/workflows/held-release.yml",
-    );
+    const operational=assertHeldWorkflowRun(run,{runId,attempt,published,context});
     assert(
       ["push", "workflow_dispatch"].includes(run.event) &&
         (!published ? run.event === "workflow_dispatch" : true),
@@ -233,7 +235,7 @@ export async function loadHeldReceipt(
         matching.length === 1 &&
           matching[0].run_id === runId &&
           matching[0].run_attempt === attempt &&
-          matching[0].head_sha === context.production &&
+          matching[0].head_sha === (operational?context.tooling.production:context.production) &&
           matching[0].status === "completed" &&
           matching[0].conclusion === "success",
       );
@@ -255,6 +257,8 @@ export async function loadHeldReceipt(
       now,
     );
     assert.equal(receipt.phase, phase);
+    if(operational)assert.deepEqual(receipt.operator?.tooling,context.tooling);
+    else assert.equal(receipt.operator?.tooling,undefined);
     assert(
       receipt.operator?.run === runId &&
         receipt.operator.attempt === attempt &&

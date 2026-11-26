@@ -27,7 +27,10 @@ const context = {
   protected: true,
 };
 const p = publication(context, `sha256:${"d".repeat(64)}`, now);
-test("actual continuation artifact names and jobs load the entire seven-stage source chain", async () => {
+const releaseContext=context;
+for(const operational of [false,true])test(`actual ${operational?'separate tooling':'legacy'} continuation artifacts load the entire seven-stage source chain`, async () => {
+  const tooling={source:'4'.repeat(40),production:'5'.repeat(40),tree:'6'.repeat(40),tag:'v1.11.35',workflow:'.github/workflows/held-release-operator.yml'};
+  const context={...releaseContext,...(operational?{tooling}:{})};
   const snapshot = {
     fingerprint: "1".repeat(64),
     generation: "fixture",
@@ -130,8 +133,17 @@ test("actual continuation artifact names and jobs load the entire seven-stage so
     sourceSha: context.source,
     productionSha: context.production,
     deploymentUrl: "https://grove-fixture.vercel.app",
+    ...(operational?{parentVerification:pub.evidence}:{}),
   });
   const receipts = [p, h, l, e, r, pub, site];
+  const later=now+600001;
+  const refreshedWebsite={...site.evidence,...(operational?{parentVerification:{...pub.evidence,observedAt:new Date(later).toISOString()}}:{})};
+  const lateWebsite=()=>advance(p,pub,'website_verified',next(),later,refreshedWebsite);
+  const lateLifecycle=()=>recordLifecycle(p,h,{...snapshot,observedAt:new Date(later).toISOString(),ingress:true,lifecycle:evidence},next(),later);
+  if(operational){
+    assert.doesNotThrow(lateWebsite);assert.doesNotThrow(lateLifecycle);
+    assert.throws(()=>advance(p,pub,'website_verified',next(),later,site.evidence));
+  }else{assert.throws(lateWebsite);assert.throws(lateLifecycle);}
   const bundles = new Map(
     receipts.map((receipt) => {
       const zip = zipSync({
@@ -162,12 +174,12 @@ test("actual continuation artifact names and jobs load the entire seven-stage so
     run: async (id) => ({
       id,
       run_attempt: 1,
-      head_sha: context.production,
+      head_sha: operational&&id!==123?tooling.production:context.production,
       head_branch: "production",
       path:
         id === 123
           ? ".github/workflows/deploy.yml"
-          : ".github/workflows/held-release.yml",
+          : operational?tooling.workflow:".github/workflows/held-release.yml",
       event: id === 123 ? "push" : "workflow_dispatch",
       status: "completed",
       conclusion: "success",
@@ -183,7 +195,7 @@ test("actual continuation artifact names and jobs load the entire seven-stage so
           name,
           run_id: id,
           run_attempt: 1,
-          head_sha: context.production,
+          head_sha: operational&&id!==123?tooling.production:context.production,
           status: "completed",
           conclusion: "success",
         }),
@@ -220,6 +232,10 @@ test("actual continuation artifact names and jobs load the entire seven-stage so
       now,
     ),
   );
+  if(operational){
+    for(const changed of [{...context,tooling:undefined},{...context,tooling:{...tooling,production:context.production}}])
+      await assert.rejects(artifacts.loadReceipt({run:site.operator.run,attempt:1,phase:'website_verified',publication:p},changed,io,now));
+  }
 });
 function fixture(change = () => {}) {
   const zip = zipSync({ "held-state.json": strToU8(JSON.stringify(p)) });

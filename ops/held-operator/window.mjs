@@ -1,10 +1,10 @@
 import { verify, createPublicKey, randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
-import { isDeepStrictEqual } from "node:util";
 import { performance } from "node:perf_hooks";
 import { need, hashJSON, canonical, uuid } from "./operator-control.mjs";
 import { appStateFingerprint } from "../../scripts/deploy-digitalocean.mjs";
 import { validateCompleteInstanceInventory } from "../../scripts/release/held-instance-inventory.mjs";
+import { deploymentSpecMatches } from "../../scripts/release/held-provider-response.mjs";
 const exact = (value, keys, code) =>
   need(
     value && hashJSON(Object.keys(value).sort()) === hashJSON([...keys].sort()),
@@ -140,7 +140,7 @@ function provider(state, policy, binding) {
       !app.pending_deployment &&
       !app.in_progress_deployment &&
       app.active_deployment?.phase === "ACTIVE" &&
-      isDeepStrictEqual(app.spec, app.active_deployment.spec),
+      deploymentSpecMatches(app),
     "WINDOW_PROVIDER_UNSETTLED",
   );
   need(

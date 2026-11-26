@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import * as provider from "../deploy-digitalocean.mjs";
 import { validateCompleteInstanceInventory } from "./held-instance-inventory.mjs";
+import { deploymentSpecMatches } from "./held-provider-response.mjs";
 import {
   receiptHash,
   validateHeldReceipt,
@@ -13,6 +14,14 @@ import {
 
 const latch = "GROVE_RELEASE_HOLD";
 const controls = [latch, "GROVE_RELEASE_RECONCILE", "GROVE_RELEASE_APPROVAL"];
+// Protobuf JSON omits false booleans and the GENERAL enum default. Interpret
+// only these documented fields; fingerprints and retained raw specs stay raw.
+function maintenanceFlag(spec, key) {
+  assert(spec.maintenance === undefined || (spec.maintenance && typeof spec.maintenance === 'object' && !Array.isArray(spec.maintenance)));
+  const value=spec.maintenance?.[key];
+  assert(value===undefined || typeof value==='boolean');
+  return value===true;
+}
 function fingerprintDefault(app) {
   assert.equal(
     typeof provider.appStateFingerprint,
@@ -24,7 +33,7 @@ function fingerprintDefault(app) {
 function settled(app) {
   assert(!app.pending_deployment && !app.in_progress_deployment);
   assert.equal(app.active_deployment?.phase, "ACTIVE");
-  assert(isDeepStrictEqual(app.spec, app.active_deployment.spec));
+  assert(deploymentSpecMatches(app), "DEPLOYMENT_SPEC_DRIFT");
   assert.equal(app.spec.name, "grove");
   assert(
     app.spec.services?.length === 1 && app.spec.services[0].name === "api",
@@ -125,8 +134,8 @@ function phaseShape(app, p, key, value, fingerprint, publicPhase = false) {
   const baseline = p.evidence.baseline;
   assert.equal(app.id, baseline.app);
   assert(
-    app.spec.maintenance?.archive === false &&
-      typeof app.spec.maintenance.enabled === "boolean",
+    maintenanceFlag(app.spec, "archive") === false &&
+      typeof maintenanceFlag(app.spec, "enabled") === "boolean",
   );
   assert(!app.spec.envs?.some((entry) => controls.includes(entry.key)));
   for (const component of parts(app.spec)) {
@@ -138,7 +147,7 @@ function phaseShape(app, p, key, value, fingerprint, publicPhase = false) {
       holds?.length === 1 &&
         holds[0].key === key &&
         holds[0].scope === "RUN_TIME" &&
-        holds[0].type === "GENERAL",
+        (holds[0].type === undefined || holds[0].type === "GENERAL"),
     );
     assert(isDeepStrictEqual(JSON.parse(holds[0].value), value));
   }
@@ -153,8 +162,7 @@ function phaseShape(app, p, key, value, fingerprint, publicPhase = false) {
     component.envs = component.envs.filter(
       (entry) => !controls.includes(entry.key),
     );
-  reversed.maintenance.archive = true;
-  reversed.maintenance.enabled = true;
+  reversed.maintenance = { ...reversed.maintenance, archive: true, enabled: true };
   reversed.services[0].health_check = globalThis.structuredClone(
     baseline.health,
   );
@@ -166,7 +174,7 @@ function phaseShape(app, p, key, value, fingerprint, publicPhase = false) {
 }
 function heldShape(app, p, fingerprint) {
   phaseShape(app, p, latch, holdIdentity(p), fingerprint);
-  assert.equal(app.spec.maintenance.enabled, true);
+  assert.equal(maintenanceFlag(app.spec, "enabled"), true);
 }
 const reconcileValue = (p, held) => ({
   schema: 1,
@@ -236,7 +244,7 @@ export function prepareLifecycleIngress(
   assert.equal(observation.lifecycle.release, receiptHash(holdIdentity(p)));
   assert.equal(observation.lifecycle.control.phase, "reconcile");
   const spec = globalThis.structuredClone(app.spec);
-  spec.maintenance.enabled = false;
+  spec.maintenance = { ...spec.maintenance, enabled: false };
   return spec;
 }
 export function prepareHeld(
@@ -381,7 +389,7 @@ export function prepareApproved(
     const observation = approval.parent.evidence;
     observationFence(app, instances, observation, now, fingerprint);
     assert.equal(observation.ingress, true);
-    assert.equal(app.spec.maintenance.enabled, false);
+    assert.equal(maintenanceFlag(app.spec, "enabled"), false);
     const spec = replaceControl(
       app.spec,
       "GROVE_RELEASE_APPROVAL",
@@ -415,7 +423,7 @@ async function verifyPhase(
       fingerprint,
       Boolean(publicHash),
     );
-    if (approval) assert.equal(app.spec.maintenance.enabled, false);
+    if (approval) assert.equal(maintenanceFlag(app.spec, "enabled"), false);
   };
   const before = await io.getApp(p.evidence.baseline.app);
   shape(before);
@@ -479,7 +487,7 @@ async function verifyPhase(
     instances,
     proofs,
     observedAt: new Date(now).toISOString(),
-    ingress: !after.spec.maintenance.enabled,
+    ingress: !maintenanceFlag(after.spec, "enabled"),
     lifecycle,
   };
 }

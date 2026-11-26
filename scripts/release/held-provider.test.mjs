@@ -83,6 +83,22 @@ function fixture() {
   const p = publication({ ...context, baseline }, digest, now);
   return { app, p, baseline };
 }
+test("native omitted protobuf defaults verify held instances without changing raw snapshots", async () => {
+  const {app,p}=fixture();
+  const spec=held.prepareHeld(app,[],p,fingerprint);
+  delete spec.maintenance.archive;
+  for(const c of [...spec.services,...spec.workers])delete c.envs.find(e=>e.key==='GROVE_RELEASE_HOLD').type;
+  const running={...app,spec,active_deployment:{id:'new-generation',phase:'ACTIVE',spec}};
+  const instances=[{component_name:'api',instance_name:'api-new'},{component_name:'worker',instance_name:'worker-new'}];
+  const before=globalThis.structuredClone(running);
+  const evidence=await held.verifyHeld(p,{fingerprint,getApp:async()=>running,getInstances:async()=>instances,probe:async scope=>({status:'release_held',role:scope.component,identity:held.holdIdentity(p),challenge:scope.challenge,schema:'verified'})},now);
+  assert.equal(evidence.fingerprint,fingerprint(running));
+  assert.deepEqual(running,before);
+  for(const invalid of [null,0,'false']){
+    spec.maintenance.archive=invalid;
+    await assert.rejects(held.verifyHeld(p,{fingerprint,getApp:async()=>running,getInstances:async()=>instances},now));
+  }
+});
 test("publication retains the observed old settings fingerprint/healthcheck without exposing private spec", () => {
   const { p, baseline } = fixture();
   assert.deepEqual(p.evidence.baseline, baseline);
@@ -255,9 +271,17 @@ test("the existing one-API/one-worker instance contract cannot certify a partial
   p.evidence.baseline.settings = fingerprint({ id: app.id, spec: app.spec });
   assert.throws(() => held.prepareHeld?.(app, [], p, fingerprint));
 });
-test("held verification performs fresh named-instance probes and rejects identity, generation, inventory or provider drift", async () => {
+for(const native of [false,true])test(`held verification ${native?'with native defaults':'with explicit fields'} performs fresh named-instance probes and rejects drift`, async () => {
+  const providerSpec=spec=>{
+    if(native){
+      for(const key of ['archive','enabled'])if(spec.maintenance?.[key]===false)delete spec.maintenance[key];
+      if(spec.maintenance&&Object.keys(spec.maintenance).length===0)delete spec.maintenance;
+      for(const c of [...spec.services,...spec.workers])for(const e of c.envs??[])if(e.type==='GENERAL')delete e.type;
+    }
+    return spec;
+  };
   const { app, p } = fixture();
-  const spec = held.prepareHeld?.(app, [], p, fingerprint);
+  const spec = providerSpec(held.prepareHeld?.(app, [], p, fingerprint));
   const running = {
     ...app,
     spec,
@@ -302,14 +326,14 @@ test("held verification performs fresh named-instance probes and rejects identit
   assert.doesNotMatch(JSON.stringify(evidence), /secret-fixture|PRIVATE/);
   const heldReceipt = recordHeld(p, evidence, context, now);
   assert.equal(typeof held.prepareReconcile, "function");
-  const narrowSpec = held.prepareReconcile?.(
+  const narrowSpec = providerSpec(held.prepareReconcile?.(
     running,
     instances,
     p,
     heldReceipt,
     now,
     fingerprint,
-  );
+  ));
   assert.equal(narrowSpec.maintenance.enabled, true);
   const narrow = {
     ...running,
@@ -353,7 +377,7 @@ test("held verification performs fresh named-instance probes and rejects identit
     now,
   );
   assert.equal(privateNarrow?.ingress, false);
-  const ingressSpec = held.prepareLifecycleIngress?.(
+  const ingressSpec = providerSpec(held.prepareLifecycleIngress?.(
     narrow,
     instances,
     p,
@@ -361,7 +385,7 @@ test("held verification performs fresh named-instance probes and rejects identit
     privateNarrow,
     now,
     fingerprint,
-  );
+  ));
   narrow.spec = ingressSpec;
   narrow.active_deployment = {
     id: "ingress-generation",
@@ -430,16 +454,16 @@ test("held verification performs fresh named-instance probes and rejects identit
       contract: "qualified-lifecycle-and-remote-reconciliation",
     }),
   );
-  const active = held.prepareApproved?.(
+  const active = providerSpec(held.prepareApproved?.(
     narrow,
     instances,
     p,
     approval,
     now,
     fingerprint,
-  );
-  assert.equal(active?.maintenance.archive, false);
-  assert.equal(active?.maintenance.enabled, false);
+  ));
+  assert.equal(active?.maintenance?.archive??false, false);
+  assert.equal(active?.maintenance?.enabled??false, false);
   for (const component of [active?.services[0], active?.workers[0]]) {
     assert(
       !component?.envs.some((entry) => entry.key === "GROVE_RELEASE_HOLD"),
@@ -459,7 +483,7 @@ test("held verification performs fresh named-instance probes and rejects identit
     "Real readiness stays held until public approval",
   );
   assert.equal(
-    active.maintenance.enabled,
+    active.maintenance?.enabled??false,
     false,
     "General routes remain source-gated while lifecycle ingress continues",
   );
@@ -504,7 +528,7 @@ test("held verification performs fresh named-instance probes and rejects identit
     now,
     publicHash,
   );
-  const publicSpec = held.preparePublic?.(
+  const publicSpec = providerSpec(held.preparePublic?.(
     approvedApp,
     instances,
     p,
@@ -513,7 +537,7 @@ test("held verification performs fresh named-instance probes and rejects identit
     publicHash,
     now,
     fingerprint,
-  );
+  ));
   assert.deepEqual(
     publicSpec?.services[0].health_check,
     p.evidence.baseline.health,

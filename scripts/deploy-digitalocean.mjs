@@ -10,6 +10,10 @@ import { setTimeout } from "node:timers/promises";
 import { pathToFileURL, URL } from "node:url";
 import { parseArgs, isDeepStrictEqual } from "node:util";
 import { assertCurrentRef, workflowContext } from "./ci/current-ref.mjs";
+import {retireHeldControls} from './release/held-retirement.mjs';
+import {probeConsole} from './release/held-console.mjs';
+import {validateCompleteInstanceInventory} from './release/held-instance-inventory.mjs';
+import {resolveHeldDecision} from './release/held-delivery.mjs';
 
 const { AbortSignal, fetch, structuredClone } = globalThis;
 
@@ -437,6 +441,7 @@ async function main() {
       "languagetool-digest": { type: "string" },
       "coordinated-checker": { type: "string" },
       "expected-app-state": { type: "string" },
+      "retire-held-runtime": {type:'boolean'},
     },
   });
   const token = required(process.env, "DIGITALOCEAN_ACCESS_TOKEN");
@@ -444,7 +449,14 @@ async function main() {
   const coordinated = values["coordinated-checker"] !== undefined;
   const requestedLt =
     values["coordinated-checker"] ?? values["languagetool-digest"];
-  const expectedAppState = values["expected-app-state"];
+  let expectedAppState = values["expected-app-state"];
+  if(values['retire-held-runtime']){
+    assert(appId&&!values.create&&!requestedLt);
+    assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REF,'refs/heads/production');assert.equal(process.env.GITHUB_REF_PROTECTED,'true');
+    assert.equal(process.env.GITHUB_ACTOR,'miniaxolotl');assert.equal(process.env.GITHUB_TRIGGERING_ACTOR,'miniaxolotl');
+    assert.equal(resolveHeldDecision(process.env.RELEASE_SOURCE_SHA,true),null,'Only an ordinary non-held successor may retire controls');
+    assertCurrentRef(workflowContext());
+  }
   if (expectedAppState !== undefined) {
     assert(
       /^[a-f0-9]{64}$/.test(expectedAppState),
@@ -503,6 +515,7 @@ async function main() {
   if (appId) {
     assert.match(appId, /^[0-9a-f-]{36}$/, "Invalid DigitalOcean app ID");
     const { app } = await request(`/apps/${appId}`);
+    if(values['retire-held-runtime'])expectedAppState??=appStateFingerprint(app);
     if (expectedAppState !== undefined)
       assertExpectedAppState(app, expectedAppState);
     previousApp = app;
@@ -561,6 +574,11 @@ async function main() {
       requestedLt,
       coordinated,
     );
+    if(values['retire-held-runtime'])spec=await retireHeldControls(app,spec,{
+      getInstances:async()=>validateCompleteInstanceInventory(await request(`/apps/${appId}/instances`)),
+      probe:scope=>probeConsole(scope),
+      ready:async()=>{const r=await fetch('https://api.grovenote.app/health/ready',{redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000)});assert.equal(r.status,200);return r.json();},
+    });
     if (expectedAppState !== undefined && isDeepStrictEqual(spec, app.spec)) {
       if (process.env.GITHUB_ACTIONS === "true")
         assertCurrentRef(workflowContext());
@@ -630,7 +648,7 @@ async function main() {
   if (process.env.GITHUB_ACTIONS === "true")
     assertCurrentRef(workflowContext());
   const { app } = appId
-    ? await request(`/apps/${appId}`, { spec }, "PUT")
+    ? await request(`/apps/${appId}`, { spec, update_all_source_versions:false }, "PUT")
     : await request("/apps", { spec });
   const digest = spec.services.find((item) => item.name === "api").image.digest;
   let deployment = findDeployment(

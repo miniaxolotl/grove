@@ -8,20 +8,38 @@ export const BOUNDS = Object.freeze({
   idleMs: 10000,
 });
 export async function verifyOwnerDatabase(db, { fixture = false } = {}) {
-  const r = (
-    await db.raw(
-      "SELECT current_database() AS database,current_user AS role,current_setting('server_version_num') AS server,current_setting('composite_type_mismatch') AS mismatch,(SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()) AS ssl,(SELECT rolsuper FROM pg_roles WHERE rolname=current_user) AS superuser",
-    )
-  ).rows[0];
+  const statement =
+    "SELECT current_database() AS database,current_user AS role,current_setting('server_version_num') AS server,current_setting('composite_type_mismatch') AS mismatch,(SELECT rolsuper FROM pg_roles WHERE rolname=current_user) AS superuser";
   need(
-    r.database === (fixture ? "grove_restore" : "grove") &&
-      r.role === "grove_owner" &&
-      r.server === "170012" &&
-      r.mismatch === "error" &&
-      r.superuser === false &&
-      (fixture || r.ssl === true),
-    "DATABASE_IDENTITY_DRIFT",
+    fixture ||
+      (typeof db.client?.acquireConnection === "function" &&
+        typeof db.client.releaseConnection === "function"),
+    "DATABASE_CONNECTION_REQUIRED",
   );
+  const connection = fixture ? null : await db.client.acquireConnection();
+  try {
+    // A terminating proxy's pg_stat_ssl row describes its internal backend hop,
+    // not this operator's TLS. Check the same physical client used for identity.
+    need(
+      fixture ||
+        (connection?.connection?.stream?.encrypted === true &&
+          connection.connection.stream.authorized === true),
+      "TLS_UNVERIFIED",
+    );
+    const r = (
+      fixture ? await db.raw(statement) : await connection.query(statement)
+    ).rows[0];
+    need(
+      r.database === (fixture ? "grove_restore" : "grove") &&
+        r.role === "grove_owner" &&
+        r.server === "170012" &&
+        r.mismatch === "error" &&
+        r.superuser === false,
+      "DATABASE_IDENTITY_DRIFT",
+    );
+  } finally {
+    if (connection) await db.client.releaseConnection(connection);
+  }
 }
 export function assertOwnerTarget(value) {
   let u;

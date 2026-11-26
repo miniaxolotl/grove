@@ -12,6 +12,7 @@ import {
   approve,
   advance,
   receiptHash,
+  assertHeldRecorderActors,
 } from "./held-state.mjs";
 import {
   verifyHeld,
@@ -28,13 +29,23 @@ import { assertCurrentRef, workflowContext } from "../ci/current-ref.mjs";
 
 const env = process.env,
   git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
+const toolingRoot=process.cwd();
 try {
   assert.equal(env.GITHUB_ACTIONS, "true");
   assert.equal(env.GITHUB_REF, "refs/heads/production");
   assert.equal(env.GITHUB_REF_PROTECTED, "true");
-  assert.equal(env.GITHUB_ACTOR, "miniaxolotl");
+  assertHeldRecorderActors(env.GITHUB_ACTOR,env.GITHUB_TRIGGERING_ACTOR);
   const source = env.RELEASE_SOURCE_SHA;
-  assert.equal(git("rev-parse", "HEAD"), source);
+  const operational=env.HELD_OPERATOR_SOURCE_SHA!==undefined;
+  assert.equal(git("rev-parse", "HEAD"), operational?env.HELD_OPERATOR_SOURCE_SHA:source);
+  if(operational){
+    assert.equal(env.GITHUB_WORKFLOW_REF?.split('@')[0],env.GITHUB_REPOSITORY+'/.github/workflows/held-release-operator.yml');
+    assert.match(env.RELEASE_PRODUCTION_SHA??'',/^[a-f0-9]{40}$/);
+    assert.equal(git('rev-parse',`${env.RELEASE_PRODUCTION_SHA}^{tree}`),git('rev-parse',`${source}^{tree}`));
+    git('merge-base','--is-ancestor',env.RELEASE_PRODUCTION_SHA,env.GITHUB_SHA);
+    assert.equal(execFileSync('git',['-C',env.HELD_RELEASE_ROOT,'rev-parse','HEAD'],{encoding:'utf8'}).trim(),source);
+    assert.equal(git('rev-parse',`refs/tags/${env.RELEASE_TAG}^{commit}`),source);
+  }
   const selected = resolveHeldDecision(source, true);
   assert(selected);
   const current = () => assertCurrentRef(workflowContext());
@@ -44,14 +55,15 @@ try {
     actor: env.GITHUB_ACTOR,
     protected: true,
     source,
-    production: env.GITHUB_SHA,
+    production: operational?env.RELEASE_PRODUCTION_SHA:env.GITHUB_SHA,
     tree: git("rev-parse", `${source}^{tree}`),
     tag: env.RELEASE_TAG,
-    apiVersion: JSON.parse(readFileSync("packages/api/package.json", "utf8"))
+    apiVersion: JSON.parse(git('show',`${source}:packages/api/package.json`))
       .version,
     run: Number(env.GITHUB_RUN_ID),
     attempt: Number(env.GITHUB_RUN_ATTEMPT),
     heldDecision: selected.manifest,
+    ...(operational?{tooling:{source:env.HELD_OPERATOR_SOURCE_SHA,production:env.GITHUB_SHA,tree:git('rev-parse','HEAD^{tree}'),tag:env.HELD_OPERATOR_TAG,workflow:'.github/workflows/held-release-operator.yml'}}:{}),
   };
   const p = await loadPublication(
     Number(env.HELD_PUBLICATION_RUN),
@@ -190,8 +202,10 @@ try {
   } else {
     assert.equal(parent.phase, "public_verified");
     await verifyPublic(p, parent.parent.parent, parent.evidence.command, io);
-    await preflightWebsite(env);
-    const evidence = await deployWebsite(env, {
+    if(operational)process.chdir(env.HELD_RELEASE_ROOT);
+    const websiteEnv=operational?{...env,GITHUB_SHA:context.production}:env;
+    await preflightWebsite(websiteEnv);
+    const evidence = await deployWebsite(websiteEnv, {
       version: JSON.parse(readFileSync("package.json", "utf8")).version,
       assertCurrent: current,
       writeIdentity: (identity) =>
@@ -204,20 +218,21 @@ try {
           encoding: "utf8",
           stdio: ["ignore", "pipe", "inherit"],
           timeout: 20 * 60_000,
-          env: { ...env, VERCEL_GIT_COMMIT_SHA: source },
+          env: { ...websiteEnv, VERCEL_GIT_COMMIT_SHA: source },
         }),
     });
-    await verifyPublic(p, parent.parent.parent, parent.evidence.command, io);
+    const parentVerification=await verifyPublic(p, parent.parent.parent, parent.evidence.command, io);
     receipt = advance(
       p,
       parent,
       "website_verified",
       context,
       Date.now(),
-      evidence,
+      operational?{...evidence,parentVerification}:evidence,
     );
   }
   current();
+  process.chdir(toolingRoot);
   writeFileSync("held-state.json", JSON.stringify(receipt) + "\n");
   assert(env.GITHUB_OUTPUT);
   appendFileSync(env.GITHUB_OUTPUT, `phase=${receipt.phase}\n`);

@@ -9,6 +9,7 @@ import {
   mkdir,
   symlink,
   readdir,
+  realpath,
 } from "node:fs/promises";
 import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
@@ -51,6 +52,10 @@ test(
       );
       assert(closure.resolutions.length > 10);
       assert(closure.toolFiles.length > 5);
+      assert.equal(closure.tools.pythonPath, await realpath("/usr/bin/python3"));
+      assert(
+        closure.toolFiles.some((file) => file.path === closure.tools.pythonPath),
+      );
       const entry = Object.keys(closure.files).find((n) =>
         n.endsWith("node_modules/pg/lib/client.js"),
       );

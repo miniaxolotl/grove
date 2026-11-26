@@ -4,6 +4,11 @@ on:
     branches: [production]
   workflow_dispatch:
     inputs:
+      retire_held_runtime:
+        description: After genuine public acceptance, replace held controls atomically with an ordinary successor image
+        required: false
+        type: boolean
+        default: false
       held_pending_run:
         description: Completed source-bound publication run to reconcile (held intent only)
         required: false
@@ -22,6 +27,7 @@ concurrency:
 env:
   # Match the production image; no runner needs ONNX's optional CUDA download.
   ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+  RETIRE_HELD_RUNTIME: ${{ inputs.retire_held_runtime == true && 'true' || 'false' }}
 jobs:
   candidate:
     if: github.repository == 'miniaxolotl/grove' && github.ref == 'refs/heads/production' && github.ref_protected == true
@@ -208,21 +214,32 @@ jobs:
         id: checker
         if: needs.candidate.outputs.checker == 'true'
         run: bash scripts/release/checker-image.sh
+      - if: inputs.retire_held_runtime == true
+        uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f # v2.5.2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          version: 2.0.0
       - name: Validate the admitted topology before npm publication
         if: needs.candidate.outputs.held != 'true'
         env:
           GROVE_IMAGE_DIGEST: ${{ steps.existing.outputs.digest || steps.build.outputs.digest }}
           CHECKER_DIGEST: ${{ steps.checker.outputs.digest }}
+          RELEASE_MODE: ${{ needs.candidate.outputs.mode }}
         run: |
           node scripts/ci/current-ref.mjs
           [[ "$GROVE_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           tag="miniaxolotl/grove:sha-$RELEASE_SOURCE_SHA"
           docker buildx imagetools create --prefer-index=false --tag "$tag" "ghcr.io/miniaxolotl/grove@$GROVE_IMAGE_DIGEST"
           test "$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')" = "$GROVE_IMAGE_DIGEST"
+          retirement=()
+          if [[ "$RETIRE_HELD_RUNTIME" == true ]]; then
+            test "$RELEASE_MODE" = coordinated
+            retirement+=(--retire-held-runtime)
+          fi
           if [[ -n "$CHECKER_DIGEST" ]]; then
-            node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --propose
+            node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --propose "${retirement[@]}"
           else
-            node scripts/deploy-digitalocean.mjs --propose
+            node scripts/deploy-digitalocean.mjs --propose "${retirement[@]}"
           fi
       - name: Publish all coordinated npm artifacts
         if: needs.candidate.outputs.mode == 'coordinated'
@@ -304,6 +321,11 @@ jobs:
           GROVE_API_DATABASE_URL: ${{ secrets.GROVE_API_DATABASE_URL }}
           GROVE_WORKER_DATABASE_URL: ${{ secrets.GROVE_WORKER_DATABASE_URL }}
         run: node --import tsx scripts/release/database-preflight.mjs
+      - if: inputs.retire_held_runtime == true
+        uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f # v2.5.2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          version: 2.0.0
       - name: Deploy the verified image to API and worker
         env:
           CHECKER_DIGEST: ${{ needs.publish.outputs.checker }}
@@ -312,12 +334,17 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
         run: |
+          retirement=()
+          if [[ "$RETIRE_HELD_RUNTIME" == true ]]; then
+            test "$RELEASE_MODE" = coordinated
+            retirement+=(--retire-held-runtime)
+          fi
           if [[ "$RELEASE_MODE" == selected ]]; then
             node scripts/release/selected-deploy.mjs
           elif [[ -n "$CHECKER_DIGEST" ]]; then
-            node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --wait
+            node scripts/deploy-digitalocean.mjs --coordinated-checker "$CHECKER_DIGEST" --wait "${retirement[@]}"
           else
-            node scripts/deploy-digitalocean.mjs --wait
+            node scripts/deploy-digitalocean.mjs --wait "${retirement[@]}"
           fi
       - name: Verify production API readiness
         run: curl --fail --retry 5 --max-time 30 https://api.grovenote.app/health/ready
