@@ -968,25 +968,113 @@ button.grove-writing-status:hover {
 }
 .grove-writing-list {
   display: grid;
-  gap: 4px;
+  gap: 0;
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.grove-writing-list button {
+.grove-writing-list > li {
+  min-width: 0;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-line);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.grove-writing-list > li:last-child {
+  border-bottom: 0;
+}
+.grove-writing-list p {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.grove-writing-review-controls,
+.grove-writing-issue-heading,
+.grove-writing-replacement-row {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  text-align: start;
-  background: none;
-  border: 0;
-  border-radius: 12px;
-  padding: 10px 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.grove-writing-review-controls,
+.grove-writing-issue-heading {
+  justify-content: space-between;
+}
+.grove-writing-review-controls p {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.grove-writing-review-help {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+.grove-writing-list-replacements {
+  display: grid;
+  gap: 6px;
+}
+.grove-writing-list-replacements summary {
+  width: fit-content;
+  padding-block: 8px;
   cursor: pointer;
 }
-.grove-writing-list button:hover {
-  background: #f0f5ed;
+.grove-writing-list-replacements details > .grove-writing-replacement-row {
+  margin-top: 6px;
+}
+.grove-writing-list button {
+  min-height: 36px;
+  max-width: 100%;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.grove-writing-excerpt {
+  color: var(--color-muted);
+  white-space: pre-wrap;
+}
+.grove-writing-excerpt mark {
+  background: var(--color-paper);
+  color: var(--color-forest);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.editor-heading .editor-proofing-toggle {
+  flex: none;
+  width: auto;
+  gap: 2px;
+  padding-inline: 8px;
+}
+.editor-proofing-count {
+  min-width: 2ch;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+@container writing (max-width: 400px) {
+  .live-editor .editor-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
+    row-gap: 0;
+    padding-block: 2px;
+    min-height: 92px;
+  }
+  .editor-heading .editor-modes {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+@media (any-pointer: coarse) {
+  .editor-heading .editor-proofing-toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+@media (any-pointer: coarse) {
+  .grove-writing-list button,
+  .grove-writing-review-controls button {
+    min-height: 44px;
+  }
+  .grove-writing-list-replacements summary {
+    min-height: 44px;
+    align-content: center;
+  }
 }
 .grove-writing-words {
   list-style: none;

@@ -142,18 +142,31 @@ export function useWritingProofing(
     };
   }, [view, issues, active]);
   const selected = issues.find((i) => i.id === selectedId) ?? null;
-  const applyReplacement = (issue: WritingIssue, replacement: string) => {
-    if (!view || !controller.current?.canApply(issue, replacement)) {
+  const applyReplacement = (
+    issue: WritingIssue,
+    replacement: string,
+    similar = false,
+    focus = true,
+  ) => {
+    const changes = controller.current?.replacementChanges(
+      issue,
+      replacement,
+      similar,
+    );
+    if (!view || !changes) {
       setNotice("Writing changed. Check again before applying.");
       return false;
     }
     view.dispatch({
-      changes: { from: issue.from, to: issue.to, insert: replacement },
-      selection: { anchor: issue.from + replacement.length },
+      changes,
+      ...(focus
+        ? { selection: { anchor: changes[0].from + replacement.length } }
+        : {}),
       annotations: isolateHistory.of("full"),
       userEvent: "input.proofing",
     });
-    view.focus();
+    if (focus) view.focus();
+    setNotice("");
     setSelectedId(null);
     return true;
   };
@@ -183,12 +196,37 @@ export function useWritingProofing(
     visible,
     alternatives: selected?.replacements ?? [],
     applyReplacement,
-    ignoreIssue: (issue: WritingIssue) => {
-      controller.current?.ignore(issue);
+    ignoreIssue: (issue: WritingIssue, similar = false) => {
+      if (!controller.current?.ignore(issue, similar)) {
+        setNotice("Writing changed. Check again before ignoring.");
+        return false;
+      }
+      setNotice("");
       setSelectedId(null);
+      return true;
+    },
+    jumpToIssue: (issue: WritingIssue) => {
+      if (
+        !view ||
+        !issues.includes(issue) ||
+        view.state.sliceDoc(issue.from, issue.to) !== issue.original
+      ) {
+        setNotice("Writing changed. Check again before jumping.");
+        return false;
+      }
+      setSelectedId(null);
+      view.dispatch({
+        selection: { anchor: issue.from, head: issue.to },
+        scrollIntoView: true,
+      });
+      view.focus();
+      return true;
     },
     addWord,
-    checkNow: () => controller.current?.checkLocal(),
+    checkNow: () => {
+      setNotice("");
+      return controller.current?.checkLocal();
+    },
     checkEnhanced: () => controller.current?.manual(),
     enhanced: grant?.enabled,
     enhancedStatus: result.enhancedStatus,

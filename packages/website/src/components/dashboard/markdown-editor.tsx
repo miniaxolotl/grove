@@ -43,6 +43,7 @@ import {
   Redo2,
   ListTree,
   Type,
+  SpellCheck,
 } from "lucide-react";
 import { Markdown } from "./markdown";
 import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
@@ -68,7 +69,6 @@ import { useWorkspaceNavigationState } from "./workspace-navigation-state";
 import { useWorkspaceCommands } from "./workspace-commands";
 import { workspaceCommand } from "@/lib/workspace-commands";
 import { NoteContextMenu } from "./note-context-menu";
-import { englishMessages } from "@lib/shared/writing-settings";
 import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { writingField } from "@/lib/writing/proofing";
 import {
@@ -76,6 +76,7 @@ import {
   WritingIssueCard,
   WritingStatusButton,
 } from "./note-writing";
+import { WritingSuggestions } from "./writing-suggestions";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -687,6 +688,33 @@ export function MarkdownEditor({
         >
           <ListTree size={17} />
         </IconButton>
+        <IconButton
+          label="Spelling and grammar"
+          className="editor-proofing-toggle"
+          aria-haspopup="dialog"
+          aria-expanded={proofing.listOpen}
+          aria-description={
+            proofing.status === "off"
+              ? "Writing checks paused"
+              : proofing.status === "checking"
+                ? "Checking spelling and grammar"
+                : proofing.status === "unavailable"
+                  ? "Writing checks unavailable"
+                  : proofing.status === "idle"
+                    ? "Ready to check"
+                    : `${proofing.issues.length} suggestions found`
+          }
+          onClick={() => {
+            proofing.selectIssue(null);
+            proofing.setListOpen(true);
+            if (proofing.status === "idle") void proofing.checkNow();
+          }}
+        >
+          <SpellCheck size={17} />
+          <span className="editor-proofing-count" aria-hidden="true">
+            {proofing.issues.length || ""}
+          </span>
+        </IconButton>
         <input
           ref={fileInput}
           type="file"
@@ -989,51 +1017,11 @@ export function MarkdownEditor({
         />
       )}
       {proofing.listOpen && (
-        <InspectorDialog
-          title="Writing suggestions"
-          close={() => proofing.setListOpen(false)}
-          onDismissed={() => proofing.selectIssue(null)}
-        >
-          {proofing.status === "unavailable" && proofing.notice ? (
-            <p className="app-error" role="alert">
-              {proofing.notice}{" "}
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => proofing.checkNow()}
-              >
-                Retry
-              </button>
-            </p>
-          ) : proofing.issues.length === 0 ? (
-            <p className="text-muted">
-              No issues found by spelling and basic grammar checks. This is not
-              a complete grammar guarantee.
-            </p>
-          ) : (
-            <ul className="grove-writing-list">
-              {proofing.issues.map((issue) => (
-                <li key={issue.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      proofing.setListOpen(false);
-                      proofing.selectIssue(issue.id);
-                      proofingView?.focus();
-                    }}
-                  >
-                    <strong>
-                      {issue.rule === "spelling" ? "Spelling" : "Grammar"}
-                    </strong>
-                    <span>
-                      “{issue.original}” — {englishMessages[issue.message]}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </InspectorDialog>
+        <WritingSuggestions
+          proofing={proofing}
+          view={proofingView}
+          readOnly={preview || disabled}
+        />
       )}
       {limit && (
         <p role="alert" className="app-error">

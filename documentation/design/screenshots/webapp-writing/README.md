@@ -1,5 +1,29 @@
 # Webapp writing checks
 
+## Toolbar review — 26 November 2026
+
+| ![Desktop editor toolbar with spelling and grammar count and restored keyboard focus](toolbar-1440.png) | ![Short phone editor keeps modes and touch actions in two stable rows](toolbar-320.png) | ![Mobile issue list with context and exact or similar corrections](toolbar-review-390.png) | ![Short-screen review scrolls without shrinking its controls](toolbar-review-320.png) |
+| ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+
+Local Next.js 16.4.5 production build `KyP9qx9_rjbRNhSf_J-hk` on
+`feat/ui-ux-implementation`, with the toolbar source committed alongside these
+captures. Playwright Chromium; synthetic workspace and bundled Harper worker.
+Viewports: 1440 × 900, 320 × 480 and 390 × 900. The synthetic note contains two
+“teh” occurrences and a repeated “the”; no real note or provider account is shown.
+
+`packages/website/tests/writing.spec.ts` checks existing and newly found issues,
+exact and similar Apply/Ignore, alternative disclosure by keyboard, unchanged
+Markdown/code/link destinations, one-step batch Undo, session-only ignores,
+offscreen text selection without remounting the editor, retained manual-mode
+feedback, paused checks and failed-check recovery. It measures the narrow toolbar
+at no more than 100px, its review action at least 44 × 44px and no horizontal
+overflow. The short dialog requires vertical scrolling for later controls/issues.
+
+These are component-fixture and local-engine checks, not real authenticated
+router, physical-device, screen-reader, hosted checker or production acceptance.
+The existing bounded-check limits remain in the [writing guide](../../../webapp-writing.md#privacy-and-limits).
+Older captures below retain their historical engine and interface provenance.
+
 ## Guest suggestions
 
 ![Web checker reports only “onyl” in a technical note about a read-only datastore](compound-web.png)
