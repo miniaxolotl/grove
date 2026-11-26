@@ -708,6 +708,56 @@ signature, not a decorative botanical theme.
 This keeps Grove professional while making its distinguishing behavior visible.
 It is a proposed direction, not an approved redesign or a new functional promise.
 
+## Focused polish: tighten the interface before adding motion
+
+Use the existing before-captures and findings above as the baseline. This is a
+prioritized refinement brief, not a new visual acceptance result. Professional
+does not mean smaller text or less useful content; remove friction and competing
+structure first.
+
+| Before / area to tighten                                         | After / proposed treatment                                                                     | Why                                                                          |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Mobile shell and permanent selection header crowd the first note | One compact header; contextual bulk actions; align scope, search and results                   | Give the work more of the first screen without shrinking touch targets.      |
+| Notes repeat notebook/type/date/tag metadata at similar weight   | Title and excerpt lead; show only useful metadata in the current scope; align trailing actions | Improve scanning and row density without another card layer.                 |
+| Writing settings give parent and child controls equal emphasis   | Clear groups, nested dependent options, one control column and proportionate section gaps      | Make relationships visible without explanatory paragraphs or extra dividers. |
+| Filters, counts and empty states feel detached                   | One scope/count header, controls before results and one relevant empty-state action            | Make location and recovery immediately understandable.                       |
+| Ask/editor toolbars compete with the question or note            | Keep the composer/body dominant; consolidate secondary tools and source details                | Reduce repeated controls and oversized empty regions.                        |
+| Files/detail/history round trips lose context                    | Restore the precise view, draft, selection, scroll and focus; keep quick previews local        | Fix continuity before disguising navigation with a transition.               |
+| Web and extension differ in control proportions and terminology  | Share role-based sizing, icon alignment, action hierarchy and concise status language          | Make both surfaces feel like one product without enlarging the extension.    |
+
+### Motion opportunities: useful, brief and unobtrusive
+
+Motion already exists: select chevrons transition in `controls.css:42`, note rows
+have swipe/hover feedback in `dashboard.css:783`, and the command palette has a
+140ms fade in `palette.css:450` (all under `packages/website/src/app/app/`). Reuse
+and refine these patterns rather than adding a second animation system. Timings
+below are starting points for testing, not measured improvements.
+
+| Before / interaction                               | After / proposed motion                                                                         | Why                                                                                       |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Menus, filters and proposed internal-link previews | A restrained 125–200ms opacity/near-full-scale reveal anchored to the trigger; faster dismissal | Explain where the surface came from without making users wait.                            |
+| Mobile navigation sheets and occasional dialogs    | A short, interruptible sheet transition, roughly 180–250ms; centered dialogs use a small fade   | Preserve spatial orientation; never delay focus or the next action.                       |
+| Pointer/touch button presses                       | Subtle 100–160ms press/release feedback on the control, without moving adjacent content         | Confirm input; do not animate every icon or label independently.                          |
+| Custom-order dragging                              | A clear drag preview and insertion marker, with a restrained settle on release                  | Make the destination legible; retain keyboard/menu alternatives and honest save feedback. |
+| Copy, link insertion and confirmed saves           | A brief icon/opacity change in a reserved feedback slot                                         | Acknowledge the actual result without repeated toasts, row jumps or confetti.             |
+| Source/citation exploration and graph selection    | Briefly emphasize the selected passage or its related edges, then return to rest                | Give Grove a distinctive, useful connection between the note and its evidence.            |
+
+Prioritize menus/previews and action feedback; add sheet and source-emphasis
+polish only after layout and navigation are reliable. Keep keyboard navigation,
+typing, search results and sort/filter updates immediate; do not animate rows
+reshuffling during refresh. Avoid page-entry cascades, reading-text zoom/blur,
+idle pulses and continuous decorative traces. In particular, review the existing
+infinite graph spark (`exploration.css:372`) as a candidate for selection-triggered
+emphasis rather than adding more ambient motion; its use was not re-tested here.
+
+Use lightweight transform/opacity transitions where appropriate, with no layout
+animation or new dependency by default. Respect reduced motion, retain visible
+non-motion status and disable pointer-hover effects on touch. Motion must be
+interruptible, keep previews hoverable/dismissible and never imply completion
+before the real save/job completes. Verify rapid open/close, Escape/focus return,
+keyboard/touch, reduced motion, long content, slow/failing requests and short
+screens. A blocked or failed action needs recovery, not a success animation.
+
 ## Applying the reference image intelligently
 
 The main observed matches are generic chat suggestions, repeated instructional
@@ -753,6 +803,7 @@ every action. A short sentence is fine when it says something useful.
 3. Group scope/count/empty states and settings; remove redundant divider bands.
 4. Recompose mobile/Ask/editor and shared source trails without hiding recovery.
 5. Add consistent sorting and parsed internal links with compact previews and editable labels.
+6. Apply the focused spacing/hierarchy pass, then test only purposeful microinteractions.
 
 Before accepting a redesign, verify populated/empty/error/offline states, long
 titles, slow saves, drafts, keyboard and touch alternatives, reduced motion,
