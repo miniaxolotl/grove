@@ -293,6 +293,20 @@ test("semantic search and recall find a long note through its final passage", as
   assert(passage.content.includes("FINAL PASSAGE"));
   assert(passage.content.length <= 2000);
   assert.equal((await f.service.get(f.principal, note.id)).content, content);
+  const other = await f.service.remember(
+    f.principal,
+    input("Another author's introduction.\n\n" + content),
+  );
+  await f.drain();
+  const both = await f.service.recall(
+    f.principal,
+    recallSchema.parse({ query: "submerged habitat" }),
+  );
+  assert.deepEqual(
+    new Set(both.items.map((s) => s.id)),
+    new Set([note.id, other.id]),
+    "shared excerpts do not make two notes duplicates",
+  );
 });
 
 test("chunk progress survives retry and deleted notes cannot publish late vectors", async () => {

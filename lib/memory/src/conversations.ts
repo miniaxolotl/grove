@@ -1201,11 +1201,20 @@ export class Conversations {
             const full = snapshot.sources.find((s) =>
               same(s, proposed.target[0]),
             );
-            if (excerpt?.contentRange && full)
+            if (excerpt?.contentRange && full) {
+              // Generation normalizes outer whitespace. Keep source separators
+              // outside the replacement so neighboring Markdown stays intact.
+              const leading =
+                excerpt.content.length - excerpt.content.trimStart().length;
+              const trailing =
+                excerpt.content.length - excerpt.content.trimEnd().length;
+              if (!excerpt.content.trim())
+                throw new InferenceError("generation_invalid_proposal", false);
               proposed.content =
-                full.content.slice(0, excerpt.contentRange.from) +
+                full.content.slice(0, excerpt.contentRange.from + leading) +
                 proposed.content +
-                full.content.slice(excerpt.contentRange.to);
+                full.content.slice(excerpt.contentRange.to - trailing);
+            }
           }
           const documentStatements =
             "documentStatements" in generated

@@ -15,7 +15,7 @@ export const SHARE_CURSOR_MAX = 2048;
 /** Larger envelopes only for routes that can carry complete notes/source splices. */
 export function requestBodyLimit(path: string) {
   const route = path.replace(/^\/?(?:v1\/)?/, "");
-  return /^(?:mcp|memories(?:\/(?:[0-9a-f-]+(?:\/edit)?|daily\/[^/]+))?|browser\/captures|imports|import-batches\/[^/]+\/notes\/[^/]+|tools\/[^/]+)$/.test(
+  return /^(?:mcp|memories(?:\/(?:[0-9a-f-]+(?:\/edit)?|daily\/[^/]+))?|browser\/captures|imports|import-batches\/[^/]+\/notes\/[^/]+|tools\/(?:remember|update_memory|preview_memory_patch|apply_memory_patch))$/.test(
     route,
   )
     ? NOTE_REQUEST_BYTES_MAX

@@ -1,4 +1,5 @@
 import type { Knex } from "@lib/database";
+import { modelNoteLimit } from "./note-chunks.ts";
 import { noteWritingInstructions } from "@lib/shared/note-writing";
 import { InferenceError, type Providers } from "@lib/ai";
 import {
@@ -70,6 +71,14 @@ export async function cleanupStep(
       ? await notes().whereIn("id", pairs[index]).orderBy("id")
       : [];
   const candidates = (state.candidates ?? []) as CleanupCandidate[];
+  // Combining or superseding notes requires both complete bodies. Never use
+  // a partial excerpt to authorize replacing an original.
+  if (sources.some((s) => s.content.length > modelNoteLimit)) {
+    await trx("assistance_requests")
+      .where({ id: row.id })
+      .update({ state: JSON.stringify({ ...state, pairIndex: index + 1 }) });
+    return null;
+  }
   if (!sources.length) {
     await trx("assistance_requests")
       .where({ id: row.id })

@@ -138,12 +138,14 @@ test("large request envelopes apply only to note-writing routes", () => {
     "/v1/memories",
     "memories/00000000-0000-4000-8000-000000000000/edit",
     "/mcp",
+    "tools/preview_memory_patch",
     "browser/captures",
     "imports",
   ])
     assert.equal(requestBodyLimit(path), 4 * 1024 * 1024, path);
   for (const path of [
     "/v1/recall",
+    "/v1/tools/recall",
     "proofing/check",
     "conversations/id/turns",
     "account/settings",

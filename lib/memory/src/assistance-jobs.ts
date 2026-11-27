@@ -1,4 +1,5 @@
 import { tenant, type Knex } from "@lib/database";
+import { modelNoteExcerpt } from "./note-chunks.ts";
 import { InferenceError, type Providers } from "@lib/ai";
 import { GroveError } from "@lib/shared/contracts";
 import { assistancePreferences } from "@lib/shared/assistance";
@@ -166,7 +167,7 @@ export async function runAssistanceJob(
           step.sources.map(({ id, version, content, kind }) => ({
             id,
             version,
-            content,
+            content: modelNoteExcerpt(content),
             kind,
           })),
           {

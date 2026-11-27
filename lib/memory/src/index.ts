@@ -2178,7 +2178,7 @@ export class MemoryService {
               contentRange: { from, to, total: full.content.length },
             };
           }
-          const fingerprint = digest(item.content.trim().toLowerCase());
+          const fingerprint = digest(full.content.trim().toLowerCase());
           const cost =
             JSON.stringify(item).length +
             (matches?.[item.id] ? JSON.stringify(matches[item.id]).length : 0);

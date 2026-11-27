@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 
 export const noteChunkVersion = "paragraph-v1";
 export const noteChunkCharacters = 2000;
+/** Keep background evidence within its pre-long-note per-source allowance. */
+export const modelNoteLimit = 6000;
+export function modelNoteExcerpt(content: string) {
+  return content.slice(0, modelNoteLimit).replace(/[\uD800-\uDBFF]$/, "");
+}
 const hashText = (text: string) =>
   createHash("sha256").update(text).digest("hex");
 export type NoteChunk = {

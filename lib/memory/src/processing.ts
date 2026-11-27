@@ -11,7 +11,11 @@ import { currentTelemetry } from "@lib/telemetry/context";
 import { processingLease } from "./job-lease.ts";
 import { retryDelay } from "./task-runner.ts";
 import { cachedWork } from "./ai-cache.ts";
-import { revisedChunks, noteChunkVersion } from "./note-chunks.ts";
+import {
+  modelNoteExcerpt,
+  revisedChunks,
+  noteChunkVersion,
+} from "./note-chunks.ts";
 import { beforePaidWork, withActionCacheWork } from "./action-context.ts";
 import type { QueueLane } from "@lib/shared/jobs";
 import { resourceLimits } from "@lib/shared/billing";
@@ -118,7 +122,7 @@ const eligible = (trx: Knex.Transaction) =>
 const source = (row: MemoryModel): Source => ({
   id: row.id,
   version: row.version,
-  content: row.content.slice(0, 6000),
+  content: modelNoteExcerpt(row.content),
   kind: row.kind,
   verification: row.source.verification,
 });

@@ -212,7 +212,10 @@ test("Ask sends a relevant long-note passage, never the full document", async ()
 test("reviewed long-note passage edits preserve all unseen text", async () => {
   const f = await fixture();
   const prefix = "Ordinary observations. ".repeat(5000) + "\n\n";
-  const note = await f.save(prefix + "Garden irrigation findings.");
+  const target =
+    "Garden irrigation findings. " + "Supporting evidence. ".repeat(30);
+  const suffix = "\r\n\r\n# Following section\n\nKeep these observations.";
+  const note = await f.save(prefix + target.trimEnd() + suffix);
   f.behavior.intent = "edit";
   f.behavior.references = [note.id];
   const chat = await f.create();
@@ -227,11 +230,13 @@ test("reviewed long-note passage edits preserve all unseen text", async () => {
   const proposal = result.turns[0].result!.proposal!;
   assert(proposal.content.startsWith(prefix));
   assert(
-    proposal.content.endsWith("# Garden\n\nWater the garden every morning."),
+    proposal.content.endsWith(
+      "# Garden\n\nWater the garden every morning." + suffix,
+    ),
   );
   assert.equal(
     (await f.service.get(f.principal, note.id)).content,
-    prefix + "Garden irrigation findings.",
+    prefix + target.trimEnd() + suffix,
   );
   await f.service.conversations.apply(f.principal, chat.id, result.turns[0].id);
   assert.equal(
