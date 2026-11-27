@@ -1,33 +1,11 @@
-import assert from "node:assert/strict";
 import console from "node:console";
 import { resolve } from "node:path";
 import process from "node:process";
-import { pathToFileURL, URL } from "node:url";
-
-function target(value, role) {
-  try {
-    const url = new URL(value);
-    assert(["postgres:", "postgresql:"].includes(url.protocol));
-    assert.equal(decodeURIComponent(url.username), role);
-    assert(url.password && url.pathname.length > 1);
-    assert.equal(url.searchParams.get("sslmode"), "verify-full");
-    return url;
-  } catch {
-    throw new Error(
-      `Configure the ${role} runtime connection with verified TLS`,
-    );
-  }
-}
+import { pathToFileURL } from "node:url";
+import { runtimeTargets, safeDatabaseCode } from "./database-target.mjs";
 
 export async function preflightDatabases(env, dependencies) {
-  const api = target(env.GROVE_API_DATABASE_URL, "grove_api");
-  const worker = target(env.GROVE_WORKER_DATABASE_URL, "grove_jobs");
-  assert(
-    api.hostname === worker.hostname &&
-      (api.port || "5432") === (worker.port || "5432") &&
-      api.pathname === worker.pathname,
-    "API and worker preflight connections must target the same production database",
-  );
+  const { api, worker } = runtimeTargets(env);
   const { connect, probe } =
     dependencies ??
     (await import("@lib/database").then((db) => ({
@@ -66,9 +44,11 @@ export async function preflightDatabases(env, dependencies) {
       } finally {
         await db.destroy();
       }
-    } catch {
+    } catch (error) {
+      // A raw cause can contain SQL, parameters or connection credentials.
+      // eslint-disable-next-line preserve-caught-error
       throw new Error(
-        `Production ${name} schema preflight failed. Verify connectivity and runtime grants, then have the migration owner apply the admitted source's pending forward migrations before retrying. Migrations 045–048 provide import destination, email fingerprints, deletion receipts and lifecycle reconciliation. No migrations were run by this check.`,
+        `Production ${name} schema preflight failed (${safeDatabaseCode(error)}). Verify connectivity, runtime grants and the admitted source's migration history. Review the migration stage or use the owner procedure before retrying. No migrations were run by this check.`,
       );
     }
   }
