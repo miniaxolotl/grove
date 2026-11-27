@@ -29,7 +29,8 @@ tool. Ship one shared interface with native browser adapters, not three products
 | Note actions           | One Open/Copy/Share menu per formatted result. No bulk selection, site-specific insertion or automatic submission. Public links require separate permission and confirmation. |
 | Saved on this page     | On explicit request, show authorized active notes associated with the reviewed current URL. Offer Open or Save separately; never silently merge or overwrite.                 |
 
-One sidebar has **Notes**, **Search** and **Settings**. Search spans all granted
+One sidebar has **Writing**, **Notes**, **Search** and **Settings**. Writing reviews
+the active website field without requiring sign-in. Search spans all granted
 notebooks with formatted previews and a per-note action menu. **Settings is last**
 with appearance, writing, account access and a short privacy summary. Existing notebook
 management and full editing remain in Grove's web app.
@@ -53,17 +54,39 @@ extension must not depend on their directory approval or modify their setup.
 
 ### Writing assistance — additional approved scope
 
-Keep the same three destinations. Bundled English dictionary spelling and basic
-deterministic grammar run quietly in Capture and eligible long-form website editors
+Use Writing, Notes, Search, then Settings. Bundled English dictionary spelling and basic
+deterministic grammar run in Notes and eligible prose fields
 by default, without sign-in. Browser-wide and domain/subdomain opt-outs take precedence.
-Review an underline in one anchored card, then apply a correction, Ignore or Add word;
+Review the soft-fill indicator or an underline in one anchored list, then apply
+a correction, Ignore or Add to dictionary;
 native Undo and the current draft must survive. Settings discloses rule, dictionary
 and site controls without scores, dashboards, upsells or setup. Global Off wins.
 
+The issue list is unboxed and keeps source order. Selecting one issue shows only
+that correction, not the list's counts, filters or other rows. A single Options
+disclosure holds alternative fixes, dictionary and secondary links; All issues
+returns to the retained list/scroll. Keep the useful grammar explanation and
+essential coverage warnings, not generic spelling filler. The indicator stays
+compact with a soft tint, a category icon and count. Its dominant remaining error
+type supplies red spelling or amber grammar (spelling wins ties); complete zero
+uses a green check and disabled checking a grey pause. Unknown/partial zero is
+neutral, not a successful check; partial findings keep their + and coverage warning.
+It stays inside the field; hide it when safe free space is unavailable rather than moving
+outside or changing the host editor's padding. Category colour belongs to the
+affected wording and category label, never a coloured left rail. One replacement
+leads; other suggestions and dictionary actions disclose on demand. The field
+On/Off control stays below the scrolling list. Neutral surfaces, ordinary system
+type and concise copy replace decorative animation, dot-separated fragments and
+assistant motifs. The sidebar shares only bounded current-field issue context in
+memory; it does not save a page draft as a note.
+
 Website host access is declared at installation for default-on checking, subject to
 native grants; never bypass withheld browser access. Verify metadata before
-reading any field: exclude HTML inputs, short/sensitive fields and author opt-outs.
-Only the qualified textarea adapter currently ships; rich-text support is unfinished.
+reading any field: exclude sensitive purposes and author opt-outs. The adapter
+supports textareas, metadata-qualified prose inputs and bounded DOM rich editors;
+the current guide owns exclusions and compatibility limits. Generic DOM support
+does not establish every framework's Undo/formatting behavior. Child frames,
+closed shadow roots and canvas-based editors remain outside the adapter.
 Dictionary/rules use no network or AI. Explicit sentence tools use one selection-anchored
 **Use AI** menu: Shorten, Expand, Rewrite and Humanize; word selections offer Synonyms
 and Opposite words instead of length tools. Multiple alternatives per chosen tool

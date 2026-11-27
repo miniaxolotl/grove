@@ -313,6 +313,37 @@ textarea::placeholder {
 #writing-settings-status {
   min-height: 20px;
 }
+#writing-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+#writing-scope {
+  margin-bottom: 8px;
+}
+#writing-view-settings {
+  min-height: 32px;
+  padding: 4px 8px;
+}
+#writing-view > .title-row {
+  margin-bottom: 8px;
+}
+@media (pointer: coarse) {
+  #writing-view-settings {
+    min-height: 44px;
+  }
+}
+#writing-site-review {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+#writing-site-status {
+  min-height: 20px;
+  margin: 8px 0 0;
+}
 #writing-words {
   display: flex;
   flex-wrap: wrap;
@@ -367,9 +398,6 @@ summary {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
-}
-#source-label:not(:empty)::before {
-  content: "· ";
 }
 .field-stack {
   padding: 4px 0 12px;
@@ -632,14 +660,15 @@ dd {
 }
 nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   padding: 8px clamp(12px, 3vw, 20px);
   background: var(--ground);
 }
 nav button {
   border: 0;
-  border-radius: 12px;
+  border-radius: 6px;
+  padding-inline: 4px;
   background: transparent;
   font-size: 13px;
   font-weight: 400;

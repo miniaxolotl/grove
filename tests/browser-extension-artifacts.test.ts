@@ -267,9 +267,18 @@ test("browser packages preserve the isolated core, reproducible ZIPs, licenses a
       "space-grotesk-400.woff2",
       "space-grotesk-OFL.txt",
       "GROVE-LICENSE.txt",
+      "lucide-LICENSE.txt",
       "THIRD-PARTY-NOTICES.txt",
     ])
       assert.ok(files[required], required);
+    assert.equal(
+      new TextDecoder().decode(files["lucide-LICENSE.txt"]),
+      await readFile(
+        join(root, "packages/browser-extension/assets/lucide-LICENSE.txt"),
+        "utf8",
+      ),
+      `${target}: preserve both Lucide and Feather icon notices`,
+    );
     const js = new TextDecoder().decode(files["background.js"]);
     for (const origin of [
       "https://api.grovenote.app",

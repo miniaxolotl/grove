@@ -83,7 +83,7 @@ try:
             if value:
                 return value
             if time.monotonic() > end:
-                raise RuntimeError("Timed out: " + expression)
+                raise RuntimeError("Timed out: " + expression + "; UI=" + str(script('return {notice:document.getElementById("notice")?.textContent,current:document.querySelector("[aria-current=page]")?.textContent,workspace:document.getElementById("workspace")?.hidden,search:document.querySelector("[data-nav=search]")?.disabled};')))
             time.sleep(.1)
 
     session = call("WebDriver:NewSession", {"capabilities": {"alwaysMatch": {}}})
@@ -138,7 +138,15 @@ try:
       };
       return true;
     ''')
-    call("WebDriver:Refresh")
+    # Keep the fixture's JS realm alive: reloading destroys the panel-owned fetch
+    # function assigned to the background page. Reconnect via the trusted runtime
+    # configuration messages and observe the mounted panel's storage updates.
+    assert asynchronous('return (await browser.runtime.sendMessage({kind:"configure",windowId:(await browser.windows.getCurrent()).id,payload:{enabled:false}})).ok;') is True
+    wait_for('document.getElementById("extension-toggle").getAttribute("aria-checked")==="false"')
+    assert asynchronous('return (await browser.runtime.sendMessage({kind:"configure",windowId:(await browser.windows.getCurrent()).id,payload:{enabled:true}})).ok;') is True
+    wait_for('document.getElementById("extension-toggle").getAttribute("aria-checked")==="true"')
+    wait_for('!document.querySelector("[data-nav=search]").disabled')
+    script('document.querySelector("[data-nav=capture]").click(); return true;')
     wait_for('!document.getElementById("workspace").hidden')
     script('document.getElementById("note").value="# Native Firefox note\\n\\n- **Readable**";document.getElementById("note").dispatchEvent(new Event("input",{bubbles:true}));document.getElementById("capture-form").requestSubmit();')
     wait_for('document.getElementById("save-state").textContent.includes("Saved.")')

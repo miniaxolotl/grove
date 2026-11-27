@@ -163,6 +163,25 @@ test("packaged background rejects outside senders, fences accounts and avoids re
     "local writing controls do not require sign-in",
   );
   assert.equal(writingDefaults.data.settings.enabled, true);
+  for (const message of [
+    { kind: "writingReviewAction", windowId: 1 },
+    {
+      kind: "writingReviewGet",
+      windowId: 1,
+      payload: {
+        editorId: "00000000-0000-4000-a000-000000000001",
+        revision: 0,
+        action: "pause",
+      },
+    },
+  ]) {
+    const result = await send(message);
+    assert.equal(
+      result.ok,
+      false,
+      "review reads/actions must have their own bounded request shape",
+    );
+  }
   const bad = await send({
     kind: "edit",
     windowId: 1,

@@ -11,8 +11,8 @@ import {
   type WritingRequest,
   type WritingWork,
 } from "@lib/shared/writing-assistance";
-import { isWritingEditor } from "./editor.ts";
-import type { WritingSettings } from "./core.ts";
+import { editorMetadata } from "./editor.ts";
+import { eligibleEditor, type WritingSettings } from "./core.ts";
 import { copyText, copyWritingChoice } from "./clipboard.ts";
 import { GroveError } from "@lib/shared/contracts";
 import { PROOFING_CONTENT_MAX } from "@lib/shared/limits";
@@ -187,7 +187,7 @@ export class WritingToolsController {
       settings.aiRewrites &&
       availability.available &&
       availability.authorized &&
-      isWritingEditor(this.editor)
+      eligibleEditor(editorMetadata(this.editor))
     );
   }
   private current(epoch = this.epoch) {
