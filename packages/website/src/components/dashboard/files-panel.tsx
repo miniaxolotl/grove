@@ -224,7 +224,10 @@ function FileRow({ file }: { file: UploadedFile }) {
         : FileText;
   return (
     <li className="file-row">
-      <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <details
+        open={open}
+        onToggle={(event) => setOpen(event.currentTarget.open)}
+      >
         <summary>
           <Icon size={19} aria-hidden="true" />
           <span className="file-name">
