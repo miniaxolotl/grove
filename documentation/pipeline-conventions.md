@@ -50,8 +50,13 @@ the intended workflow identity, not an operator's CLI token:
    exact-source CI. Retry selection and confirm the same frozen PR and head.
 2. Record any approval prompts on **both** generated PRs. Require native checks
    and resolved conversations. Verify that a changed head or production base
-   stops the request. In the sandbox only, exercise `enablePullRequestAutoMerge`
-   with the preview's exact `pullRequestId`, `expectedHeadOid` and `MERGE`.
+   stops the request. In `miniaxolotl/grove-promotion-rehearsal` only, set the
+   sandbox copy's policy and workflow repository guards to its own identity.
+   Use the protected observer job's own `GITHUB_TOKEN` with `contents: write`
+   and `pull-requests: write`; replace its preview command with
+   `bash scripts/release/rehearse-auto-merge.sh "$CI_RUN"`. This requests
+   `enablePullRequestAutoMerge` with the verified `pullRequestId`,
+   `expectedHeadOid` and `MERGE`; it has no direct-merge fallback.
 3. Capture the actual merge SHA and two independent **push** runs: full CI and
    no-write Deploy on that SHA. Make CI fail once and verify no deployment effect.
    A green dispatch cannot prove the merge emitted these events. If suppressed,
