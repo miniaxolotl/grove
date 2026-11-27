@@ -1450,15 +1450,23 @@ for (const target of ["chrome", "edge"])
             const panel = document.querySelector("main");
             panel.scrollTop = panel.scrollHeight;
           });
-          const scrolledReview = await dialog.evaluate(async (card) => {
-            await new Promise((resolve) =>
-              globalThis.requestAnimationFrame(() =>
-                globalThis.requestAnimationFrame(resolve),
-              ),
-            );
-            const { top, bottom } = card.getBoundingClientRect();
-            return { top, bottom, height: globalThis.innerHeight };
-          });
+          // Viewport resize/scroll events can arrive after two page animation
+          // frames. Wait for the actual viewport-fit contract, not a frame count.
+          const reviewBounds = () =>
+            dialog.evaluate((card) => {
+              const { top, bottom } = card.getBoundingClientRect();
+              return { top, bottom, height: globalThis.innerHeight };
+            });
+          await expect
+            .poll(
+              async () => {
+                const bounds = await reviewBounds();
+                return bounds.top >= 12 && bounds.bottom <= bounds.height - 12;
+              },
+              { message: "AI review fits after the selection scrolls away" },
+            )
+            .toBe(true);
+          const scrolledReview = await reviewBounds();
           assert.ok(
             scrolledReview.top >= 12 &&
               scrolledReview.bottom <= scrolledReview.height - 12,

@@ -152,8 +152,8 @@ rules, bounds, source/Undo, permission and excluded-field checks.
 
 ### The margin mark and review
 
-A small right-angle mark shows the current field's issue count **inside** its right
-edge (bottom-right for multiline editors). The count is inset from the scrollbar
+A small soft-filled button shows the current field's issue count **inside** its right
+edge (bottom-right for multiline editors). The button is inset from the scrollbar
 and resize handle. It occupies only clear space, never an exterior gutter or typed
 text/the caret. When the field is too small, full or obscured to prove that space
 is free, the mark hides; use **Alt+Enter** or Writing in the sidebar. A paused field
@@ -161,13 +161,15 @@ also hides the mark when its last verified placement is no longer current; openi
 the review retains the On control without reading paused text for positioning.
 Grove never resizes or pads the host editor to fit its UI.
 
-Typing reduces the indicator to its number and category mark. It stays compact
-through short pauses and hover/focus, so its hit area never expands across text.
+The indicator stays compact, with a category icon and count rather than a label.
+Its hit area never expands across text on hover or focus.
 The native hover tooltip and accessible name supply the full status; click or press
-Enter to review. Red means spelling, amber means grammar and both marks mean both kinds.
-Green **0** means no findings from a current complete check of enabled categories,
-not a correctness guarantee. Unchecked, checking, paused, failed and partial states
-stay neutral. Stale counts clear when text changes. **99+** is a display cap; opening
+Enter to review. The most common remaining error type sets the icon and colour:
+red spelling or amber grammar; spelling wins ties. A green check means no findings
+from a current complete check of enabled categories, not a correctness guarantee.
+A grey pause means checking is off. Unchecked, checking, failed and partial-zero
+states stay neutral. Partial findings use their dominant colour and retain **+**.
+Stale counts clear when text changes. **99+** is a display cap; opening
 the overview shows the known count. A **+** on a partial count is not a whole-field
 total. Coverage and disabled categories are explained in the review.
 

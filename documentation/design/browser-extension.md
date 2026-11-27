@@ -57,7 +57,7 @@ extension must not depend on their directory approval or modify their setup.
 Use Writing, Notes, Search, then Settings. Bundled English dictionary spelling and basic
 deterministic grammar run in Notes and eligible prose fields
 by default, without sign-in. Browser-wide and domain/subdomain opt-outs take precedence.
-Review the right-angle margin count or an underline in one anchored list, then apply
+Review the soft-fill indicator or an underline in one anchored list, then apply
 a correction, Ignore or Add to dictionary;
 native Undo and the current draft must survive. Settings discloses rule, dictionary
 and site controls without scores, dashboards, upsells or setup. Global Off wins.
@@ -67,7 +67,11 @@ that correction, not the list's counts, filters or other rows. A single Options
 disclosure holds alternative fixes, dictionary and secondary links; All issues
 returns to the retained list/scroll. Keep the useful grammar explanation and
 essential coverage warnings, not generic spelling filler. The indicator stays
-inside the field; hide it when safe free space is unavailable rather than moving
+compact with a soft tint, a category icon and count. Its dominant remaining error
+type supplies red spelling or amber grammar (spelling wins ties); complete zero
+uses a green check and disabled checking a grey pause. Unknown/partial zero is
+neutral, not a successful check; partial findings keep their + and coverage warning.
+It stays inside the field; hide it when safe free space is unavailable rather than moving
 outside or changing the host editor's padding. Category colour belongs to the
 affected wording and category label, never a coloured left rail. One replacement
 leads; other suggestions and dictionary actions disclose on demand. The field

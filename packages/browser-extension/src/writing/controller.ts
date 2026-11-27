@@ -26,17 +26,32 @@ const style = `${reviewStyle}
 .mirror{position:fixed;pointer-events:none;overflow:hidden;color:transparent;z-index:2147483645}.text{white-space:pre-wrap;overflow-wrap:break-word;color:transparent}
 mark{color:transparent;background:transparent;text-decoration:underline wavy light-dark(#b42318,#ffb4ab);text-underline-offset:3px}mark.grammar{text-decoration-style:dotted;text-decoration-color:light-dark(#9a4d00,#ffd08a)}
 .card{position:fixed;z-index:2147483647;width:min(320px,calc(100vw - 24px));max-height:min(420px,calc(100dvh - 24px));padding:12px;border:1px solid light-dark(#dce2dc,#465446);border-radius:6px;background:light-dark(#fff,#222624);color:light-dark(#212722,#edf2e8);box-shadow:0 4px 12px #0001;overflow:hidden;display:flex;flex-direction:column}
-.badge{--mark:light-dark(#535c55,#b5c3b4);position:fixed;z-index:2147483646;display:flex;gap:6px;align-items:center;justify-content:center;min-width:32px;min-height:32px;padding:4px 8px 6px 6px;border:0;border-radius:0;background:light-dark(#fff,#222624);color:light-dark(#212722,#edf2e8);font:12px/20px system-ui,sans-serif;cursor:pointer;font-variant-numeric:tabular-nums}
-.badge-count{font-weight:600;min-width:1ch;text-align:center}.badge-label{font-weight:400}
-.badge::after{content:'';position:absolute;bottom:4px;right:3px;width:10px;border-bottom:2px solid var(--mark)}
-.proof-edge{position:absolute;right:3px;bottom:4px;display:flex;flex-direction:column;height:14px;width:2px;background:var(--mark)}.proof-edge span{flex:1}
-.badge[data-kind=spelling]{--mark:light-dark(#b42318,#ffb4ab)}.badge[data-kind=grammar]{--mark:light-dark(#9a4d00,#ffd08a)}.badge[data-kind=clean]{--mark:light-dark(#24633b,#b6d5ad)}
-.badge[data-kind=mixed] .proof-edge span:first-child{background:light-dark(#b42318,#ffb4ab)}.badge[data-kind=mixed] .proof-edge span:last-child{background:light-dark(#9a4d00,#ffd08a)}
-.badge[data-kind=mixed]::after{border-bottom-color:light-dark(#9a4d00,#ffd08a)}
-.badge.compact .badge-label{display:none}.badge:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
+.badge{--ink:light-dark(#697369,#b5c3b4);--fill:light-dark(#f4f5f4,#2b302c);position:fixed;z-index:2147483646;display:flex;gap:4px;align-items:center;justify-content:center;min-width:28px;min-height:28px;padding:0 7px;border:0;border-radius:5px;background:var(--fill);color:var(--ink);font:500 13px/18px system-ui,sans-serif;cursor:pointer;font-variant-numeric:tabular-nums}
+.badge-count{font-weight:600;min-width:1ch;text-align:center}.badge-icon{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.badge[data-kind=spelling]{--ink:light-dark(#b42318,#ffb4ab);--fill:light-dark(#faf0ef,#352b2a)}.badge[data-kind=grammar]{--ink:light-dark(#9a4d00,#ffd08a);--fill:light-dark(#f8f3ed,#352f27)}.badge[data-kind=clean]{--ink:light-dark(#24633b,#b6d5ad);--fill:light-dark(#f0f4f1,#29322c)}
+.badge:hover,.badge[aria-expanded=true]{background:color-mix(in srgb,var(--ink) 7%,var(--fill))}.badge:active{background:color-mix(in srgb,var(--ink) 12%,var(--fill))}.badge:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
 @media(pointer:coarse){.badge{min-width:44px;min-height:44px}}
-@media(forced-colors:active){mark{color:transparent;text-decoration-color:Mark}.badge{border:1px solid ButtonText}.proof-edge{background:ButtonText}.card{border-color:CanvasText}}
+@media(forced-colors:active){mark{color:transparent;text-decoration-color:Mark}.badge{border:1px solid ButtonText}.card{border-color:CanvasText}}
 `;
+
+// Lucide SpellCheck, Type, Check and Pause. Notices ship in lucide-LICENSE.txt.
+const badgeIcons = {
+  spelling: [
+    ["path", { d: "m20 15-5.5 5.5L12 18" }],
+    ["path", { d: "m4 16 6-12 5.115 10.23" }],
+    ["path", { d: "M6 12h8" }],
+  ],
+  grammar: [
+    ["path", { d: "M12 4v16" }],
+    ["path", { d: "M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2" }],
+    ["path", { d: "M9 20h6" }],
+  ],
+  clean: [["path", { d: "M20 6 9 17l-5-5" }]],
+  paused: [
+    ["rect", { x: "14", y: "3", width: "5", height: "18", rx: "1" }],
+    ["rect", { x: "5", y: "3", width: "5", height: "18", rx: "1" }],
+  ],
+} as const;
 
 /** One focused editor. Checking, presentation and field pause have separate lifecycles. */
 export class WritingController {
@@ -48,7 +63,10 @@ export class WritingController {
   private card = document.createElement("section");
   private badge = document.createElement("button");
   private count = document.createElement("span");
-  private badgeLabel = document.createElement("span");
+  private badgeIcon = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "svg",
+  );
   private reviewView: WritingReview;
   private adapter: WritingAdapter;
   private snapshot: EditorSnapshot | undefined;
@@ -70,7 +88,9 @@ export class WritingController {
   private tools: WritingToolsController | undefined;
   private highlights = `grove-writing-${this.editorId}`;
   private highlightSheet: CSSStyleSheet | undefined;
-  private placement: string | undefined;
+  private placement:
+    | { key: string; left: number; top: number; width: number; height: number }
+    | undefined;
   private returnTo: HTMLElement;
   constructor(
     private editor: HTMLElement,
@@ -120,12 +140,11 @@ export class WritingController {
     this.badge.setAttribute("aria-controls", this.card.id);
     this.badge.setAttribute("aria-expanded", "false");
     this.count.className = "badge-count";
-    this.badgeLabel.className = "badge-label";
-    const edge = document.createElement("span");
-    edge.className = "proof-edge";
-    edge.setAttribute("aria-hidden", "true");
-    edge.append(document.createElement("span"), document.createElement("span"));
-    this.badge.append(this.count, this.badgeLabel, edge);
+    this.badgeIcon.setAttribute("class", "badge-icon");
+    this.badgeIcon.setAttribute("viewBox", "0 0 24 24");
+    this.badgeIcon.setAttribute("aria-hidden", "true");
+    this.badgeIcon.setAttribute("focusable", "false");
+    this.badge.append(this.badgeIcon, this.count);
     this.badge.addEventListener("click", (event) => {
       if (event.isTrusted) this.reviewOpen();
     });
@@ -372,23 +391,45 @@ export class WritingController {
             : state.phase === "failed"
               ? "!"
               : "–";
-      this.badgeLabel.textContent =
-        ready && count
-          ? `issue${count === 1 ? "" : "s"}`
-          : reviewSummary(state);
-      const spelling = state.issues.some((issue) => issue.rule === "spelling"),
-        grammar = state.issues.some((issue) => issue.rule !== "spelling");
-      this.badge.dataset.kind =
-        !ready || !state.complete
-          ? "neutral"
-          : !count
+      const spelling = state.issues.filter(
+          (issue) => issue.rule === "spelling",
+        ).length,
+        grammar = count - spelling;
+      // A tie consistently favours spelling. Partial findings retain their +;
+      // a partial zero never becomes a green success.
+      const kind = !ready
+        ? "neutral"
+        : count
+          ? spelling >= grammar
+            ? "spelling"
+            : "grammar"
+          : state.complete
             ? "clean"
-            : spelling && grammar
-              ? "mixed"
-              : spelling
-                ? "spelling"
-                : "grammar";
-      const label = `${reviewSummary(state)}. ${state.issues.filter((issue) => issue.rule === "spelling").length} spelling, ${state.issues.filter((issue) => issue.rule !== "spelling").length} grammar.${ready && !state.complete ? " More text is unchecked." : ""} Review this field.`;
+            : "neutral";
+      this.badge.dataset.kind = kind;
+      const icon =
+        state.phase === "paused" || state.phase === "disabled"
+          ? "paused"
+          : kind === "neutral"
+            ? undefined
+            : kind;
+      this.badgeIcon.style.display = icon ? "" : "none";
+      this.count.hidden = !!icon && (!ready || !count);
+      if (icon && this.badgeIcon.dataset.icon !== icon) {
+        this.badgeIcon.dataset.icon = icon;
+        this.badgeIcon.replaceChildren(
+          ...badgeIcons[icon].map(([tag, attributes]) => {
+            const shape = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              tag,
+            );
+            for (const [name, value] of Object.entries(attributes))
+              shape.setAttribute(name, value);
+            return shape;
+          }),
+        );
+      }
+      const label = `${reviewSummary(state)}. ${spelling} spelling, ${grammar} grammar.${ready && !state.complete ? " More text is unchecked." : ""} Review this field.`;
       this.badge.title = label;
       this.badge.setAttribute("aria-label", label);
       this.badge.classList.toggle("compact", this.compact);
@@ -560,8 +601,7 @@ export class WritingController {
   private position() {
     const rect = this.editor.getBoundingClientRect(),
       computed = getComputedStyle(this.editor);
-    if (computed.colorScheme !== "normal")
-      this.host.style.colorScheme = computed.colorScheme;
+    this.host.style.colorScheme = computed.colorScheme;
     Object.assign(this.mirror.style, {
       left: `${rect.left + this.editor.clientLeft}px`,
       top: `${rect.top + this.editor.clientTop}px`,
@@ -631,12 +671,16 @@ export class WritingController {
         computed.font,
         computed.padding,
         computed.direction,
-        width,
-        height,
       ].join(":");
       // Pausing never reads field text just to draw UI. Reuse only a placement
       // already verified for this geometry; edits/DOM changes clear that proof.
-      let safe = this.placement === key;
+      const previous = this.placement;
+      let safe =
+        previous?.key === key &&
+        left >= previous.left &&
+        top >= previous.top &&
+        left + width <= previous.left + previous.width &&
+        top + height <= previous.top + previous.height;
       if (
         this.allowed() &&
         (this.options.settings().spelling || this.options.settings().grammar)
@@ -728,7 +772,7 @@ export class WritingController {
           [left + width - 1, top + height - 1],
         ].every(([x, y]) => hit(x, y));
       this.badge.hidden = !safe;
-      this.placement = safe ? key : undefined;
+      this.placement = safe ? { key, left, top, width, height } : undefined;
       this.badge.style.left = `${left}px`;
       this.badge.style.top = `${top}px`;
     }

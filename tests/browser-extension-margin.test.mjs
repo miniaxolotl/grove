@@ -50,7 +50,21 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
     const field = page.locator("#message");
     await field.fill("This is a sentnce. This is a apple.");
     const badge = page.locator(".badge");
-    await expect(badge).toHaveAttribute("data-kind", "mixed");
+    await expect(badge).toHaveAttribute("data-kind", "spelling");
+    await expect(badge.locator(".badge-count")).toHaveText("2");
+    await field.fill("This is a sentnce. This is a apple. This is a apple.");
+    await expect(badge).toHaveAttribute("data-kind", "grammar");
+    await expect(badge.locator(".badge-count")).toHaveText("3");
+    await expect(badge).toHaveCSS("background-color", "rgb(248, 243, 237)");
+    await expect(badge).toHaveCSS("color", "rgb(154, 77, 0)");
+    await expect(badge.locator("svg")).toHaveAttribute("data-icon", "grammar");
+    await field.fill("This is a sentnce. This is a sentnce. This is a apple.");
+    await expect(badge).toHaveAttribute("data-kind", "spelling");
+    await expect(badge.locator(".badge-count")).toHaveText("3");
+    await expect(badge).toHaveCSS("background-color", "rgb(250, 240, 239)");
+    await expect(badge).toHaveCSS("color", "rgb(180, 35, 24)");
+    await expect(badge.locator("svg")).toHaveAttribute("data-icon", "spelling");
+    await field.fill("This is a sentnce. This is a apple.");
     await expect(badge.locator(".badge-count")).toHaveText("2");
     await expect(badge).toHaveClass(/compact/);
     const before = await field.boundingBox();
@@ -151,6 +165,11 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
     await card
       .getByRole("button", { name: "Close writing suggestions" })
       .click();
+    await expect(badge).toBeVisible();
+    await expect(badge.locator(".badge-count")).toBeHidden();
+    await expect(badge.locator("svg")).toHaveAttribute("data-icon", "paused");
+    await expect(badge).toHaveCSS("background-color", "rgb(244, 245, 244)");
+    await expect(badge).toHaveCSS("color", "rgb(105, 115, 105)");
     await field.fill("This is a sentnce.");
     await expect(badge).toHaveAttribute("data-kind", "neutral");
     await page.locator("#subject").fill("This is a sentnce.");
@@ -186,13 +205,19 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
     await field.fill("This is a sentence.");
     await expect(badge).toHaveAttribute("data-kind", "clean");
     await expect(badge.locator(".badge-count")).toHaveText("0");
+    await expect(badge.locator(".badge-count")).toBeHidden();
+    await expect(badge.locator("svg")).toHaveAttribute("data-icon", "clean");
+    await expect(badge).toHaveCSS("background-color", "rgb(240, 244, 241)");
+    await expect(badge).toHaveCSS("color", "rgb(36, 99, 59)");
     await field.fill("This is a sentence. ".repeat(400));
     await expect(badge).toHaveAttribute("aria-label", /Partly checked/);
     await expect(badge).toHaveAttribute("data-kind", "neutral");
+    await expect(badge.locator("svg")).toBeHidden();
     await field.fill(
       "This is a sentnce. " + "This is a sentence. ".repeat(400),
     );
     await expect(badge).toHaveAttribute("aria-label", /1\+ issue/);
+    await expect(badge).toHaveAttribute("data-kind", "spelling");
     await field.press("Alt+Enter");
     await card.locator('.issue-label[data-original="sentnce"]').click();
     await expect(card.locator(".review-summary")).toBeVisible();
@@ -367,7 +392,7 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
       .getByRole("button", { name: "Close writing suggestions" })
       .click();
     await field.fill("This is a sentnce. This is a apple.");
-    await expect(badge).toHaveAttribute("data-kind", "mixed");
+    await expect(badge).toHaveAttribute("data-kind", "spelling");
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(badge).toBeVisible();
     if (process.env.EXTENSION_SCREENSHOTS)
@@ -418,7 +443,7 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
       await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
       await page.addStyleTag({
         content:
-          ":root{color-scheme:dark}body{background:#191c1a;color:#edf2e8}textarea,input,[contenteditable]{background:#222624;color:#edf2e8;border-color:#5a705d}",
+          "@media(prefers-color-scheme:dark){:root{color-scheme:dark}body{background:#191c1a;color:#edf2e8}textarea,input,[contenteditable]{background:#222624;color:#edf2e8;border-color:#5a705d}}",
       });
       await page.screenshot({
         path: join(
@@ -427,6 +452,129 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
         ),
       });
     }
+    await card
+      .getByRole("button", { name: "Close writing suggestions" })
+      .click();
+    await page.addStyleTag({
+      content:
+        "@media(prefers-color-scheme:dark){:root{color-scheme:dark}body{background:#191c1a;color:#edf2e8}textarea,input,[contenteditable]{background:#222624;color:#edf2e8;border-color:#5a705d}}",
+    });
+    for (const theme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+      for (const width of [320, 390, 768, 1440]) {
+        await page.setViewportSize({ width, height: 900 });
+        for (const [kind, text] of [
+          [
+            "spelling",
+            "This is a sentnce. This is a sentnce. This is a apple.",
+          ],
+          ["grammar", "This is a sentnce. This is a apple. This is a apple."],
+          ["clean", "This is a sentence."],
+          ["paused", "This is a sentence."],
+        ]) {
+          if (kind === "paused") {
+            await badge.click();
+            await card
+              .getByRole("switch", { name: "Checking in this field" })
+              .uncheck();
+            await card
+              .getByRole("button", { name: "Close writing suggestions" })
+              .click();
+          } else await field.fill(text);
+          await expect(badge).toHaveAttribute(
+            "data-kind",
+            kind === "paused" ? "neutral" : kind,
+          );
+          await expect(badge.locator("svg")).toHaveAttribute("data-icon", kind);
+          await expect(badge).toBeVisible();
+          const ink =
+            theme === "dark"
+              ? {
+                  spelling: "rgb(255, 180, 171)",
+                  grammar: "rgb(255, 208, 138)",
+                  clean: "rgb(182, 213, 173)",
+                  paused: "rgb(181, 195, 180)",
+                }
+              : {
+                  spelling: "rgb(180, 35, 24)",
+                  grammar: "rgb(154, 77, 0)",
+                  clean: "rgb(36, 99, 59)",
+                  paused: "rgb(105, 115, 105)",
+                };
+          await expect(badge).toHaveCSS("color", ink[kind]);
+          // Results update before the scheduled layout frame. Wait for the
+          // resize-handle inset before measuring hover stability.
+          const right = await field.evaluate(
+            (element) =>
+              element.getBoundingClientRect().left +
+              element.clientLeft +
+              element.clientWidth -
+              18,
+          );
+          await expect
+            .poll(async () => {
+              const box = await badge.boundingBox();
+              return box ? Math.abs(box.x + box.width - right) < 0.1 : false;
+            })
+            .toBe(true);
+          const hostBox = await field.boundingBox(),
+            badgeBox = await badge.boundingBox();
+          assert.ok(
+            badgeBox.x >= hostBox.x &&
+              badgeBox.y >= hostBox.y &&
+              badgeBox.x + badgeBox.width <= hostBox.x + hostBox.width &&
+              badgeBox.y + badgeBox.height <= hostBox.y + hostBox.height,
+            `${theme} ${kind} stays inside at ${width}px`,
+          );
+          if (width === 390) {
+            await badge.hover();
+            assert.deepEqual(
+              await badge.boundingBox(),
+              badgeBox,
+              "hover changes no geometry",
+            );
+            await page.mouse.move(0, 0);
+            if (process.env.EXTENSION_SCREENSHOTS)
+              await page.screenshot({
+                path: join(
+                  process.env.EXTENSION_SCREENSHOTS,
+                  `indicator-${kind}-${theme}-390.png`,
+                ),
+                clip: hostBox,
+                caret: "initial",
+              });
+            const audit = await new AxeBuilder({ page }).analyze();
+            assert.deepEqual(
+              audit.violations.map((issue) => issue.id),
+              [],
+              `${theme} ${kind} accessibility`,
+            );
+          }
+        }
+        // Axe temporarily changes host styles; a paused placement proof may be
+        // invalidated. Resume through the supported keyboard recovery instead.
+        await field.press("Alt+Enter");
+        await card
+          .getByRole("switch", { name: "Checking in this field" })
+          .check();
+        await card
+          .getByRole("button", { name: "Close writing suggestions" })
+          .click();
+      }
+    }
+    await page.emulateMedia({ forcedColors: "active" });
+    await field.fill("This is a sentnce.");
+    await expect(badge).toHaveAttribute("data-kind", "spelling");
+    await expect(badge.locator("svg")).toBeVisible();
+    await expect(badge).toHaveCSS("border-top-width", "1px");
+    await badge.focus();
+    await badge.press("ArrowRight");
+    await expect(badge).toBeFocused();
+    await expect(badge).toHaveCSS("outline-style", "solid");
+    await badge.press("Enter");
+    await expect(card).toBeVisible();
+    await card.press("Escape");
+    await expect(badge).toBeFocused();
   } finally {
     await context.close();
   }
