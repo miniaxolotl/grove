@@ -13,7 +13,7 @@ import ReactMarkdown, {
   type ExtraProps,
 } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Square, SquareCheck } from "lucide-react";
+import { Square, SquareCheck, Link as LinkIcon } from "lucide-react";
 import { mediaReferenceId } from "@lib/shared/media";
 import { RecordingPlayer } from "./recording-player";
 import { mediaSource } from "@/lib/media-path";
@@ -35,6 +35,8 @@ type MarkdownOptions = {
   onToggleTask?: (offset: number, checked: boolean) => void;
   disabled?: boolean;
   headings?: NoteHeading[];
+  onCopySection?: (heading: NoteHeading) => void;
+  targets?: Map<number, NoteHeading>;
 };
 const MarkdownContext = createContext<MarkdownOptions>({ source: "" });
 const TaskContext = createContext<{ offset: number; label: string } | null>(
@@ -54,7 +56,7 @@ function TaskItem({
   children,
   ...props
 }: ComponentProps<"li"> & ExtraProps) {
-  const { source } = useContext(MarkdownContext);
+  const { source, targets } = useContext(MarkdownContext);
   const start = node?.position?.start.offset;
   // The parsed list item supplies the source boundary: fenced examples and
   // repeated/nested labels cannot accidentally target another checkbox.
@@ -80,7 +82,11 @@ function TaskItem({
         }
       : null;
   return (
-    <li {...props}>
+    <li
+      {...props}
+      id={targets?.get(start ?? -1)?.id}
+      data-section-id={targets?.get(start ?? -1)?.id}
+    >
       <TaskContext.Provider value={task}>{children}</TaskContext.Provider>
     </li>
   );
@@ -137,7 +143,7 @@ function sharedLink(href: string | undefined, shared: SharedLinks | undefined) {
 }
 
 function Heading({ node, children }: ComponentProps<"h1"> & ExtraProps) {
-  const { shared, headings } = useContext(MarkdownContext);
+  const { shared, targets, onCopySection } = useContext(MarkdownContext);
   const level = Number(node?.tagName.slice(1) ?? 1);
   const Tag =
     `h${shared ? Math.max(2, level) : level <= 3 ? level + 2 : level}` as
@@ -146,12 +152,23 @@ function Heading({ node, children }: ComponentProps<"h1"> & ExtraProps) {
       | "h4"
       | "h5"
       | "h6";
-  const heading = headings?.find(
-    (item) => item.from === node?.position?.start.offset,
-  );
+  const heading = targets?.get(node?.position?.start.offset ?? -1);
   return (
-    <Tag id={heading?.id} data-section-id={heading?.id}>
+    <Tag
+      id={heading?.id}
+      data-section-id={heading?.id}
+      aria-label={shared && onCopySection ? heading?.title : undefined}
+    >
       {children}
+      {shared && heading && onCopySection && (
+        <button
+          className="shared-section-copy"
+          aria-label={`Copy link to ${heading.title}`}
+          onClick={() => onCopySection(heading)}
+        >
+          <LinkIcon size={14} aria-hidden="true" />
+        </button>
+      )}
     </Tag>
   );
 }
@@ -336,9 +353,13 @@ export function Markdown({
     () => options.headings ?? noteHeadings(children),
     [children, options.headings],
   );
+  const targets = useMemo(
+    () => new Map(headings.map((heading) => [heading.from, heading])),
+    [headings],
+  );
   return (
     <MarkdownContext.Provider
-      value={{ source: children, ...options, headings }}
+      value={{ source: children, ...options, headings, targets }}
     >
       <div className="memory-markdown">
         <ReactMarkdown

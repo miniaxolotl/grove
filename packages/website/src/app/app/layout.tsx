@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { AuthSetup } from "@/components/auth-setup";
 import { AuthenticationProvider } from "@/components/authentication-provider";
+import "../ui-controls.css";
 import "./dashboard.css";
 import "./exploration.css";
 import "./editor.css";

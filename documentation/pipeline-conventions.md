@@ -34,6 +34,41 @@ Legacy selection evidence remains readable for existing production history.
 Held continuation workflows remain manual, isolated recovery tools, not release
 stages. Offline impact/selection tools do not gate or select normal releases.
 
+### Bot merge rehearsal
+
+`Promotion preview` observes native CI on the frozen PR. It reports the Release
+Please PR, source, tree, production base and the proposed merge-commit request
+bound to the frozen head OID. It cannot submit that request. A successful
+generated-PR dispatch is not a substitute for the native PR run. The observer
+reads protected default-branch tooling and never waits inside Source Release.
+
+Before enabling a writer, use a separate repository with equivalent effective
+protections, no bypass, no production credentials and a no-write Deploy. Use
+the intended workflow identity, not an operator's CLI token:
+
+1. Merge the generated Release Please PR; record the source/tag and successful
+   exact-source CI. Retry selection and confirm the same frozen PR and head.
+2. Record any approval prompts on **both** generated PRs. Require native checks
+   and resolved conversations. Verify that a changed head or production base
+   stops the request. In `miniaxolotl/grove-promotion-rehearsal` only, set the
+   sandbox copy's policy and workflow repository guards to its own identity.
+   Use the protected observer job's own `GITHUB_TOKEN` with `contents: write`
+   and `pull-requests: write`; replace its preview command with
+   `bash scripts/release/rehearse-auto-merge.sh "$CI_RUN"`. This requests
+   `enablePullRequestAutoMerge` with the verified `pullRequestId`,
+   `expectedHeadOid` and `MERGE`; it has no direct-merge fallback.
+3. Capture the actual merge SHA and two independent **push** runs: full CI and
+   no-write Deploy on that SHA. Make CI fail once and verify no deployment effect.
+   A green dispatch cannot prove the merge emitted these events. If suppressed,
+   rehearse a repository-scoped App or an exact-SHA dispatch with duplicate-run
+   protection; keep the current route until proved.
+4. Before production cutover, define routine scope (unknown changes, schema
+   operations and recovery stay manual), finish in-flight releases on the old
+   route, and verify the Bramble pilot. On the first intended Grove release,
+   count human interactions and verify all five packages, the API/worker digest
+   and readiness, and the website's live identity. Browser store submissions
+   remain separate.
+
 ## Common baseline
 
 - Node **24.21.0**, frozen lockfile installs, full action SHA pins with version comments.

@@ -1,10 +1,11 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import { Link as LinkIcon, Pin, PinOff } from "lucide-react";
-import type { NoteHeading } from "@/lib/note-headings";
+import { filterOutline, type NoteHeading } from "@/lib/note-headings";
 import { IconButton } from "./ui/button";
 import { useToast } from "./toasts";
+import { OutlineItems } from "./ui/outline-items";
 
 export function NoteOutline({
   headings,
@@ -24,14 +25,9 @@ export function NoteOutline({
   compact?: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const id = useId();
   const [manual, setManual] = useState("");
   const toast = useToast();
-  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  const matches = headings.filter((heading) =>
-    words.every((word) => heading.title.toLowerCase().includes(word)),
-  );
-  const minLevel = Math.min(...headings.map((heading) => heading.level));
+  const matches = filterOutline(headings, query);
   async function copy(heading: NoteHeading) {
     if (!noteId) return;
     const url = new URL(
@@ -88,42 +84,26 @@ export function NoteOutline({
         </label>
       )}
       {matches.length ? (
-        <ul>
-          {matches.map((heading) => (
-            <li key={heading.id}>
-              <button
-                id={`${id}-${heading.id}`}
-                type="button"
-                aria-label={heading.title}
-                aria-current={
-                  headings[active]?.id === heading.id ? "location" : undefined
-                }
-                style={{
-                  paddingLeft: 8 + Math.min(heading.level - minLevel, 3) * 12,
-                }}
-                onClick={() => jump(heading)}
-              >
-                <span className="outline-level" aria-hidden="true">
-                  H{heading.level}
-                </span>
-                <span>{heading.title}</span>
-              </button>
-              <IconButton
-                label="Copy section link"
-                aria-describedby={`${id}-${heading.id}`}
-                disabled={!noteId}
-                title={
-                  !noteId
-                    ? "Save this note before copying section links"
-                    : `Copy section link to ${heading.title}`
-                }
-                onClick={() => void copy(heading)}
-              >
-                <LinkIcon size={14} />
-              </IconButton>
-            </li>
-          ))}
-        </ul>
+        <OutlineItems
+          headings={matches}
+          active={headings[active]?.id}
+          jump={jump}
+          action={(heading, labelId) => (
+            <IconButton
+              label="Copy section link"
+              aria-describedby={labelId}
+              disabled={!noteId}
+              title={
+                !noteId
+                  ? "Save this note before copying section links"
+                  : `Copy section link to ${heading.title}`
+              }
+              onClick={() => void copy(heading)}
+            >
+              <LinkIcon size={14} />
+            </IconButton>
+          )}
+        />
       ) : (
         <p>
           {headings.length

@@ -80,7 +80,10 @@ core/frozen refs remain protected.
 
 Grove: feature PR → development → coordinated Release Please PR/tag → automatically
 prepared frozen production PR → production. Merge the production PR to deploy;
-there is no manual tag-selection workflow or receipt/declaration PR.
+there is no manual tag-selection workflow or receipt/declaration PR. The intended
+single ship decision is the Release Please merge for that exact release. Until
+the [bot merge rehearsal](pipeline-conventions.md#bot-merge-rehearsal) succeeds,
+automatic merging is preview-only: the production PR still needs its own merge.
 Website/Burrow/InkByte retain deliberately selected frozen production PRs.
 Fern additionally stages the candidate
 and records exact server/native/TestFlight/provider/device acceptance before

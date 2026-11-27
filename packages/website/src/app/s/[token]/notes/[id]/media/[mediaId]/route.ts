@@ -1,5 +1,6 @@
 import { shareTokenSchema } from "@lib/shared/sharing";
 import { uuidSchema } from "@lib/shared/contracts";
+import { apiOrigin } from "@/lib/api-origin";
 
 export async function GET(
   request: Request,
@@ -21,20 +22,7 @@ export async function GET(
   )
     return fail(404);
   try {
-    const origin = new URL(process.env.GROVE_API_URL ?? "");
-    if (
-      origin.pathname !== "/" ||
-      origin.search ||
-      origin.hash ||
-      origin.username ||
-      origin.password ||
-      (origin.protocol !== "https:" &&
-        !(
-          origin.protocol === "http:" &&
-          ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)
-        ))
-    )
-      return fail(503);
+    const origin = apiOrigin(process.env.GROVE_API_URL);
     const response = await fetch(
       new URL(`/public/shares/${token}/notes/${id}/media/${mediaId}`, origin),
       {
@@ -49,7 +37,15 @@ export async function GET(
     );
     if (!response.ok) {
       await response.body?.cancel();
-      if (response.status === 416) return new Response(null, { status: 416, headers: { ...headers, "Content-Range": response.headers.get("content-range") ?? "bytes */0" } });
+      if (response.status === 416)
+        return new Response(null, {
+          status: 416,
+          headers: {
+            ...headers,
+            "Content-Range":
+              response.headers.get("content-range") ?? "bytes */0",
+          },
+        });
       return fail(response.status === 404 ? 404 : 503);
     }
     const type = response.headers.get("content-type");
