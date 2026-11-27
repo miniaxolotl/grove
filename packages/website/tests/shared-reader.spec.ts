@@ -56,8 +56,14 @@ test("search and section shortcuts use the workspace bindings", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${root}/notes/${one}`);
-  await page.keyboard.press("Control+k");
   const dialog = page.getByRole("dialog", { name: "Find a note" });
+  // Confirm the enhanced reader is interactive before testing a document-level
+  // shortcut, which cannot be replayed when pressed before hydration.
+  await page.getByRole("button", { name: "Find a note", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await page.keyboard.press("Control+k");
   await expect(dialog).toBeVisible();
   await dialog.getByRole("combobox").fill("Another");
   await expect(dialog.getByRole("option")).toHaveCount(1);
@@ -229,3 +235,35 @@ test("sidebar paging keeps the article and retained pages through a sibling swit
     nav.getByRole("link", { name: "A shared idea", exact: true }),
   ).toBeVisible();
 });
+
+for (const width of [1440, 390])
+  test(`blocked section copying focuses and selects the manual link at ${width}px`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() =>
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText: () => Promise.reject(new Error("blocked")) },
+        configurable: true,
+      }),
+    );
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${root}/notes/${one}`);
+    await page
+      .locator(width === 1440 ? ".shared-outline" : ".memory-markdown")
+      .getByRole("button", { name: "Copy link to Decisions", exact: true })
+      .click();
+    const field = page.getByRole("textbox", {
+      name: "Section link",
+      exact: true,
+    });
+    await expect(field).toBeFocused();
+    await expect(field).toHaveValue(
+      new RegExp(`/notes/${one}#section-decisions$`),
+    );
+    expect(
+      await field.evaluate(
+        (element: HTMLInputElement) =>
+          element.selectionEnd! - element.selectionStart!,
+      ),
+    ).toBe((await field.inputValue()).length);
+  });

@@ -84,6 +84,7 @@ export function PublicReader({
   const article = useRef<HTMLElement>(null);
   const notebookPanel = useRef<HTMLDetailsElement>(null);
   const outlinePanel = useRef<HTMLDetailsElement>(null);
+  const manualInput = useRef<HTMLInputElement>(null);
   const controller = useRef<AbortController | null>(null);
   const warming = useRef<AbortController | null>(null);
   const warmingHref = useRef("");
@@ -457,15 +458,23 @@ export function PublicReader({
   }
   const copy = useCallback(
     async (heading: NoteHeading) => {
+      const generation = sequence.current;
       const url = new URL(current, location.origin);
       url.hash = heading.id;
       try {
         await navigator.clipboard.writeText(url.href);
+        if (generation !== sequence.current) return;
         setCopyStatus("Link copied");
         setManualLink("");
       } catch {
+        if (generation !== sequence.current) return;
         setManualLink(url.href);
         setCopyStatus("");
+        requestAnimationFrame(() => {
+          if (generation !== sequence.current) return;
+          if (outlinePanel.current) outlinePanel.current.open = true;
+          manualInput.current?.focus();
+        });
       }
     },
     [current],
@@ -871,6 +880,7 @@ export function PublicReader({
             {manualLink && (
               <input
                 aria-label="Section link"
+                ref={manualInput}
                 readOnly
                 value={manualLink}
                 onFocus={(event) => event.currentTarget.select()}
