@@ -1,6 +1,54 @@
 # Browser extension evidence
 
-## Correcting a compound word
+## Margin writing — 27 November 2026
+
+Unsigned product `1.11.37`, source `2896e4126189ca3d965f269e95d1c8e925bbb7f9`
+on development `79fd5d243`. Chrome ZIP SHA-256:
+`d2cb2393ef14f2e97ac32e7910d15be1a70cd6f8a32dcb6b2e34f28e221bf700`.
+The accompanying feature PR records the exact reviewed head and checks. Installed
+Chromium `156.0.8078.4`, synthetic English fields, signed out and with Grove network
+requests blocked. These captures are local development evidence, not a store build.
+
+| Scrollable overview                                                                          | One correction                                                                                              | Dark correction                                                                           | Short Writing sidebar                                                                                  |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| ![Source-order spelling and grammar issues without coloured left rails](margin-overview.png) | ![One replacement with other suggestions disclosed, Ignore and field checking below](margin-detail-390.png) | ![The same correction with neutral dark surfaces and no glow](margin-detail-dark-390.png) | ![Signed-out Writing with current field scope and Settings last in navigation](margin-sidebar-320.png) |
+
+Overview is 900 × 720; corrections are 390 × 844; sidebar is 320 × 480. The
+right-angle margin mark carries the current field count. Spelling uses red,
+grammar amber and only a complete current zero uses green. The review remains a
+single unboxed list with one primary replacement, disclosed alternatives and a
+fixed field toggle below its scrolling region. Long lists and short sidebars
+scroll rather than forcing every issue onto the first screen. The synthetic
+`PRIVATE_CANARY` field is deliberately excluded from reading/checking.
+The compact hit target stays the same size on hover/focus; its native tooltip and
+accessible name provide the complete status without expanding across the editor.
+
+The existing Grove palette, system type and mark remain; no new imagery or type
+was introduced. The pass removes coloured row rails, dot-separated copy, repeated
+replacement buttons and decorative motion. It preserves useful category colour
+on actual wording, labels and the margin count. Source design lint reports no
+failures; its shadow warnings refer to actual overlays and shadow-DOM code. The
+generic inspector cannot install this isolated extension origin, so installed
+screenshots, geometry and axe checks provide the browser evidence instead.
+
+`tests/browser-extension-margin.test.mjs` checks counts/category/partial states,
+native Undo, field pause isolation, rich formatting, sensitive metadata exclusions,
+open shadow roots, CSS-hidden projection barriers, scoped sidebar actions,
+source-order filtering, focus and 280/320/390/768px overflow/accessibility. Native
+Firefox `160.0` additionally passed temporary installation, signed-out offline
+Harper textarea checks, native sidebar and synthetic capture/search/reader-copy.
+That smoke does not qualify Firefox rich-text corrections or Undo. Chromium
+manifest-profile checks do not establish branded Chrome/Edge acceptance or visible
+Edge-sidebar presentation. Child frames, closed roots, canvas editors and named
+rich-editor frameworks remain unqualified. No deployment, provider call or store
+submission is represented.
+
+Visual review: hierarchy 8/10, usability 8/10, identity 8/10. The useful changes are
+the single correction choice, unboxed source-order rows and removal of the
+irrelevant signed-out notice from Writing. At 480px sidebar height the issue list
+is intentionally short and scrollable; no claim that every finding fits is made.
+
+## Earlier compound-word correction
 
 ![Installed extension underlines onyl and offers only as its first correction](compound-card.png)
 
