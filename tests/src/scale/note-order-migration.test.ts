@@ -7,7 +7,7 @@ import {
   probeDatabase,
   type Knex,
 } from "@lib/database";
-import { migrations } from "../../lib/database/src/migrations.ts";
+import { migrations } from "../../../lib/database/src/migrations.ts";
 import { MemoryService, sessionPrincipal } from "@lib/memory";
 import { listSchema } from "@lib/shared/contracts";
 
