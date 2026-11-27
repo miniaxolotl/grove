@@ -96,7 +96,7 @@ Source owners: [shared contracts](../../lib/shared/src/contracts.ts),
 - `sourceSchema` keeps agent/session/verification. Browser provenance and exact URL
   lookup use their own scoped contract, not string search over the latest list page
   or a local copy of the whole library.
-- Current note bodies accept at most 6,000 characters. Include headings, quotes
+- Current note bodies accept at most 250,000 characters. Include headings, quotes
   and attribution in that budget; show overflow and let users edit. Do not silently
   truncate a selection or invent automatic note splitting.
 - Owner-only assistance, conversations, uploads and share management are not

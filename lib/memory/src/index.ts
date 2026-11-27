@@ -2109,7 +2109,7 @@ export class MemoryService {
         }
         const seen = new Set<string>();
         let remaining = input.maxCharacters;
-        const items: Memory[] = [];
+        const items: RecallResult["items"] = [];
         const briefs = [];
         if (!input.query) {
           const scopes: BriefRequest[] = [];
@@ -2150,8 +2150,35 @@ export class MemoryService {
               rows as SearchRow[],
             )
           : undefined;
-        for (const item of presented) {
-          const fingerprint = digest(item.content.trim().toLowerCase());
+        for (const full of presented) {
+          const row = rows.find((row) => row.id === full.id) as
+            | SearchRow
+            | undefined;
+          let item: RecallResult["items"][number] = full;
+          if (full.content.length > 2000) {
+            let from = row?.semanticFrom ?? 0;
+            // Lexical evidence can locate a tail passage even without vectors.
+            if (row?.semanticFrom == null && input.query) {
+              const terms = input.query.match(/[\p{L}\p{N}]+/gu) ?? [];
+              const lower = full.content.toLowerCase();
+              const hit = terms
+                .map((term) => lower.indexOf(term.toLowerCase()))
+                .find((at) => at >= 0);
+              if (hit !== undefined) from = Math.max(0, hit - 200);
+            }
+            if (from && /[\uDC00-\uDFFF]/.test(full.content[from])) from--;
+            let to = Math.min(
+              full.content.length,
+              row?.semanticTo ?? from + 2000,
+            );
+            if (/[\uD800-\uDBFF]/.test(full.content[to - 1])) to--;
+            item = {
+              ...full,
+              content: full.content.slice(from, to),
+              contentRange: { from, to, total: full.content.length },
+            };
+          }
+          const fingerprint = digest(full.content.trim().toLowerCase());
           const cost =
             JSON.stringify(item).length +
             (matches?.[item.id] ? JSON.stringify(matches[item.id]).length : 0);

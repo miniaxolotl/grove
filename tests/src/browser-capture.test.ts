@@ -118,8 +118,8 @@ test("browser capture contracts validate reviewed sources without changing docum
       assert.match(content, /https:\/\/example\.com\/docs\?q=%28x%29/);
       assert.match(content, /2026-11-05T20:00:00\.000Z/);
       assert.throws(
-        () => capture.formatWebCapture({ text: "a".repeat(6000), source }),
-        /6000/,
+        () => capture.formatWebCapture({ text: "a".repeat(250_000), source }),
+        /250000/,
       );
       assert.throws(() => capture.formatWebCapture({ text: " \n " }), /empty/i);
       assert.equal(
@@ -127,12 +127,12 @@ test("browser capture contracts validate reviewed sources without changing docum
         "A manual note",
       );
       assert.equal(
-        capture.formatWebCapture({ text: "a".repeat(6000) }).length,
-        6000,
+        capture.formatWebCapture({ text: "a".repeat(250_000) }).length,
+        250_000,
       );
       assert.throws(
-        () => capture.formatWebCapture({ text: "a".repeat(6001) }),
-        /6000/,
+        () => capture.formatWebCapture({ text: "a".repeat(250_001) }),
+        /250000/,
       );
       assert.match(capture.formatWebCapture({ text: "", source }), /Source:/);
     },

@@ -180,6 +180,20 @@ Reindex and restore reconciliation honor these independent preferences.
 
 ## Organization, summaries and recall
 
+The indexing worker splits notes into passages of at most 2,000 UTF-16 units. It
+groups short paragraphs, keeps paragraph boundaries where possible and splits long
+paragraphs at whitespace before falling back to a Unicode-safe cut. Each embedding
+request contains one passage. On edits or retries, the worker reuses vectors for
+identical passage text under the same embedding profile and chunking rules. An edit
+that changes a boundary can also change a neighboring passage.
+
+Hybrid recall ranks a note by its closest passage and can return that excerpt with
+`contentRange` (start, exclusive end and total length). Read the full note before
+editing. Relationship processing still uses one representative vector per note.
+Existing indexes remain searchable until a note is edited or reindexed. Migrations
+049 and 050 must run before deploying the updated workers and API; applying them
+does not submit existing notes to an embedding provider.
+
 - `remember` accepts `autoKind: true`. Explicit kinds are kept by default. Handoff
   kind and stable task ID remain explicit. `retentionDays` is independent of kind;
   handoffs default to 30 days, other notes to permanent, with a 60-day restore window.

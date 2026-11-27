@@ -145,6 +145,9 @@ export async function probeDatabase(db: Knex) {
   );
   if (!lifecycle.rows[0]?.ready)
     throw new Error("The lifecycle migration (048) is required");
+  await db.raw(
+    "SELECT source_from, source_to FROM memory_embedding_chunks LIMIT 0",
+  );
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */

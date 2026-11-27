@@ -122,9 +122,12 @@ batching tradeoffs and the separate live-service qualification limits.
 
 ## Limits, rollout and verification
 
-Keep the 6,000-character note limit. Source edits allow at most 50 operations and
-6,000 cumulative inserted UTF-16 units; ranges cannot split surrogate pairs. Empty
+Notes support 250,000 UTF-16 units. Source edits allow at most 50 operations and
+250,000 cumulative inserted units; ranges cannot split surrogate pairs. Empty
 results, invalid old text, no-op agent previews and conflicting versions are rejected.
+
+![Editing a research note at the 250,000-character limit](design/screenshots/long-note/editor.png)
+
 The [core contract](development/document-core.md) owns block/diff budgets. Stable IDs
 and diffs are not CRDT/OT, fine-grained locking or proof of multi-person convergence.
 

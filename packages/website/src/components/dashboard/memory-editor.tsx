@@ -1,4 +1,5 @@
 "use client";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import {
   useEffect,
   useEffectEvent,
@@ -556,7 +557,7 @@ function ReadyMemoryEditor({
     busy ||
     !!latest ||
     !content.trim() ||
-    content.length > 6000 ||
+    content.length > NOTE_CONTENT_MAX ||
     !dirty;
   useEffect(() => {
     onLockChange?.(mediaBusy || busy || dirty || !!latest);
@@ -708,7 +709,7 @@ function ReadyMemoryEditor({
               ? "Review the newer version first"
               : !content.trim()
                 ? "Write something first"
-                : content.length > 6000
+                : content.length > NOTE_CONTENT_MAX
                   ? "Over the save limit"
                   : !dirty
                     ? "All changes saved"
@@ -738,7 +739,7 @@ function ReadyMemoryEditor({
             ? unconfirmed
               ? "Not confirmed"
               : "Not saved"
-            : content.length > 6000
+            : content.length > NOTE_CONTENT_MAX
               ? "Over save limit"
               : !content.trim()
                 ? "Empty draft"

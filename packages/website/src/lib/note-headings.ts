@@ -1,4 +1,5 @@
 import { parseNoteMarkdown } from "@lib/shared/markdown";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import type { Nodes } from "mdast";
 
 export type NoteHeading = {
@@ -22,7 +23,8 @@ function text(node: Nodes): string {
 export function noteHeadings(source: string): NoteHeading[] {
   // Headings are a derived view (outline, PDF titles), not save validation:
   // allow large documents here; the save path enforces NOTE_CONTENT_MAX.
-  const tree = parseNoteMarkdown(source, { maxCharacters: 100_000 });
+  if (source.length > NOTE_CONTENT_MAX) return [];
+  const tree = parseNoteMarkdown(source);
   const headings: NoteHeading[] = [];
   const used = new Set<string>();
   function visit(node: Nodes) {

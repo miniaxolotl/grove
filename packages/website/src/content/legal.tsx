@@ -200,16 +200,16 @@ export const privacy: LegalDocument = {
             settings; a saved off choice stays off. Grove stores encrypted
             checkpoints and a non-exportable encryption key in this browser for
             your account, with note/notebook routing identifiers. The limit is
-            32 drafts and 1 MiB, expiring seven days after the first checkpoint.
-            Recovery requires online sign-in and current access; it is not a
-            server save, backup service or protection against a compromised
-            browser or site. Disabling recovery, observed sign-out/account
-            changes and terminal session denial erase the local keys and
-            checkpoints. An offline or closed browser cannot be remotely wiped;
-            expired data is unusable and removed at the next authorized open.
-            Storage failures and recent typing may leave text only in the open
-            tab. You can copy or export it before closing. This choice is
-            separate from analytics.
+            32 drafts and 16 MiB, expiring seven days after the first
+            checkpoint. Recovery requires online sign-in and current access; it
+            is not a server save, backup service or protection against a
+            compromised browser or site. Disabling recovery, observed
+            sign-out/account changes and terminal session denial erase the local
+            keys and checkpoints. An offline or closed browser cannot be
+            remotely wiped; expired data is unusable and removed at the next
+            authorized open. Storage failures and recent typing may leave text
+            only in the open tab. You can copy or export it before closing. This
+            choice is separate from analytics.
           </p>
           <p>
             With your permission, advertising partners use cookies and device

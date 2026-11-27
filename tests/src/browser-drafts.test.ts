@@ -205,7 +205,7 @@ test("browser draft core isolates accounts and preserves exact uncertain save id
       );
       assert.equal(
         drafts.readCaptureDraft(
-          { ...draft, text: "a".repeat(6001) },
+          { ...draft, text: "a".repeat(250_001) },
           scope,
           now,
         ),
@@ -419,12 +419,12 @@ test("browser draft core isolates accounts and preserves exact uncertain save id
       const oversized = drafts.editCaptureDraft(
         initial(),
         scope,
-        { text: "a".repeat(6000), source, textOrigin: "quoted" },
+        { text: "a".repeat(250_000), source, textOrigin: "quoted" },
         now + 1,
       );
       assert.throws(
         () => drafts.prepareCaptureSave(oversized, scope, operationId, now + 2),
-        /6000/,
+        /250000/,
       );
       assert.throws(() =>
         drafts.prepareCaptureSave(initial(), scope, operationId, now - 1),

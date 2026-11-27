@@ -12,6 +12,8 @@ export type SearchRow = MemoryModel & {
   searchTitle: string;
   searchTier: number;
   searchScore: number;
+  semanticFrom?: number;
+  semanticTo?: number;
 };
 export const searchVersion = "title-prefix-trgm-shortfall40-v1";
 
@@ -139,9 +141,11 @@ export function lexicalQuery(
       b.where("search_tier", "<", 6);
       if (semantic)
         b.orWhereRaw(
-          `EXISTS(SELECT 1 FROM memory_embeddings e WHERE e.account_id=classified.account_id
+          `EXISTS(SELECT 1 FROM memory_embeddings e LEFT JOIN memory_embedding_chunks c
+       ON c.account_id=e.account_id AND c.memory_id=e.memory_id AND c.version=e.version AND c.profile=e.profile
+       WHERE e.account_id=classified.account_id
       AND e.memory_id=classified.id AND e.version=classified.version AND CASE WHEN e.profile=?
-      THEN (e.embedding <=> ?::vector) < ? ELSE false END)`,
+       THEN (coalesce(c.embedding,e.embedding) <=> ?::vector) < ? ELSE false END)`,
           [
             semantic.embedder.profile,
             JSON.stringify(semantic.vector),

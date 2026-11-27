@@ -351,7 +351,7 @@ separately rather than appended to the body.
 Drafts distinguish authored text from context-menu excerpts; existing legacy source
 drafts keep their original quoted formatting and unresolved saves keep exact bytes.
 Link-only captures are supported. The shared
-6,000-character note limit includes attribution for quoted external captures; overflow is
+250,000-character note limit includes attribution for quoted external captures; overflow is
 rejected, never truncated or split. A valid source can still contain sensitive query
 parameters. Its hostname is visible under Details before an explicit Save; following
 a tab never sends its metadata to Grove or fetches the page body.

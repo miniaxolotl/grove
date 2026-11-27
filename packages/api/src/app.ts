@@ -38,6 +38,7 @@ import {
   withTelemetry,
 } from "@lib/telemetry/context";
 import { Hono } from "hono";
+import { NOTE_REQUEST_BYTES_MAX, requestBodyLimit } from "@lib/shared/limits";
 import { cors } from "hono/cors";
 import {
   browserCaptureRequestSchema,
@@ -407,7 +408,7 @@ export function createApp(deps: AppDependencies) {
               ? 16384
               : c.req.path === "/v1/proofing/consent"
                 ? 512
-                : undefined,
+                : requestBodyLimit(c.req.path),
           );
         await next();
         if (!c.get("streaming") && !c.error) signal.throwIfAborted();
@@ -2303,7 +2304,7 @@ export function createApp(deps: AppDependencies) {
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
-      maxRequestBodySize: 128 * 1024,
+      maxRequestBodySize: NOTE_REQUEST_BYTES_MAX,
     });
     try {
       await server.connect(transport);

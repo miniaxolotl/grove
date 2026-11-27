@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOTE_CONTENT_MAX } from "./limits.ts";
 import { webCaptureSchema } from "./web-capture";
 
 export const queueLanes = [
@@ -57,7 +58,7 @@ export type ExportRequest = z.infer<typeof exportRequestSchema>;
 export const importRecordSchema = z
   .object({
     sourceId: z.string().min(1).max(200),
-    content: z.string().min(1).max(6000),
+    content: z.string().min(1).max(NOTE_CONTENT_MAX),
     projectId: z.uuid().nullable().default(null),
     webCapture: webCaptureSchema.optional(),
   })

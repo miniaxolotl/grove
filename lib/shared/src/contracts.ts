@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Brief, Enrichment } from "./models.ts";
 import { noteContentDescription } from "./note-writing.ts";
-import { NOTE_CONTENT_MAX } from "./limits.ts";
+import { NOTE_CONTENT_MAX, RECALL_CONTENT_MAX } from "./limits.ts";
 
 export const capabilities = [
   "memory:read",
@@ -138,8 +138,8 @@ export const recallSchema = z
       .number()
       .int()
       .min(256)
-      .max(NOTE_CONTENT_MAX)
-      .default(NOTE_CONTENT_MAX),
+      .max(RECALL_CONTENT_MAX)
+      .default(RECALL_CONTENT_MAX),
   })
   .strict();
 export const versionSchema = z
@@ -306,7 +306,10 @@ export type RecallResult = {
   retrieval?: RetrievalDiagnostic;
   usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
-  items: Memory[];
+  /** A bounded excerpt is not a complete body; read the note before editing. */
+  items: (Memory & {
+    contentRange?: { from: number; to: number; total: number };
+  })[];
   mode: "hybrid" | "lexical" | "profile";
   contentVersion: number;
   briefs?: Brief[];

@@ -5,6 +5,7 @@ export const proofingRoute = (path: string, method: string) =>
 /** Check the actual byte count, including chunked bodies without Content-Length. */
 export async function boundedProofingBody(
   stream: ReadableStream<Uint8Array> | null,
+  maximum = 16_384,
 ) {
   if (!stream) return "";
   const reader = stream.getReader();
@@ -16,7 +17,7 @@ export async function boundedProofingBody(
       const chunk = await reader.read();
       if (chunk.done) return text + decoder.decode();
       bytes += chunk.value.byteLength;
-      if (bytes > 16_384) {
+      if (bytes > maximum) {
         await reader.cancel();
         return null;
       }

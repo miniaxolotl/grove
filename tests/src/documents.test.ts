@@ -100,7 +100,10 @@ test("snapshot schemas reject tampering, duplicates, unknown fields and false st
     { ...doc, blocks: [{ ...doc.blocks[0], kind: "code" }, doc.blocks[1]] },
   ])
     await rejects(() => validateDocument(value), "invalid_document");
-  await rejects(() => create("x".repeat(6001)), "invalid_document");
+  await rejects(
+    () => create("x".repeat(documentLimits.characters + 1)),
+    "invalid_document",
+  );
   await rejects(() => create(""), "invalid_document");
 });
 
@@ -366,7 +369,9 @@ test("bounded batches reject no-ops, oversize results, unknown operations and ex
     () =>
       applyDocumentPatch(
         doc,
-        batch(doc, [replace(doc, 0, "One", "x".repeat(6000))]),
+        batch(doc, [
+          replace(doc, 0, "One", "x".repeat(documentLimits.characters)),
+        ]),
         scopeFor(doc),
       ),
     "invalid_patch",
@@ -415,7 +420,9 @@ test("source diffs reconstruct both sides, including syntax, whitespace and boun
     diffDocumentText("a ".repeat(2900), "b ".repeat(2900)).mode,
     "bounded",
   );
-  assert.throws(() => diffDocumentText("x".repeat(6001), ""));
+  assert.throws(() =>
+    diffDocumentText("x".repeat(documentLimits.characters + 1), ""),
+  );
 });
 
 test("document comparisons reject foreign snapshots and report formatting-only changes", async () => {

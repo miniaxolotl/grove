@@ -120,7 +120,7 @@ async function fixture() {
               ? "Here are your garden notes."
               : "Here’s a preview.",
           statements: sources.slice(0, 1).map((s) => ({
-            text: s.content,
+            text: s.content.slice(0, 900),
             sources: [
               {
                 id: behavior.invalid ? randomUUID() : s.id,
@@ -183,6 +183,67 @@ async function fixture() {
 }
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
+
+test("Ask sends a relevant long-note passage, never the full document", async () => {
+  const f = await fixture();
+  const content =
+    "# Research\n\n" +
+    "Ordinary observations. ".repeat(5000) +
+    "\n\nGarden irrigation findings are recorded here.";
+  const note = await f.save(content);
+  const chat = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    conversationTurnSchema.parse({
+      ...turn("Find garden findings"),
+      context: { notes: [note.id], notebooks: [], only: true },
+    }),
+  );
+  const call = f.behavior.calls.find((entry) =>
+    entry.sources.some((s) => s.id === note.id),
+  )!;
+  const source = call.sources.find((s) => s.id === note.id)!;
+  assert(source.content.length <= 2000);
+  assert(source.content.includes("Garden irrigation"));
+  assert.equal((await f.service.get(f.principal, note.id)).content, content);
+});
+
+test("reviewed long-note passage edits preserve all unseen text", async () => {
+  const f = await fixture();
+  const prefix = "Ordinary observations. ".repeat(5000) + "\n\n";
+  const target =
+    "Garden irrigation findings. " + "Supporting evidence. ".repeat(30);
+  const suffix = "\r\n\r\n# Following section\n\nKeep these observations.";
+  const note = await f.save(prefix + target.trimEnd() + suffix);
+  f.behavior.intent = "edit";
+  f.behavior.references = [note.id];
+  const chat = await f.create();
+  const result = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    conversationTurnSchema.parse({
+      ...turn("Edit garden irrigation"),
+      context: { notes: [note.id], notebooks: [], only: true },
+    }),
+  );
+  const proposal = result.turns[0].result!.proposal!;
+  assert(proposal.content.startsWith(prefix));
+  assert(
+    proposal.content.endsWith(
+      "# Garden\n\nWater the garden every morning." + suffix,
+    ),
+  );
+  assert.equal(
+    (await f.service.get(f.principal, note.id)).content,
+    prefix + target.trimEnd() + suffix,
+  );
+  await f.service.conversations.apply(f.principal, chat.id, result.turns[0].id);
+  assert.equal(
+    (await f.service.get(f.principal, note.id)).content,
+    proposal.content,
+  );
+});
 
 test("unchanged failed-turn retries reuse the validated plan", async () => {
   const f = await fixture();

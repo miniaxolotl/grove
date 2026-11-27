@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { modelNoteExcerpt } from "./note-chunks.ts";
 import {
   MemoryModel,
   camelRows,
@@ -56,7 +57,7 @@ export const noteTitle = (content: string) =>
 export const connectionSource = (row: MemoryModel): ConnectionSource => ({
   id: row.id,
   version: row.version,
-  content: row.content,
+  content: modelNoteExcerpt(row.content),
   title: noteTitle(row.content),
   projectId: row.projectId,
 });
