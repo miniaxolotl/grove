@@ -646,10 +646,12 @@ export function MemoryLibrary({
                   <>
                     <span className="library-refresh-state">
                       {staleSearch
-                        ? "Search changed"
+                        ? "Search changed. Refresh results."
                         : query.isFetchNextPageError
-                          ? "More notes failed"
-                          : "Refresh failed"}
+                          ? "Couldn’t load more. Showing loaded notes."
+                          : items.length
+                            ? "Couldn’t refresh. Showing saved notes."
+                            : "Couldn’t refresh notes."}
                     </span>
                     <button
                       type="button"

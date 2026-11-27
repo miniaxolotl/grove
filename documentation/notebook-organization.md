@@ -134,7 +134,7 @@ notebook-scoped exports include only container ranks. Reordering invalidates an
 existing export. This is portable order evidence, not a new backup-import or
 deleted-note restore feature; ordinary source imports create new notes at the end.
 
-The forward-only **049 note-order migration** must precede the new API/worker code.
+The forward-only **051 note-order migration** must precede the new API/worker code.
 It adds tenant-RLS-protected sparse rank overrides, deterministic creation/ID
 defaults and append behavior for legacy create/move writes. Existing content and
 revisions are not rewritten; runtime readiness rejects an older schema. Populated

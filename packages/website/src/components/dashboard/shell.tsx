@@ -36,7 +36,7 @@ import { Dialog } from "./dialog";
 import { setAccountBoundary } from "@/lib/analytics";
 import { TelemetryChoice } from "@/components/website-telemetry";
 import { WorkspaceDrag } from "./memory-drag";
-import { NotebookOrganizer } from "./notebook-organizer";
+import { deferredFeature } from "./deferred-feature";
 import { WorkspaceSearch, WorkspaceSearchButton } from "./workspace-search";
 import { ToastProvider } from "./toasts";
 import { PreferenceEditor } from "./preference-editor";
@@ -59,6 +59,16 @@ const settingsLink = {
   icon: Settings,
 };
 const links = [...workspaceLinks, settingsLink];
+
+const Organizer = deferredFeature(
+  async () => ({
+    default: (await import("./notebook-organizer")).NotebookOrganizer,
+  }),
+  "Opening notebook order…",
+);
+function NotebookOrganizer() {
+  return useNotebooks().organizing === undefined ? null : <Organizer />;
+}
 
 function WorkspaceNavLink({
   item,

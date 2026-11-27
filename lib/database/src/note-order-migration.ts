@@ -1,7 +1,7 @@
 import type { Knex } from "knex";
 
 export const noteOrder = {
-  name: "20261126_049_note_order",
+  name: "20261127_051_note_order",
   async up(db: Knex) {
     await db.raw(`
       ALTER TABLE accounts ADD COLUMN note_order_version bigint NOT NULL DEFAULT 0;

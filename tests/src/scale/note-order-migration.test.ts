@@ -28,7 +28,7 @@ test("populated note-order upgrade preserves revisions and forces real-role tena
   try {
     const source: Knex.MigrationSource<(typeof migrations)[number]> = {
       getMigrations: async () =>
-        migrations.filter((migration) => migration.name < "20261126_049"),
+        migrations.filter((migration) => migration.name < "20261127_051"),
       getMigrationName: (migration) => migration.name,
       getMigration: async (migration) => migration,
     };
@@ -130,7 +130,7 @@ test("bulk ordinary note creation keeps append work bounded at account scale", a
         id: accountId,
         clerkSubject: `bulk_${accountId}`,
       });
-      // Short committed batches avoid an unrelated pre-049 quadratic chain of
+      // Short committed batches avoid an unrelated pre-051 quadratic chain of
       // account-row updates in one giant INSERT, while reaching the real cap.
       for (let start = 1; start <= 10000; start += 100) {
         await tenant(runtime, accountId, async (trx) => {

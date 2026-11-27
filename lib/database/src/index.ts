@@ -156,7 +156,7 @@ export async function probeDatabase(db: Knex) {
     "SELECT to_regprocedure('public.grove_note_default_rank(uuid,timestamptz)') IS NOT NULL AS ready",
   );
   if (!order.rows[0]?.ready)
-    throw new Error("The note-order migration (049) is required");
+    throw new Error("The note-order migration (051) is required");
 }
 
 /** Explicit transaction binding; no module-global connection or tenant state. */
