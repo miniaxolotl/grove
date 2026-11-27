@@ -162,6 +162,21 @@ test("missing schema fails closed with an operator migration instruction and poo
   );
 });
 
+test("preflight reports safe database error codes without stale migration ranges or private SQL", async () => {
+  const dependencies = fixture();
+  dependencies.probe = async () => {
+    throw Object.assign(
+      new Error("SELECT private-api, private-worker FROM private_table"),
+      { code: "42P01" },
+    );
+  };
+  await assert.rejects(preflightDatabases(env, dependencies), (error) => {
+    assert.match(error.message, /42P01/);
+    assert.doesNotMatch(error.message, /045|048|private-|private_table/);
+    return true;
+  });
+});
+
 test("production checks candidate schema before publication and again before rollout", () => {
   const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
   const publish = workflow.split("\n  publish:\n")[1].split("\n  deploy:\n")[0];

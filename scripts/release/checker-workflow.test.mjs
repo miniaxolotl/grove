@@ -10,7 +10,8 @@ test("production publishes all four images before backend deployment, without ac
   assert.match(workflow, /github\.ref_protected == true/);
   assert.match(workflow, /promotion\.mjs wait-ci "\$GITHUB_SHA"/);
   assert.match(workflow, /promotion\.mjs production "\$GITHUB_SHA"/);
-  assert.match(workflow, /publish:\n\s+needs: candidate/);
+  assert.match(workflow, /migrate:\n\s+needs: candidate/);
+  assert.match(workflow, /publish:\n\s+needs: \[candidate, migrate\]/);
   assert.match(workflow, /environment: production/);
   assert.match(workflow, /ref: \$\{\{ needs\.candidate\.outputs\.sha \}\}/);
   assert.match(

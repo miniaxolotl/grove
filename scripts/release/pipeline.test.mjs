@@ -59,9 +59,10 @@ test("Source Release prepares the exact tagged source automatically, including o
   );
 });
 
-test("production follows candidate, publish, backend, website with no special release modes", () => {
+test("production follows candidate, migrate, publish, backend, website with no special release modes", () => {
   const deploy = read("deploy");
-  assert.match(deploy, /publish:\n\s+needs: candidate/);
+  assert.match(deploy, /migrate:\n\s+needs: candidate/);
+  assert.match(deploy, /publish:\n\s+needs: \[candidate, migrate\]/);
   assert.match(deploy, /deploy:\n\s+needs: \[candidate, publish\]/);
   assert.match(deploy, /website:\n\s+needs: \[candidate, deploy\]/);
   assert.doesNotMatch(
