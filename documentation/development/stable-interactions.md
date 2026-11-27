@@ -75,6 +75,9 @@ controls and transient feedback should use space already available.
 - Sidebar persistence belongs to the authenticated account owner, not a reusable
   tree or a module-level global. Follow the metadata/restore contract in
   [client caching](client-cache.md); scroll listeners are passive and writes debounced.
+- A navigation-sheet link handles its click before the sheet closes. Closing the
+  sheet during event capture can turn a client transition into a full page load
+  on WebKit, losing the session's in-memory drafts.
 - Heading jumps and conversation history use `Dialog.onDismissed` to hand focus
   over **after** normal opener restoration. React's closed state or an animation
   frame alone does not guarantee the modal's deferred cleanup has finished. Delete

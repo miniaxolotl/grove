@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { fixture, note, project } from "./fixtures/workspace-fixture";
 import { openNoteAction } from "./fixtures/note-action";
+import { openWorkspaceNavigation } from "./fixtures/workspace-navigation";
 import {
   billingLimits,
   billingUnits,
@@ -399,6 +400,7 @@ test("notebook deletion is distinguished in the keyboard action menu", async ({
 }) => {
   const state = await fixture(page);
   await page.goto(`${base}/app`);
+  await openWorkspaceNavigation(page);
   const trigger = page.getByRole("button", {
     name: `Notebook actions for ${project.name}`,
     exact: true,

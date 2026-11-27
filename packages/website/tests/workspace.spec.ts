@@ -707,7 +707,9 @@ test("notebook archive never discards a retained local draft", async ({
     name: "What should stay with you?",
   });
   // An over-limit draft cannot autosave while navigating to notebook management.
-  await editor.fill("Unsaved writing".padEnd(250_001, "x") + "Unsaved writing");
+  await editor.focus();
+  await page.keyboard.insertText("Unsaved writing".padEnd(250_001, "x") + "Unsaved writing");
+  await expect(page.locator(".note-save-status")).toContainText(/over.*limit/i);
   await page
     .getByRole("button", { name: "Back to notes", exact: true })
     .click();
@@ -8494,7 +8496,9 @@ test("pen pickup cancels when its source disappears during navigation", async ({
 }) => {
   const state = await fixture(page, [note]);
   await page.goto(`${base}/app`);
-  const box = (await page.locator(".memory-row .drag-handle").boundingBox())!;
+  const box = (await page
+    .locator(`[data-note-id="${note.id}"] .drag-handle`)
+    .boundingBox())!;
   const cdp = await context.newCDPSession(page);
   await cdp.send("Input.dispatchMouseEvent", {
     type: "mousePressed",

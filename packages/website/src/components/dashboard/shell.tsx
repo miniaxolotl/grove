@@ -245,7 +245,7 @@ function WorkspaceSidebar({
   const navigation = (
     <div
       className="workspace-navigation-body"
-      onClickCapture={(event) => {
+      onClick={(event) => {
         if (
           event.button === 0 &&
           !event.ctrlKey &&
