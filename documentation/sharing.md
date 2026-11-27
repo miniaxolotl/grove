@@ -65,9 +65,29 @@ owner-only titles or use the authenticated workspace cache.
 
 ## Public reader
 
-The reader has a compact Grove header with **Read only**, the note title and update
-date, then the saved content. Notebooks use simple linked rows; nested pages link
-back to the shared notebook. Reading and navigation work without JavaScript.
+The reader keeps the saved text central, with **Notebook contents** beside a note
+opened through a notebook share. The selected note is highlighted; folder links
+stay inside the shared root. **Find a note** searches saved titles across permitted
+sub-notebooks, including notes not loaded in the sidebar. A direct note share has
+no notebook navigation or search. Phones fold navigation above the article.
+
+**On this page** finds headings and optionally list points. Section links preserve
+existing heading fragments; copy a heading link from its link icon or the outline.
+A missing section keeps the note readable and offers the outline. The footer opens
+the next sibling in the public list's order, not the owner's custom arrangement.
+
+Enhanced navigation changes the article without a document reload. Hover/focus
+warms one destination in tab memory; Data Saver skips warm-up. Every activation and
+history restoration rechecks live access, including when an unchanged candidate
+is reused. Loading feedback appears only for slower transitions and stays inside
+the article; the notebook list remains mounted. Reading, folder navigation,
+pagination and section links work without JavaScript.
+
+Grove's normal shortcuts apply: **Ctrl/Cmd+K** finds a note,
+**Ctrl/Cmd+Shift+P** opens Commands, **Ctrl/Cmd+Alt+O** opens the outline and
+**Ctrl/Cmd+/** shows available shortcuts. Up/Down moves between focused rows;
+Left/Right opens adjacent notes when the reading surface has focus. Text fields,
+selection, media controls and native reading scroll keep their normal behavior.
 Shared routes omit the site cookie notice; visiting the main site still offers the
 normal consent choices.
 
@@ -144,6 +164,25 @@ Anonymous read endpoints:
 - `GET /public/shares/:token/notes/:id`
 - `GET /public/shares/:token/notebooks/:id`
 
+Enhanced readers also use bounded, anonymous read-only POSTs:
+
+- `/public/shares/:token/reader`: `kind` (`root`, `notes`, `notebooks`), optional
+  `id` and signed `cursor`; returns the note, scoped navigation and folder listing
+  under the same account/share locks. Up to three visited sidebar pages can be
+  revalidated together using `listingFolder` and `listingCursors`. Lists keep a
+  bounded window rather than retaining an entire notebook in memory.
+- `/public/shares/:token/navigation`: optional `noteId` or `notebookId`, title query
+  `q` (maximum 100 characters) and signed `cursor`. Search returns up to 30 scoped
+  summaries, in UUID order. Cursors bind the share, query and permission version.
+  Query text stays in the request body, not the URL.
+
+These endpoints use the existing public admission and five-second statement
+deadlines, not owner/session grants. Each underlying authorized read consumes public
+per-link admission; a composite request takes global admission once, before its
+content transaction. No external sync, job or private workspace cache is involved. The website's
+same-origin `/s/:token/read` facade bounds input to 8 KiB and uses no-store responses;
+it can acknowledge an unchanged projection only after the complete live read.
+
 Notebook reads accept `limit` (default 30, maximum 100) and signed `cursor`.
 Cursors bind the token digest, share/version, route and page size. Scope changes
 invalidate earlier cursors; membership remains live between pages. Missing,
@@ -160,6 +199,11 @@ paginated in UUID order. Readers do not call Clerk/models, create sessions or
 consume the owner's signed-in API quota.
 
 ## Storage and rollout
+
+Reader navigation requires forward migration **`20261127_052_share_navigation`**
+before the compatible API and website. It extracts the existing lifecycle-filtered
+notebook scope for reuse by old and new readers, retaining old response shapes,
+share secrets and permissions. Apply it after 051; do not replay earlier migrations.
 
 Apply forward migration **`20261021_011_public_sharing`** with the migration-owner
 role before the matching API/worker. It adds RLS-protected shares/receipts,
@@ -205,6 +249,15 @@ redaction is not currently verified. Application filtering does not redact those
 See [deployment](deploy.md) and [testing](development/testing.md).
 
 ## Verification
+
+`share-navigation-migration.test.ts` verifies populated 051→052 compatibility and
+runtime isolation. The sharing suite covers nested entry, title-search pagination
+and query/scope-bound cursors. `playwright.shared-reader.config.ts` runs signed-out
+navigation, hover validation, history, keyboard/palette, loading and no-JS cases;
+set `READER_WEBKIT=1` for WebKit. These are synthetic fixture checks, not live-host
+or physical-device acceptance. Extremely structure-heavy maximum-size Markdown
+can still be slow in the underlying parser; representative long-note indexing does
+not establish responsiveness for every possible 250,000-character document.
 
 `sharing.test.ts`, `share-expiration-migration.test.ts` and recovery use real
 non-owner roles for scope, concurrent revocation/moves/expiry, current account

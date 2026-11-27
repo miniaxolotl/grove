@@ -12,6 +12,10 @@ import { GroveError, uuidSchema, type Principal } from "@lib/shared/contracts";
 import {
   publicShareSchema,
   publicShareQuerySchema,
+  publicNavigationQuerySchema,
+  publicNavigationSchema,
+  publicReaderQuerySchema,
+  type PublicReaderState,
   shareTokenSchema,
   shareDurations,
   sharedNoteTitle,
@@ -470,19 +474,151 @@ export class Sharing {
       .update(`public-sharing-v1:${value}`)
       .digest();
   }
+  private encodeCursor(value: Record<string, unknown>) {
+    const payload = Buffer.from(JSON.stringify(value)).toString("base64url");
+    return `${payload}.${this.sign(payload).toString("base64url")}`;
+  }
+  private decodeCursor(cursor: string, expected: Record<string, string>) {
+    try {
+      const [payload, signature, extra] = cursor.split(".");
+      if (!payload || !signature || extra) throw new Error();
+      const bytes = Buffer.from(signature, "base64url");
+      if (bytes.length !== 32 || !timingSafeEqual(bytes, this.sign(payload)))
+        throw new Error();
+      const value = JSON.parse(
+        Buffer.from(payload, "base64url").toString("utf8"),
+      );
+      if (
+        Object.entries(expected).some(([key, item]) => value[key] !== item) ||
+        !Number.isSafeInteger(value.version) ||
+        value.version < 1
+      )
+        throw new Error();
+      return {
+        after: uuidSchema.parse(value.after),
+        shareId: uuidSchema.parse(value.shareId),
+        version: value.version as number,
+      };
+    } catch {
+      throw new GroveError(
+        "invalid_cursor",
+        "Reload this shared notebook to continue",
+        400,
+      );
+    }
+  }
+  private async admit(token: string) {
+    this.key();
+    // Commit global admission before taking account/content locks. Otherwise one
+    // blocked composite reader serializes unrelated links on the global bucket.
+    const admitted = await this.service.db.raw(
+      "SELECT grove_share_admit('global') AS allowed",
+    );
+    if (!admitted.rows[0].allowed) throw limited();
+    if (!shareTokenSchema.safeParse(token).success) throw missing();
+  }
+  async reader(token: string, input: unknown): Promise<PublicReaderState> {
+    const { kind, id, cursor, listingCursors, listingFolder } =
+      publicReaderQuerySchema.parse(input);
+    await this.admit(token);
+    // All projections share account/share locks; no remote I/O in this transaction.
+    return this.service.db.transaction(async (trx) => {
+      const data = await this.read(
+        token,
+        kind === "notes" ? "note" : kind === "notebooks" ? "notebook" : "root",
+        id,
+        { cursor },
+        trx,
+      );
+      if (data.kind !== "notebook")
+        return { data, navigation: null, listing: null };
+      const navigation = await this.navigation(
+        token,
+        data.note
+          ? { noteId: data.note.id }
+          : { notebookId: data.notebook?.id },
+        trx,
+      );
+      let listing = data.note ? null : data;
+      if (data.note && navigation.folder) {
+        const cursors =
+          listingFolder === navigation.folder.id ? listingCursors : [null];
+        for (const cursor of cursors) {
+          const page = await this.read(
+            token,
+            "notebook",
+            navigation.folder.id,
+            { cursor: cursor ?? undefined },
+            trx,
+          );
+          listing = listing
+            ? { ...page, notes: [...listing.notes, ...page.notes] }
+            : page;
+        }
+      }
+      return { data, navigation, listing };
+    });
+  }
+  async navigation(
+    token: string,
+    input: unknown,
+    transaction?: Knex.Transaction,
+  ) {
+    this.key();
+    const { noteId, notebookId, q, cursor } =
+      publicNavigationQuerySchema.parse(input);
+    if (!transaction) await this.admit(token);
+    if (!shareTokenSchema.safeParse(token).success) throw missing();
+    const tokenDigest = hash(token);
+    const scope = `navigation:${tokenDigest}:${noteId ?? ""}:${notebookId ?? ""}:${q}`;
+    let after: string | null = null;
+    let expected: { shareId: string; version: number } | null = null;
+    if (cursor) {
+      const value = this.decodeCursor(cursor, { scope });
+      after = value.after;
+      expected = value;
+    }
+    const run = async (trx: Knex.Transaction) => {
+      await trx.raw("SET LOCAL statement_timeout = '5000ms'");
+      const { rows } = await trx.raw(
+        "SELECT grove_public_navigation(?,?::uuid,?::uuid,?,?::uuid) AS value",
+        [tokenDigest, noteId ?? null, notebookId ?? null, q, after],
+      );
+      return rows[0].value;
+    };
+    const result = await (transaction
+      ? run(transaction)
+      : this.service.db.transaction(run));
+    if (!result) throw missing();
+    if (result.limited) throw limited();
+    if (
+      expected &&
+      (expected.shareId !== result.shareId ||
+        expected.version !== result.shareVersion)
+    )
+      throw new GroveError("invalid_cursor", "Search again to continue", 400);
+    let nextCursor: string | null = null;
+    if (result.results.length > 30) {
+      result.results = result.results.slice(0, 30);
+      nextCursor = this.encodeCursor({
+        scope,
+        after: result.results.at(-1).id,
+        shareId: result.shareId,
+        version: result.shareVersion,
+      });
+    }
+    const { shareId: _shareId, shareVersion: _shareVersion, ...data } = result;
+    return publicNavigationSchema.parse({ ...data, nextCursor });
+  }
   async read(
     token: string,
     kind: "root" | "note" | "notebook" = "root",
     id?: string,
     query: { cursor?: string; limit?: number } = {},
+    transaction?: Knex.Transaction,
   ): Promise<PublicShare> {
     this.key();
-    // A database-wide admission bucket also bounds invalid-token requests across
-    // replicas, without accepting spoofable forwarded IPs or using owner quotas.
-    const admitted = await this.service.db.raw(
-      "SELECT grove_share_admit('global') AS allowed",
-    );
-    if (!admitted.rows[0].allowed) throw limited();
+    if (!transaction) await this.admit(token);
     if (
       !shareTokenSchema.safeParse(token).success ||
       (kind !== "root" && !uuidSchema.safeParse(id).success)
@@ -495,41 +631,22 @@ export class Sharing {
       shareId: string | null = null,
       version: number | null = null;
     if (cursor) {
-      try {
-        const [payload, signature, extra] = cursor.split(".");
-        if (!payload || !signature || extra) throw new Error();
-        const bytes = Buffer.from(signature, "base64url");
-        if (bytes.length !== 32 || !timingSafeEqual(bytes, this.sign(payload)))
-          throw new Error();
-        const value = JSON.parse(
-          Buffer.from(payload, "base64url").toString("utf8"),
-        );
-        if (
-          value.tokenDigest !== tokenDigest ||
-          value.scope !== scope ||
-          !Number.isSafeInteger(value.version) ||
-          value.version < 1
-        )
-          throw new Error();
-        after = uuidSchema.parse(value.after);
-        shareId = uuidSchema.parse(value.shareId);
-        version = value.version;
-      } catch {
-        throw new GroveError(
-          "invalid_cursor",
-          "Reload this shared notebook to continue",
-          400,
-        );
-      }
+      const value = this.decodeCursor(cursor, { tokenDigest, scope });
+      after = value.after;
+      shareId = value.shareId;
+      version = value.version;
     }
-    const result = await this.service.db.transaction(async (trx) => {
+    const run = async (trx: Knex.Transaction) => {
       await trx.raw("SET LOCAL statement_timeout = '5000ms'");
       const { rows } = await trx.raw(
         "SELECT grove_public_share(?, ?, ?::uuid, ?::uuid, ?::uuid, ?, ?) AS value",
         [tokenDigest, kind, id ?? null, after, shareId, version, limit],
       );
       return rows[0].value;
-    });
+    };
+    const result = await (transaction
+      ? run(transaction)
+      : this.service.db.transaction(run));
     if (!result) throw missing();
     if (result.limited) throw limited();
     if (result.stale)
@@ -541,16 +658,13 @@ export class Sharing {
     let nextCursor: string | null = null;
     if (result.notes.length > limit) {
       result.notes = result.notes.slice(0, limit);
-      const payload = Buffer.from(
-        JSON.stringify({
-          tokenDigest,
-          scope,
-          shareId: result.shareId,
-          version: result.shareVersion,
-          after: result.notes.at(-1).id,
-        }),
-      ).toString("base64url");
-      nextCursor = `${payload}.${this.sign(payload).toString("base64url")}`;
+      nextCursor = this.encodeCursor({
+        tokenDigest,
+        scope,
+        shareId: result.shareId,
+        version: result.shareVersion,
+        after: result.notes.at(-1).id,
+      });
     }
     const { shareId: _shareId, shareVersion: _shareVersion, ...data } = result;
     return publicShareSchema.parse({ ...data, nextCursor });

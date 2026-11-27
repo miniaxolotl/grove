@@ -27,11 +27,13 @@ createServer(async (req, res) => {
     return send(res, 200, { success: true });
   }
   const match = url.pathname.match(
-    /^\/public\/shares\/(gsh_[A-Za-z0-9_-]{43})(?:\/(notes|notebooks)\/([0-9a-f-]+))?$/,
+    /^\/public\/shares\/(gsh_[A-Za-z0-9_-]{43})(?:\/(notes|notebooks|navigation|reader)(?:\/([0-9a-f-]+))?)?$/,
   );
   if (!match) return send(res, 404, { success: false });
   const [, token, kind, id] = match;
   const state = states.get(token) || {};
+  if (state.delay)
+    await new Promise((resolve) => setTimeout(resolve, state.delay));
   if (state.revoked || token === `gsh_${"Z".repeat(43)}` || id === ids.private)
     return send(res, 404, { success: false });
   if (state.failed) return send(res, 503, { success: false });
@@ -44,7 +46,92 @@ createServer(async (req, res) => {
       success: true,
       data: { content: "UPSTREAM_PRIVATE_CONTENT_CANARY" },
     });
-  const book = token === `gsh_${"B".repeat(43)}`;
+  const book = ["B", "C", "D"].some(
+    (letter) => token === `gsh_${letter.repeat(43)}`,
+  );
+  const nested = token === `gsh_${"C".repeat(43)}`;
+  if (kind === "reader") {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const input = JSON.parse(body);
+    const upstream = `http://127.0.0.1:${process.env.SHARING_TEST_PORT || 4378}/public/shares/${token}`;
+    const response = await fetch(
+      `${upstream}${input.kind === "root" ? "" : `/${input.kind}/${input.id}`}${input.cursor ? `?cursor=${encodeURIComponent(input.cursor)}` : ""}`,
+    );
+    if (!response.ok) return send(res, response.status, { success: false });
+    const { data } = await response.json();
+    let navigation = null,
+      listing = null;
+    if (data.kind === "notebook") {
+      const nav = await fetch(`${upstream}/navigation`, {
+        method: "POST",
+        body: JSON.stringify(
+          data.note
+            ? { noteId: data.note.id }
+            : { notebookId: data.notebook.id },
+        ),
+      });
+      navigation = (await nav.json()).data;
+      if (data.note) {
+        const cursors =
+          input.listingFolder === navigation.folder.id
+            ? (input.listingCursors ?? [null])
+            : [null];
+        for (const cursor of cursors) {
+          const page = (
+            await (
+              await fetch(
+                `${upstream}/notebooks/${navigation.folder.id}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+              )
+            ).json()
+          ).data;
+          listing = listing
+            ? { ...page, notes: [...listing.notes, ...page.notes] }
+            : page;
+        }
+      } else listing = data;
+    }
+    return send(res, 200, {
+      success: true,
+      data: { data, navigation, listing },
+    });
+  }
+  if (kind === "navigation") {
+    if (!book) return send(res, 404, { success: false });
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const input = JSON.parse(body || "{}");
+    const summaries = [ids.one, ids.two].map((id, index) => ({
+      id,
+      title: index ? "Another shared note" : "A shared idea",
+      updatedAt: "2026-10-21T12:00:00.000Z",
+    }));
+    return send(res, 200, {
+      success: true,
+      data: {
+        folder: input.noteId
+          ? {
+              id: nested ? ids.child : ids.root,
+              name: nested ? "Reading list" : "Ideas for autumn",
+              parentId: nested ? ids.root : null,
+            }
+          : null,
+        previous: input.noteId === ids.two ? summaries[0] : null,
+        next: input.noteId === ids.one ? summaries[1] : null,
+        results: input.q
+          ? summaries
+              .filter((note) =>
+                note.title.toLowerCase().includes(input.q.toLowerCase()),
+              )
+              .map((note) => ({
+                ...note,
+                notebookName: nested ? "Reading list" : "Ideas for autumn",
+              }))
+          : [],
+        nextCursor: null,
+      },
+    });
+  }
   if (!book && (kind === "notebooks" || (id && id !== ids.one)))
     return send(res, 404, { success: false });
   const note = {
@@ -54,7 +141,10 @@ createServer(async (req, res) => {
     content:
       id === ids.two
         ? "# Another shared note\n\nOne more useful thought."
-        : state.content || content,
+        : state.content ||
+          (nested
+            ? `# A shared idea\n\nKeep the useful details close. Start with one notebook everyone can follow.\n\n## Next steps\n\n- [x] Choose a first article\n- [ ] Add a question for Friday\n\n## Decisions\n\nKeep a short summary after each discussion. Collect recommendations in the reading list.\n\n[Another shared note](/app/memories/${ids.two})`
+            : content),
     updatedAt: "2026-10-21T12:00:00.000Z",
     linkedNoteIds: book ? [ids.two] : [],
   };
@@ -74,7 +164,7 @@ createServer(async (req, res) => {
     note: !book || kind === "notes" ? note : null,
     notebooks: book && !kind ? [{ id: ids.child, name: "Reading list" }] : [],
     notes:
-      book && kind !== "notes" && id !== ids.child
+      book && kind !== "notes" && (nested ? id === ids.child : id !== ids.child)
         ? [
             {
               id: url.searchParams.has("cursor") ? ids.two : ids.one,
@@ -86,7 +176,11 @@ createServer(async (req, res) => {
           ]
         : [],
     nextCursor:
-      book && !kind && !url.searchParams.has("cursor") ? "fixture-next" : null,
+      book &&
+      !url.searchParams.has("cursor") &&
+      (nested ? kind === "notebooks" && id === ids.child : !kind)
+        ? "fixture-next"
+        : null,
   };
   send(res, 200, { success: true, data });
 }).listen(Number(process.env.SHARING_TEST_PORT || 4378), "127.0.0.1");

@@ -98,6 +98,8 @@ import {
 } from "./admission.ts";
 import {
   publicShareQuerySchema,
+  publicNavigationQuerySchema,
+  publicReaderQuerySchema,
   shareEnableSchema,
   shareMutationSchema,
   shareScopeSchema,
@@ -1416,6 +1418,24 @@ export function createApp(deps: AppDependencies) {
         uuidSchema.parse(c.req.param("id")),
         "revoke",
         await mutation(c, shareMutationSchema),
+      ),
+    }),
+  );
+  app.post("/public/shares/:token/navigation", async (c) =>
+    c.json({
+      success: true,
+      data: await sharing.navigation(
+        c.req.param("token"),
+        await body(c, publicNavigationQuerySchema),
+      ),
+    }),
+  );
+  app.post("/public/shares/:token/reader", async (c) =>
+    c.json({
+      success: true,
+      data: await sharing.reader(
+        c.req.param("token"),
+        await body(c, publicReaderQuerySchema),
       ),
     }),
   );

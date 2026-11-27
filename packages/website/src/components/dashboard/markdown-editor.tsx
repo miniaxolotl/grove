@@ -61,7 +61,7 @@ import { InspectorDialog } from "./ui/inspector-dialog";
 import { RecordingControl } from "./recording-control";
 import { ReadAloud } from "./speech-controls";
 import {
-  noteHeadings,
+  noteOutline as noteHeadings,
   headingFromHash,
   type NoteHeading,
 } from "@/lib/note-headings";

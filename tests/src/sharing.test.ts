@@ -51,6 +51,54 @@ const notebook = (name: string, parentId?: string) =>
   service.project(alice, { name, identity: randomUUID(), parentId });
 let alice: Principal;
 let bob: Principal;
+test("public navigation resolves cold nested notes, sibling boundaries and scoped title search", async () => {
+  const root = await notebook("Reader root");
+  const child = await notebook("Reader child", root.id);
+  const outside = await notebook("Reader outside");
+  const notes = await Promise.all([
+    save(alice, "# Shared needle one", child.id),
+    save(alice, "# Shared needle two", child.id),
+    save(alice, "# Shared needle secret", outside.id),
+  ]);
+  const [first, second] = notes
+    .slice(0, 2)
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const link = await enable(
+    { kind: "notebook", id: root.id },
+    root.version,
+    true,
+  );
+  const token = secret(link);
+  const nav = await sharing.navigation(token, { noteId: first.id });
+  assert.equal(nav.folder?.id, child.id);
+  assert.equal(nav.folder?.parentId, root.id);
+  assert.equal(nav.previous, null);
+  assert.equal(nav.next?.id, second.id);
+  const reader = await sharing.reader(token, { kind: "notes", id: first.id });
+  assert.equal(reader.data.note?.id, first.id);
+  assert.equal(reader.listing?.notebook?.id, child.id);
+  assert.equal(reader.navigation?.next?.id, second.id);
+  const results = await sharing.navigation(token, { q: "needle" });
+  assert.deepEqual(
+    results.results.map((n) => n.id).sort(),
+    [first.id, second.id].sort(),
+  );
+  assert(!JSON.stringify(results).includes("secret"));
+  await assert.rejects(sharing.navigation(token, { noteId: notes[2].id }), {
+    code: "not_found",
+  });
+  const direct = await enable({ kind: "note", id: first.id }, first.version);
+  await assert.rejects(sharing.navigation(secret(direct), { q: "needle" }), {
+    code: "not_found",
+  });
+  await sharing.change(alice, link.direct!.id, "revoke", {
+    operationId: randomUUID(),
+    expectedVersion: 1,
+  });
+  await assert.rejects(sharing.navigation(token, { noteId: first.id }), {
+    code: "not_found",
+  });
+});
 before(async () => {
   const account = async () => {
     const subject = `user_sharing_${randomUUID()}`;
@@ -59,6 +107,64 @@ before(async () => {
   };
   alice = await account();
   bob = await account();
+});
+
+test("public title search pages are bounded and cursors cannot cross query or scope changes", async () => {
+  const subject = `user_reader_paging_${randomUUID()}`;
+  const { rows } = await db.raw("SELECT * FROM grove_account(?)", [subject]);
+  const owner = sessionPrincipal(rows[0].id, subject);
+  const root = await service.project(owner, {
+    name: "Paged reader",
+    identity: randomUUID(),
+  });
+  const child = await service.project(owner, {
+    name: "Hidden child",
+    identity: randomUUID(),
+    parentId: root.id,
+  });
+  await Promise.all(
+    Array.from({ length: 32 }, (_, index) =>
+      save(owner, `# Page needle ${index}`, root.id),
+    ),
+  );
+  const hidden = await save(owner, "# Page needle outside scope", child.id);
+  const link = await sharing.enable(
+    owner,
+    { kind: "notebook", id: root.id },
+    shareEnableSchema.parse({
+      operationId: randomUUID(),
+      expectedVersion: 0,
+      expectedTargetVersion: root.version,
+      includeDescendants: false,
+    }),
+  );
+  const token = secret(link);
+  const first = await sharing.navigation(token, { q: "Page needle" });
+  assert.equal(first.results.length, 30);
+  assert(first.nextCursor);
+  assert(!first.results.some((note) => note.id === hidden.id));
+  const second = await sharing.navigation(token, {
+    q: "Page needle",
+    cursor: first.nextCursor,
+  });
+  assert.equal(second.results.length, 2);
+  assert.equal(
+    new Set([...first.results, ...second.results].map((note) => note.id)).size,
+    32,
+  );
+  await assert.rejects(
+    sharing.navigation(token, { q: "different", cursor: first.nextCursor }),
+    { code: "invalid_cursor" },
+  );
+  await sharing.change(owner, link.direct!.id, "scope", {
+    operationId: randomUUID(),
+    expectedVersion: 1,
+    includeDescendants: true,
+  });
+  await assert.rejects(
+    sharing.navigation(token, { q: "Page needle", cursor: first.nextCursor }),
+    { code: "invalid_cursor" },
+  );
 });
 
 test("owner-only management keeps tokens encrypted, stable and retry-safe", async () => {
@@ -561,6 +667,27 @@ test("public HTTP reads bypass identity services but never authorize private API
   assert.equal(response.headers.get("cache-control"), "private, no-store");
   assert.equal(response.headers.get("referrer-policy"), "no-referrer");
   assert.match(response.headers.get("x-robots-tag")!, /noindex/);
+  const reader = await app.request(`${path}/reader`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "root" }),
+  });
+  assert.equal(reader.status, 200);
+  const projection = (await reader.json()).data;
+  assert.equal(projection.data.note.content, note.content);
+  assert.equal(projection.navigation, null);
+  assert.equal(projection.listing, null);
+  assert.equal(
+    (
+      await app.request(`${path}/navigation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ q: "Public" }),
+      })
+    ).status,
+    404,
+  );
+  assert.equal(identityCalls, 0);
   assert.equal(
     (await app.request(path, { method: "PATCH", body: "{}" })).status,
     404,

@@ -4,6 +4,7 @@ import { site } from "@/lib/site";
 import { showBilling } from "@/lib/flags";
 import { boundedProofingBody, proofingRoute } from "@/lib/writing/bff";
 import { requestBodyLimit } from "@lib/shared/limits";
+import { apiOrigin } from "@/lib/api-origin";
 
 export const maxDuration = 180;
 
@@ -111,20 +112,12 @@ async function forward(
     return fail(404, "Route not found");
   const token = await session.getToken();
   if (!token) return fail(401, "Sign in to Grove to continue");
-  const origin = new URL(process.env.GROVE_API_URL);
-  if (
-    origin.pathname !== "/" ||
-    origin.search ||
-    origin.hash ||
-    origin.username ||
-    origin.password ||
-    (origin.protocol !== "https:" &&
-      !(
-        origin.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)
-      ))
-  )
+  let origin: URL;
+  try {
+    origin = apiOrigin(process.env.GROVE_API_URL);
+  } catch {
     return fail(503, "Invalid API configuration");
+  }
   try {
     const binary =
       (media || importFile || chatDocumentFile) && request.method === "PUT";
