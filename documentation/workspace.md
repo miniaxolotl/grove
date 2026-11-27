@@ -188,6 +188,9 @@ Ctrl/Cmd+/. Text fields retain their normal editing behavior.
 
 Outline pinning uses wide screens; phones/narrow drawers retain the dialog. Focus
 mode hides secondary navigation without replacing the document or losing history.
+Preview's outline also includes top-level bullet, numbered and checklist points.
+It uses the current draft; jumping does not save, toggle a checkbox or reset Undo.
+Long outlines show rows in batches and remain searchable.
 
 ## Export and delete notes
 

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Brand } from "@/components/brand";
 import { SharedHistoryRefresh } from "@/components/sharing/history-refresh";
 import "../sharing.css";
+import "../../ui-controls.css";
+import "../../app/palette.css";
 
 export const dynamic = "force-dynamic";
 const title = "Shared with you · Grove";

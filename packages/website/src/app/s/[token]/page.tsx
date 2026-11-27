@@ -1,4 +1,5 @@
-import { readPublicShare } from "@/lib/public-sharing";
+import { initialPublicReader } from "@/lib/public-sharing";
+import { site } from "@/lib/site";
 import { PublicReader } from "@/components/sharing/public-reader";
 
 export default async function SharedPage({
@@ -10,6 +11,13 @@ export default async function SharedPage({
 }) {
   const { token } = await params;
   const { cursor } = await searchParams;
-  const data = await readPublicShare(token, "root", undefined, cursor);
-  return <PublicReader data={data} token={token} path={`/s/${token}`} />;
+  const initial = await initialPublicReader(token, "root", undefined, cursor);
+  return (
+    <PublicReader
+      initial={initial}
+      token={token}
+      origin={site.url}
+      path={`/s/${token}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`}
+    />
+  );
 }

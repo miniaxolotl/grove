@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Info } from "lucide-react";
 import Link from "next/link";
+import { canWarmLink } from "@/lib/link-intent";
 import {
   isLocalGroveLink,
   parseGroveLink,
@@ -33,12 +34,7 @@ function DestinationLink({
 }) {
   const [warmHref, setWarmHref] = useState("");
   function warm() {
-    if (
-      new URL(target.href, location.origin).origin !== location.origin ||
-      (navigator as Navigator & { connection?: { saveData?: boolean } })
-        .connection?.saveData
-    )
-      return;
+    if (!canWarmLink(target.href)) return;
     setWarmHref(target.href);
     if (target.kind === "note" && !target.revision)
       void cache.client.prefetchQuery(cache.note(target.id));

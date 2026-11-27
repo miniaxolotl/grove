@@ -1,4 +1,5 @@
-import { readPublicShare } from "@/lib/public-sharing";
+import { initialPublicReader } from "@/lib/public-sharing";
+import { site } from "@/lib/site";
 import { PublicReader } from "@/components/sharing/public-reader";
 
 export default async function SharedNotebook({
@@ -10,10 +11,11 @@ export default async function SharedNotebook({
 }) {
   const { token, id } = await params;
   const { cursor } = await searchParams;
-  const data = await readPublicShare(token, "notebooks", id, cursor);
+  const initial = await initialPublicReader(token, "notebooks", id, cursor);
   return (
     <PublicReader
-      data={data}
+      initial={initial}
+      origin={site.url}
       token={token}
       path={`/s/${token}/notebooks/${id}`}
     />

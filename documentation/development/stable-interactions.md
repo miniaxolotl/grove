@@ -64,6 +64,10 @@ controls and transient feedback should use space already available.
   autosave. Preview follows scroll; writing follows cursor or scrolled source block;
   edits recompute from the cursor, while actual scroll/resize events remain scroll-
   based. The last section is active at the document's scroll end.
+- Preview also indexes top-level list points. Shared/private outlines reuse target
+  rows and filtering; rows expand in batches so a long note does not mount its whole
+  outline at once. Public section-copy URLs remain under the current share. The
+  renderer uses a source-offset map rather than searching every target per node.
 - Saved-note fragments resolve inside the mounted editor after data/chunks load and
   on hash/history changes. Unknown or malformed fragments do nothing. New-note copy
   stays disabled until first-save identity arrives. These links never create public

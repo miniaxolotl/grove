@@ -9,18 +9,21 @@ export function PaletteDialog({
   search,
   children,
   footer,
+  onDismissed,
 }: {
   title: string;
   close: () => void;
   search: ComponentProps<typeof SearchField>;
   children: ReactNode;
   footer: ReactNode;
+  onDismissed?: () => void;
 }) {
   return (
     <Dialog
       title={title}
       close={close}
       variant="palette"
+      onDismissed={onDismissed}
       header={
         <SearchField
           {...search}
