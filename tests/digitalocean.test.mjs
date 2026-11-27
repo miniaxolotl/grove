@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import process from "node:process";
 import { test } from "node:test";
 import { URL } from "node:url";
@@ -101,7 +101,13 @@ function settledApp(target = digest) {
 
 // Exercise the actual CLI with an isolated, in-memory transport. No real fetch
 // is reachable, and request logs contain only method/path, never settings.
-function runProvider(apps, args = [], target = ltDigest, fenced = true) {
+function runProvider(
+  apps,
+  args = [],
+  target = ltDigest,
+  fenced = true,
+  extraEnv = {},
+) {
   const result = spawnSync(
     process.execPath,
     [
@@ -120,6 +126,7 @@ function runProvider(apps, args = [], target = ltDigest, fenced = true) {
         DIGITALOCEAN_APP_ID: apps[0].id,
         GROVE_IMAGE_DIGEST: target,
         FIXTURE_APPS: JSON.stringify(apps),
+        ...extraEnv,
       },
       encoding: "utf8",
       timeout: 10000,
@@ -598,6 +605,179 @@ test("existing LT must be pinned, private and isolated even on an ordinary rollo
       (e) => !String(e).includes("private-test-marker"),
     );
   }
+});
+
+test("release checker mode adopts only source-tagged private LT and preserves selected sizing and API configuration", () => {
+  assert.equal(
+    typeof provider.releaseImageSpec,
+    "function",
+    "Missing source-qualified checker rollout",
+  );
+  const spec = updateImageSpec(createAppSpec(env), digest, ltDigest);
+  const checker = spec.services[1];
+  checker.instance_size_slug = "apps-s-1vcpu-2gb";
+  checker.image.repository = "grove";
+  checker.image.tag = `languagetool-sha-${"b".repeat(40)}`;
+  delete checker.image.digest;
+  const before = structuredClone(spec);
+  assert.throws(() => updateImageSpec(spec, digest));
+  const next = provider.releaseImageSpec(spec, digest, ltDigest);
+  assert.deepEqual(spec, before, "Input spec must not change");
+  assert.equal(next.services[1].image.repository, "grove-languagetool");
+  assert.equal(next.services[1].image.digest, ltDigest);
+  assert.equal(next.services[1].image.tag, undefined);
+  assert.equal(next.services[1].instance_size_slug, "apps-s-1vcpu-2gb");
+  assert.deepEqual(next.services[0].envs, before.services[0].envs);
+  assert.deepEqual(next.workers, before.workers);
+  assert(!JSON.stringify(next).includes("LANGUAGETOOL_URL"));
+  for (const mutate of [
+    (s) => {
+      s.services[1].image.tag = "latest";
+    },
+    (s) => {
+      s.services[1].http_port = 8081;
+    },
+    (s) => {
+      s.services[1].envs = [{ key: "PRIVATE", value: "private-marker" }];
+    },
+    (s) => {
+      s.envs = [{ key: "PRIVATE", value: "private-marker" }];
+    },
+    (s) => {
+      s.services[1].image.repository = "unrelated";
+    },
+    (s) => {
+      s.services[1].image.digest = ltDigest;
+    },
+  ]) {
+    const unsafe = structuredClone(spec);
+    mutate(unsafe);
+    assert.throws(
+      () => provider.releaseImageSpec(unsafe, digest, ltDigest),
+      (error) => !error.message.includes("private-marker"),
+    );
+  }
+});
+
+const releaseEnv = () => ({
+  GITHUB_ACTIONS: "true",
+  GITHUB_REPOSITORY: "miniaxolotl/grove",
+  GITHUB_REF: "refs/heads/production",
+  GITHUB_REF_PROTECTED: "true",
+  GITHUB_SHA: "b".repeat(40),
+  FIXTURE_GITHUB_SHA: "b".repeat(40),
+  GROVE_LANGUAGETOOL_DEPLOY: "true",
+  RELEASE_TAG: "v1.11.39",
+  RELEASE_SOURCE_SHA: execFileSync("git", ["rev-parse", "HEAD"], {
+    encoding: "utf8",
+  }).trim(),
+});
+
+function savedTaggedChecker() {
+  const app = structuredClone(settledApp());
+  app.spec = updateImageSpec(app.spec, digest, ltDigest);
+  app.spec.services[1].image.repository = "grove";
+  app.spec.services[1].image.tag = `languagetool-sha-${"c".repeat(40)}`;
+  delete app.spec.services[1].image.digest;
+  app.spec.services[1].instance_size_slug = "apps-s-1vcpu-2gb";
+  return app;
+}
+
+test("actual protected release CLI adopts the saved checker and waits for the exact active three-component generation", () => {
+  const app = savedTaggedChecker();
+  const result = runProvider(
+    [app, app],
+    ["--release-checker", ltDigest, "--wait"],
+    digest,
+    false,
+    releaseEnv(),
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    result.calls.map((c) => c.method),
+    ["GET", "POST", "GET", "PUT", "GET", "GET"],
+  );
+  assert.match(result.stdout, /fixture-completed/);
+});
+
+test("protected checker retries are no-ops and reject stale source, races, invalid flags and enabled bootstrap transmission", () => {
+  const spec = provider.releaseImageSpec(createAppSpec(env), digest, ltDigest);
+  const settled = {
+    id: settledApp().id,
+    spec,
+    active_deployment: { id: "accepted", phase: "ACTIVE", spec },
+  };
+  const noop = runProvider(
+    [settled],
+    ["--release-checker", ltDigest, "--wait"],
+    digest,
+    false,
+    releaseEnv(),
+  );
+  assert.equal(noop.status, 0, noop.stderr);
+  assert.deepEqual(
+    noop.calls.map((c) => c.method),
+    ["GET"],
+  );
+  for (const change of [
+    { GROVE_LANGUAGETOOL_DEPLOY: "false" },
+    { GITHUB_ACTIONS: "false" },
+    { GITHUB_REF: "refs/heads/development" },
+    { GITHUB_REF_PROTECTED: "false" },
+    { GITHUB_SHA: "d".repeat(40) },
+    { RELEASE_SOURCE_SHA: "e".repeat(40) },
+  ]) {
+    const result = runProvider(
+      [savedTaggedChecker()],
+      ["--release-checker", ltDigest, "--wait"],
+      digest,
+      false,
+      { ...releaseEnv(), ...change },
+    );
+    assert.equal(result.status, 1);
+    assert(!result.calls.some((c) => ["PUT", "POST"].includes(c.method)));
+  }
+  for (const mutate of [
+    (app) => {
+      app.in_progress_deployment = { id: "running" };
+    },
+    (app) => {
+      app.spec.services[0].envs.push({
+        key: "LANGUAGETOOL_URL",
+        value: "http://languagetool:8081",
+      });
+    },
+    (app) => {
+      app.spec.services[1].http_port = 8081;
+    },
+  ]) {
+    const app = savedTaggedChecker();
+    mutate(app);
+    const result = runProvider(
+      [app],
+      ["--release-checker", ltDigest, "--wait"],
+      digest,
+      false,
+      releaseEnv(),
+    );
+    assert.equal(result.status, 1);
+    assert(!result.calls.some((c) => ["PUT", "POST"].includes(c.method)));
+  }
+  const before = savedTaggedChecker(),
+    changed = structuredClone(before);
+  changed.spec.services[0].instance_count = 2;
+  const race = runProvider(
+    [before, changed],
+    ["--release-checker", ltDigest, "--wait"],
+    digest,
+    false,
+    releaseEnv(),
+  );
+  assert.equal(race.status, 1);
+  assert.deepEqual(
+    race.calls.map((c) => c.method),
+    ["GET", "POST", "GET"],
+  );
 });
 
 test("provider selection and active readback require the expected LT topology and digest", () => {

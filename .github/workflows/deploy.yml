@@ -90,6 +90,7 @@ jobs:
       id-token: write
     outputs:
       digest: ${{ steps.image.outputs.digest }}
+      languagetool_digest: ${{ steps.image.outputs.languagetool_digest }}
     env:
       GH_TOKEN: ${{ github.token }}
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -104,6 +105,7 @@ jobs:
       GROVE_POSTHOG_KEY: ${{ secrets.GROVE_POSTHOG_KEY }}
       GROVE_CLI_SENTRY_DSN: ${{ secrets.GROVE_CLI_SENTRY_DSN }}
       GROVE_API_SENTRY_DSN: ${{ secrets.GROVE_API_SENTRY_DSN }}
+      GROVE_LANGUAGETOOL_DEPLOY: ${{ vars.GROVE_LANGUAGETOOL_DEPLOY }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -156,10 +158,11 @@ jobs:
       - name: Validate the existing topology before npm publication
         env:
           GROVE_IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          GROVE_LANGUAGETOOL_DIGEST: ${{ steps.image.outputs.languagetool_digest }}
         run: |
           node scripts/ci/current-ref.mjs
           [[ "$GROVE_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          node scripts/deploy-digitalocean.mjs --propose
+          node scripts/release/backend-rollout.mjs propose
       - name: Publish all coordinated npm artifacts
         run: node scripts/publish.mjs
       - name: Promote and verify all four component images
@@ -193,6 +196,9 @@ jobs:
       DIGITALOCEAN_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
       RELEASE_SOURCE_SHA: ${{ needs.candidate.outputs.sha }}
       GROVE_IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
+      GROVE_LANGUAGETOOL_DIGEST: ${{ needs.publish.outputs.languagetool_digest }}
+      GROVE_LANGUAGETOOL_DEPLOY: ${{ vars.GROVE_LANGUAGETOOL_DEPLOY }}
+      RELEASE_TAG: ${{ needs.candidate.outputs.tag }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -211,8 +217,8 @@ jobs:
           GROVE_API_DATABASE_URL: ${{ secrets.GROVE_API_DATABASE_URL }}
           GROVE_WORKER_DATABASE_URL: ${{ secrets.GROVE_WORKER_DATABASE_URL }}
         run: node --import tsx scripts/release/database-preflight.mjs
-      - name: Deploy the verified image to API and worker
-        run: node scripts/deploy-digitalocean.mjs --wait
+      - name: Deploy the verified API, worker and configured checker
+        run: node scripts/release/backend-rollout.mjs deploy
       - name: Verify production API readiness
         run: curl --fail --retry 5 --max-time 30 https://api.grovenote.app/health/ready
 

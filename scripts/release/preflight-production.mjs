@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import process from "node:process";
-import { updateImageSpec } from "../deploy-digitalocean.mjs";
+import {
+  updateImageSpec,
+  releaseImageSpec,
+  assertReleaseCheckerState,
+} from "../deploy-digitalocean.mjs";
+import { checkerReleaseEnabled } from "./backend-rollout.mjs";
 
 const { DIGITALOCEAN_APP_ID: id, DIGITALOCEAN_ACCESS_TOKEN: token } =
   process.env;
@@ -21,4 +26,11 @@ const response = await globalThis.fetch(
 assert(response.ok, `DigitalOcean preflight failed (HTTP ${response.status})`);
 const { app } = await response.json();
 assert.equal(app.id, id);
-updateImageSpec(app.spec, `sha256:${"0".repeat(64)}`);
+if (checkerReleaseEnabled(process.env)) {
+  assertReleaseCheckerState(app);
+  releaseImageSpec(
+    app.spec,
+    `sha256:${"0".repeat(64)}`,
+    `sha256:${"1".repeat(64)}`,
+  );
+} else updateImageSpec(app.spec, `sha256:${"0".repeat(64)}`);

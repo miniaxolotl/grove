@@ -1,6 +1,21 @@
 // Preloaded only by synthetic provider CLI tests. No real network is reachable.
 import process from "node:process";
 import console from "node:console";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
+
+if (process.env.FIXTURE_GITHUB_SHA) {
+  const original = childProcess.execFileSync;
+  childProcess.execFileSync = (command, args, options) => {
+    if (command === "gh") {
+      if (args.at(-1) !== "repos/miniaxolotl/grove/git/ref/heads/production")
+        throw new Error("Unexpected fixture GitHub endpoint");
+      return `HTTP/2.0 200 OK\ncontent-type: application/json\n\n${JSON.stringify({ object: { sha: process.env.FIXTURE_GITHUB_SHA } })}`;
+    }
+    return original(command, args, options);
+  };
+  syncBuiltinESMExports();
+}
 
 const { Response, URL } = globalThis;
 const apps = JSON.parse(process.env.FIXTURE_APPS);
