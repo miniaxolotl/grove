@@ -117,6 +117,10 @@ controls and transient feedback should use space already available.
   keyboard focus kept readable at phone widths.
 - Desktop note grips appear on row hover or focus without changing the reserved
   space. Touch layouts keep the grip visible.
+- Dragging retains the floating label preview, destination background highlight,
+  insertion markers, cancellation control and accessible announcements. The drop
+  target has no coloured left-border stripe. Mouse, deliberate touch-hold, pen
+  and keyboard keep the same authorization and move path.
 - Ask Grove fills the space beneath navigation and keeps conversation/search
   scrolling inside the console. The composer stays visible at ordinary desktop,
   tablet and phone sizes; short windows can scroll the page to reach its controls.

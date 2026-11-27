@@ -125,17 +125,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main id="main" className="connect-content" key={user?.id}>
-          {path.startsWith("/app/connect/browser/") ? (
-            <WorkspaceCacheProvider
-              key={`${user!.id}:${session.id}`}
-              account={user!.id}
-              sessionId={session.id}
-            >
-              <NotebooksProvider>{children}</NotebooksProvider>
-            </WorkspaceCacheProvider>
-          ) : (
-            children
-          )}
+          <WorkspaceCacheProvider
+            key={`${user!.id}:${session.id}`}
+            account={user!.id}
+            sessionId={session.id}
+          >
+            <NotebooksProvider>{children}</NotebooksProvider>
+          </WorkspaceCacheProvider>
         </main>
         <footer className="app-footer">
           <TelemetryChoice />

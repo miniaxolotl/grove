@@ -1491,7 +1491,7 @@ html:has(.grove-app) {
 }
 [data-destination][data-drop-active] {
   background: #e2ebdc;
-  box-shadow: inset 2px 0 var(--color-leaf);
+  box-shadow: none;
 }
 .notebook-tree-row[data-drop-active] .notebook-drag-handle {
   color: var(--color-forest);
@@ -2640,4 +2640,28 @@ html:has(.grove-app) {
     background: Highlight;
     color: HighlightText;
   }
+}
+.connect-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 4px;
+}
+.connect-permission-summary {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ask-question-ideas {
+  margin-block: 8px;
+}
+.ask-question-ideas > summary {
+  width: fit-content;
+  padding-block: 8px;
+  min-height: 36px;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+.ask-question-ideas .ask-suggestions {
+  margin-top: 4px;
 }

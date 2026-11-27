@@ -9,6 +9,38 @@ import {
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 
+for (const width of [1440, 768, 390, 320]) {
+  test(`empty Ask keeps example questions secondary and never sends them automatically at ${width}px`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: width === 320 ? 480 : 900 });
+    const state = await fixture(page);
+    await page.goto(`${base}/app/ask`);
+    await expect(
+      page.getByRole("heading", { name: "What’s on your mind?" }),
+    ).toHaveCount(0);
+    const example = page.getByRole("button", {
+      name: "Find my recent plans",
+      exact: true,
+    });
+    await expect(example).not.toBeVisible();
+    const composer = page.getByRole("textbox", {
+      name: "Ask about your notes",
+      exact: true,
+    });
+    await expect(composer).toBeInViewport();
+    await page.getByText("Try a question", { exact: true }).click();
+    await example.click();
+    await expect(composer).toHaveValue("Find my recent plans");
+    expect(
+      state.calls.filter((call) => call.path.endsWith("/turns")),
+    ).toHaveLength(0);
+    await page.screenshot({
+      path: info.outputPath(`ask-primary-${width}.png`),
+    });
+  });
+}
+
 for (const width of [390, 320]) {
   test(`mobile navigation keeps one compact header and restores focus at ${width}px`, async ({
     page,

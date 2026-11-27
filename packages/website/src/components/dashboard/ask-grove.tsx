@@ -905,8 +905,8 @@ export function AskGrove({
                   </Button>
                 </div>
               ) : !conversation?.turns.length ? (
-                <div className="ask-welcome">
-                  <h2>What’s on your mind?</h2>
+                <details className="ask-welcome ask-question-ideas">
+                  <summary>Try a question</summary>
                   <div className="ask-suggestions">
                     {[
                       "Find my recent plans",
@@ -919,7 +919,7 @@ export function AskGrove({
                       </button>
                     ))}
                   </div>
-                </div>
+                </details>
               ) : (
                 conversation.turns.map((turn, index) => (
                   <section className="ask-turn" key={turn.id}>
