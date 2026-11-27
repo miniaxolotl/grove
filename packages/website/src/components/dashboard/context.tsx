@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   CalendarDays,
@@ -86,7 +87,14 @@ export function MemoryContext({
   const [importing, setImporting] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
-  useResourceTitle(project?.name ?? (projectId ? undefined : "About you"));
+  const params = useSearchParams();
+  // The selected authorized note, not its containing notebook, owns this URL's
+  // title while quick-open is visible (parent effects run after child effects).
+  useResourceTitle(
+    params.has("note")
+      ? undefined
+      : (project?.name ?? (projectId ? undefined : "About you")),
+  );
   // Keep an uncertain lifecycle request mounted with its original retry identity
   // even if directory revalidation already observes the committed archive/delete.
   if (!loading && projectId && !project && !notebookAction)

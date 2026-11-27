@@ -162,6 +162,22 @@ export function MemoryLibrary({
   const [failures, setFailures] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const selectedId = params.get("note") ?? initialId ?? null;
+  const previousSelection = useRef(selectedId);
+  useEffect(() => {
+    const previous = previousSelection.current;
+    previousSelection.current = selectedId;
+    if (!previous || selectedId) return;
+    // Reload/direct entry has no DOM opener for the native dialog to restore.
+    // Restore only after the route's selected-ID transition has committed.
+    const frame = requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>(
+          `[data-note-id="${CSS.escape(previous)}"] .memory-open`,
+        )
+        ?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedId]);
   const detail = useQuery({
     ...cache.note(selectedId ?? ""),
     enabled: !!selectedId && selectedId !== "new",

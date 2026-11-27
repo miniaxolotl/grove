@@ -1031,6 +1031,7 @@ function ReadyMemoryEditor({
           {guidance && <p className="editor-guidance">{guidance}</p>}
           <div className="note-editor-workspace">
             <MarkdownEditor
+              sessionKey={base ? `note:${base.id}` : draftKey}
               speechReady={
                 !!base &&
                 !dirty &&

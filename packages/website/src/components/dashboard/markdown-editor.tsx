@@ -20,6 +20,7 @@ import {
 import {
   defaultKeymap,
   history,
+  historyField,
   historyKeymap,
   redo,
   undo,
@@ -79,6 +80,7 @@ import {
 import { WritingSuggestions } from "./writing-suggestions";
 import { findGroveLinks } from "@lib/shared/internal-link-source";
 import { LinkEditor, type LinkDraft } from "./link-editor";
+import { useNoteDrafts } from "./note-drafts";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -144,6 +146,7 @@ export function MarkdownEditor({
   upload,
   speechReady = false,
   noteId,
+  sessionKey,
 }: {
   value: string;
   onChange: (value: string, immediate?: boolean) => void;
@@ -158,8 +161,11 @@ export function MarkdownEditor({
   upload?: (file: File, signal: AbortSignal) => Promise<string>;
   speechReady?: boolean;
   noteId?: string;
+  sessionKey?: string;
 }) {
   const id = useId();
+  const drafts = useNoteDrafts();
+  const initialSessionKey = useRef(sessionKey);
   const documentValue = value.replace(/\r\n?/g, "\n");
   const host = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -404,78 +410,104 @@ export function MarkdownEditor({
     change.current = onChange;
     reading.current = preview;
   }, [onChange, preview]);
-  useEffect(() => {
-    const editor = new EditorView({
-      parent: host.current!,
-      state: EditorState.create({
-        doc: initial.current.value,
-        selection: { anchor: initial.current.value.length },
-        extensions: [
-          history(),
-          drawSelection(),
-          EditorView.lineWrapping,
-          markdown({ base: markdownLanguage, completeHTMLTags: false }),
-          syntaxHighlighting(highlighting),
-          compartments.current.mode.of(liveMarkdown),
-          compartments.current.editable.of([]),
-          compartments.current.writing.of(writingField),
-          editorPlaceholder(initial.current.placeholder ?? "Start writing…"),
-          EditorView.contentAttributes.of({
-            id,
-            "aria-label": "What should stay with you?",
-            "data-focus-key": "note-editor",
-            "aria-describedby": `${id}-help`,
-            spellcheck: "true",
-            autocapitalize: "sentences",
-          }),
-          keymap.of([
-            { key: "Mod-Shift-z", run: redo, preventDefault: true },
-            { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
-            { key: "Mod-i", run: (view) => wrapSelection(view, "_") },
-            {
-              key: "Mod-k",
-              run: (editor) => openLinkFromKey(editor),
-            },
-            ...historyKeymap,
-            ...defaultKeymap,
-          ]),
-          EditorView.updateListener.of((update) => {
-            if (update.selectionSet || update.docChanged)
-              queueTracking("cursor");
-            if (update.docChanged) {
-              observeProofing(update);
-              change.current(
-                update.state.doc.toString(),
-                update.transactions.some(
-                  (transaction) =>
-                    transaction.isUserEvent("input.task") ||
-                    (reading.current &&
-                      (transaction.isUserEvent("undo") ||
-                        transaction.isUserEvent("redo"))),
-                ),
-              );
-            }
-            const next = {
-              undo: undoDepth(update.state) > 0,
-              redo: redoDepth(update.state) > 0,
-            };
-            setHistoryState((current) =>
-              current.undo === next.undo && current.redo === next.redo
-                ? current
-                : next,
-            );
-          }),
-        ],
-      }),
+  const rememberEditor = useEffectEvent((editor: EditorView) => {
+    if (!drafts || !sessionKey) return;
+    const json = editor.state.toJSON({ history: historyField });
+    drafts.editors.delete(sessionKey);
+    // Bound both total retained editors and any unusually long edit history.
+    if (new TextEncoder().encode(JSON.stringify(json)).byteLength > 1_048_576)
+      return;
+    if (drafts.editors.size >= 20)
+      drafts.editors.delete(drafts.editors.keys().next().value!);
+    drafts.editors.set(sessionKey, {
+      source: editor.state.doc.toString(),
+      json,
+      scroll: layout.current?.scrollTop ?? previousScroll.current,
     });
+  });
+  useEffect(() => {
+    const configuration = {
+      doc: initial.current.value,
+      selection: { anchor: initial.current.value.length },
+      extensions: [
+        history(),
+        drawSelection(),
+        EditorView.lineWrapping,
+        markdown({ base: markdownLanguage, completeHTMLTags: false }),
+        syntaxHighlighting(highlighting),
+        compartments.current.mode.of(liveMarkdown),
+        compartments.current.editable.of([]),
+        compartments.current.writing.of(writingField),
+        editorPlaceholder(initial.current.placeholder ?? "Start writing…"),
+        EditorView.contentAttributes.of({
+          id,
+          "aria-label": "What should stay with you?",
+          "data-focus-key": "note-editor",
+          "aria-describedby": `${id}-help`,
+          spellcheck: "true",
+          autocapitalize: "sentences",
+        }),
+        keymap.of([
+          { key: "Mod-Shift-z", run: redo, preventDefault: true },
+          { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
+          { key: "Mod-i", run: (view) => wrapSelection(view, "_") },
+          {
+            key: "Mod-k",
+            run: (editor) => openLinkFromKey(editor),
+          },
+          ...historyKeymap,
+          ...defaultKeymap,
+        ]),
+        EditorView.updateListener.of((update) => {
+          if (update.selectionSet || update.docChanged) queueTracking("cursor");
+          if (update.docChanged) {
+            observeProofing(update);
+            change.current(
+              update.state.doc.toString(),
+              update.transactions.some(
+                (transaction) =>
+                  transaction.isUserEvent("input.task") ||
+                  (reading.current &&
+                    (transaction.isUserEvent("undo") ||
+                      transaction.isUserEvent("redo"))),
+              ),
+            );
+          }
+          const next = {
+            undo: undoDepth(update.state) > 0,
+            redo: redoDepth(update.state) > 0,
+          };
+          setHistoryState((current) =>
+            current.undo === next.undo && current.redo === next.redo
+              ? current
+              : next,
+          );
+        }),
+      ],
+    };
+    const retained = initialSessionKey.current
+      ? drafts?.editors.get(initialSessionKey.current)
+      : undefined;
+    const matching = retained?.source === initial.current.value;
+    if (retained && !matching)
+      drafts?.editors.delete(initialSessionKey.current!);
+    if (matching) previousScroll.current = retained.scroll;
+    const state = matching
+      ? EditorState.fromJSON(retained.json, configuration, {
+          history: historyField,
+        })
+      : EditorState.create(configuration);
+    const editor = new EditorView({ parent: host.current!, state });
+    setHistoryState({ undo: undoDepth(state) > 0, redo: redoDepth(state) > 0 });
     view.current = editor;
     setProofingView(editor);
     return () => {
+      rememberEditor(editor);
       editor.destroy();
       view.current = null;
       setProofingView(null);
     };
-  }, [id]);
+  }, [id, drafts]);
   useEffect(() => {
     const editor = view.current;
     if (editor && editor.state.doc.toString() !== documentValue) {

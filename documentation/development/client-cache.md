@@ -16,8 +16,9 @@ no on-disk or crash recovery is added. Terminal access loss destroys this owner.
 
 `WorkspaceNavigationState` separately owns optional browser UI metadata, keyed by
 Clerk account under `grove:navigation:v1:<account>`. Its bounded schema includes at
-most 500 UUID/boolean expansion overrides, separate desktop/mobile scroll offsets
-and one outline-pin boolean. It contains no names, note content, query text, drafts,
+most 500 UUID/boolean expansion overrides, separate desktop/mobile scroll offsets,
+hidden connection IDs, one outline-pin boolean and a validated notebook-display-sort
+enum. It contains no names, note content, query text, drafts,
 permissions or capability URLs. It survives same-account sign-out/session changes;
 the shell's keyed owner prevents cross-account callbacks or reads. Browser storage
 clearing removes it. Malformed, oversized, unavailable or quota-full storage falls
@@ -260,6 +261,12 @@ draft; the new-conversation scratch draft is separate. History opens are cancell
 and only replace the current reader after success. History search itself is transient
 dialog state and does not appear in URLs or browser storage.
 Exports are session-owned and retain their local snapshot through first-save routing.
+Canonical editors also retain CodeMirror Undo/Redo, selection and scroll when
+leaving the route. This separate session-only store keeps at most 20 editors,
+each with at most 1 MiB of serialized state; it is not an unsaved-changes flag.
+Restoration requires exact matching source and rebuilds extensions against the new
+mount. Changed source starts fresh history. Sign-out/session replacement destroys
+the store; no source or editor history is written to browser storage.
 Preference forms similarly freeze their loaded base on first edit. Background
 `/me` updates cannot acknowledge local changes, and a completed save acknowledges
 only the submitted snapshot, preserving edits made while it was pending.
@@ -312,6 +319,14 @@ expiry and retention. `tests/client-cache.spec.ts` uses actual workspace compone
 for navigation, retained drafts, cross-tab changes, linked titles and request counts.
 The existing workspace suite covers mutations, conflicts, pagination, keyboard,
 accessible dragging, focus, mobile geometry and telemetry privacy.
+
+`tests/real-router.spec.ts` runs production route components in an isolated Next
+application with a test-only synthetic account alias and intercepted HTTP data.
+Playwright builds/starts that fixture separately from the production app, without
+changing production authentication. It verifies quick-open Back/Forward/reload,
+row focus, notebook/note titles, exact chat entry and canonical editor selection/
+Undo through Settings and Back. These are real-router checks, not live Clerk or
+physical-device acceptance.
 
 Production Next/Clerk measurements and the deterministic CI entry budget are
 documented in [performance verification](../../scripts/performance/README.md).
