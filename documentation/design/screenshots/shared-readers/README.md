@@ -1,4 +1,27 @@
-# Shared reader polish
+# Shared readers
+
+## Notebook navigation — 27 November 2026
+
+Synthetic notes, no signed-in session. Application source: `7256732` on `de69345`,
+production build `7uXKs5vWHLQwNqvjRWg5v`. The PR records final verification.
+Captures use Chromium at
+1440/768/390/320px.
+
+| Notebook reader                                         | Phone reader                                        | Find a note                                        | Slow navigation                                      |
+| ------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------- |
+| ![Notebook, note and outline](navigation-note-1440.png) | ![Folded phone navigation](navigation-note-390.png) | ![Keyboard note search](navigation-search-390.png) | ![Article-only loading](navigation-loading-1440.png) |
+
+| Notebook                                           | Phone notebook                                          | Tablet                                    | Narrow phone                             |
+| -------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------- | ---------------------------------------- |
+| ![Notebook contents](navigation-notebook-1440.png) | ![Phone notebook contents](navigation-notebook-390.png) | ![Tablet reader](navigation-note-768.png) | ![320px reader](navigation-note-320.png) |
+
+The article keeps its reading width while notebook contents and the outline fold.
+Selection, focus, slow/error transitions and no-JS links are exercised in
+`shared-reader.spec.ts`. Automatic accessibility checks are not physical-device or
+screen-reader acceptance. Very structure-heavy Markdown retains the underlying
+parser's performance limitation, described in [sharing](../../../sharing.md).
+
+## Earlier reader baseline — 23 October 2026
 
 Reviewed on 23 October 2026 using synthetic content and the production Next build
 `mOR8l2vjiPKGV8V3mqXQJ` from this PR's application source (base `e13a58b`).
@@ -8,12 +31,12 @@ The reader keeps one Read only label, the title/date and saved content. Unavaila
 links explain possible expiry and ask for a new link. Failures offer one retry.
 The promotional footer, repeated sharing label and reader cookie notice are gone.
 
-| Note | Unavailable / expired link | Temporary failure |
-| --- | --- | --- |
+| Note                                  | Unavailable / expired link                        | Temporary failure                  |
+| ------------------------------------- | ------------------------------------------------- | ---------------------------------- |
 | ![Shared note at 390px](note-390.png) | ![Unavailable link at 390px](unavailable-390.png) | ![Retry at 390px](failure-390.png) |
 
-| Notebook | Nested note | Empty notebook |
-| --- | --- | --- |
+| Notebook                               | Nested note                                  | Empty notebook                                     |
+| -------------------------------------- | -------------------------------------------- | -------------------------------------------------- |
 | ![Notebook at 390px](notebook-390.png) | ![Scoped note at 390px](nested-note-390.png) | ![Empty notebook at 390px](empty-notebook-390.png) |
 
 Desktop: [note](note-1440.png), [notebook](notebook-1440.png),
