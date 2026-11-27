@@ -2,9 +2,9 @@
 
 ## Margin writing — 27 November 2026
 
-Unsigned product `1.11.37`, source `2896e4126189ca3d965f269e95d1c8e925bbb7f9`
+Unsigned product `1.11.37`, source `dd763c756582562d049cd04dc272478b41b65354`
 on development `79fd5d243`. Chrome ZIP SHA-256:
-`d2cb2393ef14f2e97ac32e7910d15be1a70cd6f8a32dcb6b2e34f28e221bf700`.
+`124533e27e3542b1b1b0bbdb69becf6f7b0942832026e709d44dac1bb6582b91`.
 The accompanying feature PR records the exact reviewed head and checks. Installed
 Chromium `156.0.8078.4`, synthetic English fields, signed out and with Grove network
 requests blocked. These captures are local development evidence, not a store build.
@@ -15,13 +15,27 @@ requests blocked. These captures are local development evidence, not a store bui
 
 Overview is 900 × 720; corrections are 390 × 844; sidebar is 320 × 480. The
 right-angle margin mark carries the current field count. Spelling uses red,
-grammar amber and only a complete current zero uses green. The review remains a
-single unboxed list with one primary replacement, disclosed alternatives and a
-fixed field toggle below its scrolling region. Long lists and short sidebars
+grammar amber and only a complete current zero uses green. The overview remains an
+unboxed list. Selecting an issue switches to a compact correction menu without
+overview counts, filters or other issues. One fix, Ignore, All issues and a single
+Options disclosure replace the former stack of controls. Grammar keeps its useful
+explanation; spelling drops generic filler. Coverage warnings and field On/Off
+remain visible. Long lists and short sidebars
 scroll rather than forcing every issue onto the first screen. The synthetic
 `PRIVATE_CANARY` field is deliberately excluded from reading/checking.
 The compact hit target stays the same size on hover/focus; its native tooltip and
 accessible name provide the complete status without expanding across the editor.
+The mark sits wholly inside the field, clear of the resize handle/scrollbar and
+measured glyphs/caret. Crowded, obscured or unprovable geometry hides it rather than
+moving outside or changing host padding; Alt+Enter and the sidebar remain available.
+
+| Inside-field indicator                                                                                | Focused edit context menu                                                                             |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| ![Small semibold count and two category corner strokes inside the textarea](margin-indicator-390.png) | ![One correction, Ignore, All issues, one Options disclosure and field checking](margin-menu-390.png) |
+
+These are crops of the field and actual menu in the same 390px installed viewport,
+not mockups. Earlier count/filters-heavy menu captures remain in Git history at
+`4162c9a9d`; they are not the current design.
 
 The existing Grove palette, system type and mark remain; no new imagery or type
 was introduced. The pass removes coloured row rails, dot-separated copy, repeated
@@ -34,7 +48,9 @@ screenshots, geometry and axe checks provide the browser evidence instead.
 `tests/browser-extension-margin.test.mjs` checks counts/category/partial states,
 native Undo, field pause isolation, rich formatting, sensitive metadata exclusions,
 open shadow roots, CSS-hidden projection barriers, scoped sidebar actions,
-source-order filtering, focus and 280/320/390/768px overflow/accessibility. Native
+source-order filtering, compact selected-mode/Options/Escape, partial warnings,
+inside-input bounds, crowded-field keyboard recovery, focus and
+280/320/390/768px overflow/accessibility. Native
 Firefox `160.0` additionally passed temporary installation, signed-out offline
 Harper textarea checks, native sidebar and synthetic capture/search/reader-copy.
 That smoke does not qualify Firefox rich-text corrections or Undo. Chromium
@@ -44,8 +60,8 @@ rich-editor frameworks remain unqualified. No deployment, provider call or store
 submission is represented.
 
 Visual review: hierarchy 8/10, usability 8/10, identity 8/10. The useful changes are
-the single correction choice, unboxed source-order rows and removal of the
-irrelevant signed-out notice from Writing. At 480px sidebar height the issue list
+the focused correction mode, one secondary disclosure and inside-field mark.
+At 480px sidebar height the issue list
 is intentionally short and scrollable; no claim that every finding fits is made.
 
 ## Earlier compound-word correction
