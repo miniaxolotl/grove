@@ -111,9 +111,7 @@ test("memory editor reports persistence failures and retains the draft", async (
     .getByLabel("What should stay with you?")
     .fill("Keep this draft on failure.");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "temporarily unavailable",
-  );
+  await expect(page.getByRole("alert")).toContainText("Save not confirmed");
   await expect(page.getByLabel("What should stay with you?")).toHaveText(
     "Keep this draft on failure.",
   );

@@ -19,7 +19,9 @@ import { telemetryDisabled } from "@lib/telemetry/preference";
 import {
   auth,
   type OAuthClientProvider,
+  type OAuthDiscoveryState,
 } from "@modelcontextprotocol/sdk/client/auth.js";
+import { checkResourceAllowed } from "@modelcontextprotocol/sdk/shared/auth-utils.js";
 import {
   OAuthClientInformationSchema,
   OAuthTokensSchema,
@@ -396,6 +398,50 @@ export class BrowserOAuthProvider implements OAuthClientProvider {
   ) {}
   get redirectUrl() {
     return this.data.redirectUrl;
+  }
+  // Validate before registration/token effects. Discovery is deliberately not
+  // cached: a reconnect must not silently reuse a previous server's metadata.
+  saveDiscoveryState(state: OAuthDiscoveryState) {
+    const canonicalIssuer = (value: string) => {
+      try {
+        return new URL(value).href.replace(/\/$/, "");
+      } catch {
+        return null;
+      }
+    };
+    const issuer = canonicalIssuer(String(state.authorizationServerUrl));
+    const stamps = [
+      this.data.client?.issuer,
+      this.data.tokens?.issuer,
+      state.authorizationServerMetadata?.issuer,
+    ];
+    if (
+      !issuer ||
+      stamps.some(
+        (stamp) =>
+          typeof stamp === "string" && canonicalIssuer(stamp) !== issuer,
+      )
+    )
+      throw new GroveError(
+        "oauth_issuer_mismatch",
+        `The selected Grove connection uses a different OAuth issuer. Run grove connect ${this.data.agent} for Grove Cloud; for self-hosting, add --url with your intended server. Review the new connection's access. Existing credentials were preserved.`,
+        401,
+      );
+  }
+  async validateResourceURL(serverUrl: string | URL, resource?: string) {
+    if (!resource) return undefined;
+    if (
+      !checkResourceAllowed({
+        requestedResource: String(serverUrl),
+        configuredResource: resource,
+      })
+    )
+      throw new GroveError(
+        "oauth_resource_mismatch",
+        `The selected Grove connection uses a different OAuth resource. Run grove connect ${this.data.agent} for Grove Cloud; for self-hosting, add --url with your intended server. Review the new connection's access. Existing credentials were preserved.`,
+        401,
+      );
+    return new URL(resource);
   }
   get clientMetadata() {
     return {

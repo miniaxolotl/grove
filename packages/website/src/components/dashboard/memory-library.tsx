@@ -209,6 +209,7 @@ export function MemoryLibrary({
   const loadingRows = loading || query.isFetchingNextPage;
   const hasListContinuation = view === "list" && next;
   const searchMode = query.data?.pages[0]?.searchMode;
+  const retrieval = query.data?.pages[0]?.retrieval;
   const matches = Object.assign(
     {},
     ...(query.data?.pages.map((page) => page.matches ?? {}) ?? []),
@@ -569,14 +570,12 @@ export function MemoryLibrary({
                   readError &&
                   (view === "graph" || !query.isFetchNextPageError) ? (
                   <>
-                    <span className="sr-only">
+                    <span className="library-refresh-state">
                       {staleSearch
-                        ? "Search changed. Refresh results."
+                        ? "Search changed"
                         : query.isFetchNextPageError
-                          ? "Couldn’t load more. Showing loaded notes."
-                          : items.length
-                            ? "Couldn’t refresh. Showing saved notes."
-                            : "Couldn’t refresh notes."}
+                          ? "More notes failed"
+                          : "Refresh failed"}
                     </span>
                     <button
                       type="button"
@@ -610,6 +609,18 @@ export function MemoryLibrary({
                     <RefreshCw size={14} aria-hidden="true" />
                     <span className="sr-only">Refreshing notes…</span>
                   </span>
+                ) : search && searchMode === "lexical" ? (
+                  <span
+                    title={
+                      retrieval?.reason
+                        ? "Meaning search is unavailable. Showing keyword results."
+                        : undefined
+                    }
+                  >
+                    {retrieval?.reason ? "Keyword only" : "Keyword results"}
+                  </span>
+                ) : search && searchMode === "hybrid" ? (
+                  <span>Meaning + keywords</span>
                 ) : null}
               </span>
             </span>

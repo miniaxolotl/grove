@@ -10,7 +10,7 @@ const todayLink = (page: Page) =>
 const editor = (page: Page) =>
   page.getByRole("textbox", { name: "What should stay with you?" });
 const save = (page: Page) =>
-  page.getByRole("button", { name: "Save note", exact: true });
+  page.getByRole("button", { name: /^(Save note|Retry save)$/ });
 const fromNotes = async (page: Page) => {
   await page
     .getByRole("button", { name: "More note actions", exact: true })
@@ -233,7 +233,7 @@ test("archive opens the existing note and deletion never opens a fresh draft", a
   await expect(page.locator(".note-save-status")).toHaveText(
     "Saved · Archived",
   );
-  await expect(save(page)).toBeDisabled();
+  await expect(save(page)).toHaveCount(0);
   state.records.delete(note.id);
   await page.goto(`${base}/app`);
   await fromNotes(page);

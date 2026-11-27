@@ -218,8 +218,11 @@ Reindex and restore reconciliation honor these independent preferences.
   Background changes are coalesced with a five-second delay.
 - No-query recall can include cached, validated briefs within 60% of its character
   budget, leaving room for source memories. Hooks format these as generated reference
-  data. Generation never runs synchronously on recall; query embedding has an 850 ms
-  provider deadline within the existing 1.5-second automatic-hook budget.
+  data. Generation never runs synchronously on recall. Interactive query embedding
+  has a 2500ms provider deadline, bounded further by caller cancellation/deadlines;
+  worker deadlines are unchanged. Automatic hooks retain their 1.5-second overall
+  budget and ordinary query-free recall path. Query-provider degradation is
+  [reported separately from configuration](search.md).
 - **Retry processing** and brief regeneration respect the relevant preference and
   are version/scope checked. Failed jobs stop after five
   attempts; exhausted daily budgets defer until the next database day (UTC in the

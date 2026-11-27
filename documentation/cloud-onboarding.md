@@ -58,6 +58,15 @@ and returns to the pending setup. Fresh `grove login` defaults to Cloud.
 
 ## Resume and errors
 
+- `oauth_resource_mismatch` and `oauth_issuer_mismatch` mean discovery is reachable
+  but incompatible with the selected resource or stored issuer. They are not a
+  network outage. The client stops before registration/token effects and preserves
+  existing credential/config files. Run `grove connect <agent>` for the intended
+  canonical Cloud endpoint and review browser consent and note access again; do not
+  copy old tokens, delete credentials or widen a grant to bypass the check. Explicit
+  self-hosted origins remain explicit. Interrupting the new flow leaves the old
+  connection untouched; host-loaded tools still need effective-scope verification.
+
 - Pending requests for the same agent/project reuse their link until expiry.
 - Temporary polling failures reconnect with bounded backoff within the approval
   deadline. Revocation, cancellation and authorization errors remain terminal.

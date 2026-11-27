@@ -145,6 +145,7 @@ export const answerSchema = z
   .strict();
 export type AskRequest = z.infer<typeof askSchema>;
 export type AskResult = {
+  retrieval?: import("./contracts.ts").RetrievalDiagnostic;
   usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
   status: "ready" | "no_evidence" | "search" | "generation_disabled";

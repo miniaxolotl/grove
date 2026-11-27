@@ -493,12 +493,15 @@ test("deleted notes cannot return through a held list response or a later stale 
 test("content versions never roll back, while equal-version worker enrichment can refresh", async () => {
   let current = { ...note, version: 3 };
   const cache = cacheWith(async () => current);
+  const erased: unknown[] = [];
+  cache.observePrivacy((change) => erased.push(change));
   await cache.client.fetchQuery(cache.note(note.id));
-  current = { ...note, version: 2 };
+  current = { ...note, version: 2, status: "archived" };
   await cache.api("/memories", { id: note.id });
   expect(
     cache.client.getQueryData<Memory>(workspaceKeys.note(note.id))?.version,
   ).toBe(3);
+  expect(erased).toEqual([]);
   current = { ...note, version: 3, indexing: "failed" };
   await cache.client.fetchQuery({ ...cache.note(note.id), staleTime: 0 });
   expect(
@@ -587,6 +590,8 @@ test("expiry removes active-list membership at the deadline and purge hides the 
     items: [expiring],
     nextCursor: null,
   }));
+  const erased: unknown[] = [];
+  cache.observePrivacy((change) => erased.push(change));
   const list = cache.notes();
   await cache.client.fetchInfiniteQuery(list);
   expect(cache.client.getQueryData(list.queryKey)?.pages[0].items).toHaveLength(
@@ -595,6 +600,7 @@ test("expiry removes active-list membership at the deadline and purge hides the 
   await expect
     .poll(() => cache.client.getQueryData(list.queryKey)?.pages[0].items)
     .toEqual([]);
+  expect(erased).toContainEqual({ ids: [note.id] });
   await expect
     .poll(() => cache.client.getQueryData(workspaceKeys.note(note.id)))
     .toBeNull();

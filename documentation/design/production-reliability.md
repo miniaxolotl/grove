@@ -1,6 +1,6 @@
 # Production reliability: retrieval, freshness and recovery
 
-**Proposed implementation, not shipped behavior.** This design closes gaps found
+**Implementation and acceptance design; not production acceptance.** This design closes gaps found
 in the 26 November 2026 production smoke test of v1.11.37, source
 `622ca2b0b5b98801c21166be9d00965f72bfe42d`. It does not authorize implementation,
 live provider calls, data changes, deployment or broader connection permissions.
@@ -28,10 +28,12 @@ No private account/note identifiers, credentials or raw production logs belong h
 
 ## Ownership and implementation slices
 
-Use one scoped implementation PR per row, in this order. Each slice adds its
-failing regression before the smallest fix, updates its owning guide and records
-exact-head evidence. S4's privacy decision can proceed while earlier slices ship;
-it does not block the connection and retrieval fixes.
+Implement all rows in **one PR stacked on #347**, in this order, using focused
+commits rather than separate slice PRs. Each backend slice adds its failing
+regression before the smallest fix, updates its owning guide and records exact-head
+evidence. The separate default-on decision applies only where no account/browser
+choice or retained drafts exist; it never overrides an off choice or erasure.
+Neither decision authorizes production/provider changes.
 
 | Slice                                  | Main source owners                                                                                                                                                | Exit gate                                                                                                                                     |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -39,7 +41,7 @@ it does not block the connection and retrieval fixes.
 | S1: connection recovery                | Shared integration core; `packages/mcp/src/{connect,doctor,cli}.ts`; packaged agent consumers                                                                     | Old resource/issuer mismatch has a precise actionable error; explicit canonical reconnect works without moving old tokens or widening grants. |
 | S2: retrieval and truthful degradation | Memory/AI/cache/action accounting; shared response contracts; search and Settings surfaces                                                                        | Successful cold/warm semantic retrieval and correct scoped fallback, receipts and status are demonstrated separately.                         |
 | S3: editor freshness                   | `packages/website/src/lib/workspace-cache.ts`, dashboard `workspace-cache.tsx`, `memory-editor.tsx`, note readers                                                 | A visible clean note adopts an external commit without reload within the defined budget; dirty/uncertain drafts never rebase silently.        |
-| S4: opt-in draft recovery              | Dashboard `note-drafts.tsx`, editor/session ownership, account settings and browser storage adapter                                                               | Approved privacy design, crash/reload recovery and erasure/replay races pass without treating local persistence as a server save.             |
+| S4: device draft recovery              | Dashboard `note-drafts.tsx`, editor/session ownership, account settings and browser storage adapter                                                               | Approved privacy design, crash/reload recovery and erasure/replay races pass without treating local persistence as a server save.             |
 
 The slices use existing shared packages. Do not add another backend queue/database
 service, cross-project service, global cache or project-local credential store.
@@ -156,14 +158,16 @@ target needs a measured request budget, not an unproven claim that refresh is ab
 
 ### Required design decision
 
-Current docs promise memory-only private drafts. **Do not add silent plaintext
-localStorage, persist the whole query cache or enable device recovery by default.**
-Recommended design: an explicit per-account/per-browser **Recover drafts on this
-device** setting, off by default, under Settings. Explain its device-storage boundary,
-expiry, sign-out erasure and offline limitations before enabling. No onboarding
-wizard, repeated prompt or provider credential is required. Existing opt-outs win.
-Owner/security review of this persistence/key policy is a prerequisite to S4 code;
-approval of this implementation plan alone is not user consent to turn it on.
+The owner chose default-on encrypted recovery for a fresh account/browser pair.
+**Never persist plaintext localStorage, the whole query cache or credentials.**
+The per-account/per-browser **Recover drafts on this device** setting stays in
+Settings, with device storage, expiry, sign-out erasure and offline limitations
+visible. No onboarding wizard or repeated prompt is required. Existing off choices
+and erasure tombstones win; initialization must not replace a missing key over
+retained ciphertext. The key is non-exportable and same-origin. Default-on recovery
+does not authorize analytics or automatic replay of uncertain saves. The
+[owning contract](../development/client-cache.md#device-draft-recovery) describes
+implemented limits and remaining device qualification.
 
 ### Proposed storage and lifecycle contract
 
@@ -198,7 +202,7 @@ approval of this implementation plan alone is not user consent to turn it on.
 - Sign-out, account deletion, terminal session denial, explicit disable/forget and
   known note/notebook lifecycle removal clear matching ciphertext/keys and fence
   late async writers. Same-account reauthentication after an interrupted page load
-  may unlock an opted-in draft only after fresh authorization. Another account never
+  may unlock a retained draft only after fresh authorization. Another account never
   receives it. No remote wipe of an offline browser or exact purge while the browser
   is closed is promised; expired data is unusable and purged at next authorized open.
 
@@ -228,7 +232,7 @@ responses. Browser emulation is not physical-device/crash acceptance.
 Production acceptance is a separate, owner-approved bounded run against the exact
 released source: synthetic scoped notes only, one real OpenCode session plus website,
 paired cold/warm semantic queries with a preapproved call/token/spend cap, measured
-external edit freshness, isolated opt-in draft profile/restart and canonical reconnect.
+external edit freshness, isolated draft profile/restart and canonical reconnect.
 Record failures and skipped paths. Preserve test notes/credentials until separately
 authorized cleanup. Configuration presence or green fixtures cannot close live gates.
 

@@ -11,6 +11,7 @@ import { useToast } from "./toasts";
 import { PreferencesPanel } from "./preferences-panel";
 import { AccountPlanDetails } from "./account-plan";
 import { Button } from "./ui/button";
+import { DraftRecoverySettings } from "./draft-recovery-settings";
 export function SettingsPanel({
   section = "preferences",
 }: {
@@ -57,6 +58,7 @@ function AccountSettings({ section }: { section: "account" | "data" }) {
               </Link>
             </section>
             <ConnectedAccounts />
+            <DraftRecoverySettings />
           </>
         )}
         {section === "data" && (

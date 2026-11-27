@@ -44,10 +44,13 @@ export const events = [
   "chat_completed",
   "$ai_generation",
   "ai_cache",
+  "retrieval_completed",
 ] as const;
 export type EventName = (typeof events)[number];
 export type Outcome = "success" | "unavailable" | "error" | "cancelled";
 export type Properties = {
+  retrieval_mode?: "hybrid" | "lexical";
+  retrieval_reason?: string;
   failure_code?: string;
   failure_stage?: string;
   validation_field?: string;
@@ -88,6 +91,23 @@ export function projectProperties(
 ): Properties {
   const output: Record<string, unknown> = {};
   const enums = {
+    retrieval_mode: ["hybrid", "lexical"],
+    retrieval_reason: [
+      "not_configured",
+      "provider_timeout",
+      "provider_authentication",
+      "provider_rate_limited",
+      "provider_unavailable",
+      "provider_invalid_response",
+      "provider_cooling_down",
+      "inference_budget",
+      "embedding_profile_mismatch",
+      "cache_capacity",
+      "cache_lease_lost",
+      "query_unavailable",
+      "recall_limit",
+      "pinned_lexical",
+    ],
     failure_code: [
       "auth_unavailable",
       "provider_authentication",

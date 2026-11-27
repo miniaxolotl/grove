@@ -282,6 +282,8 @@ test("categorized AI preferences persist independently with provider availabilit
 test("preference drafts survive settings tabs, discard restores saved choices, and clean forms follow server updates", async ({
   page,
 }) => {
+  // This journey uses desktop tabs; narrow picker navigation is exercised below.
+  await page.setViewportSize({ width: 1440, height: 900 });
   const preferences = preferencesFor({});
   const saves: Record<string, boolean>[] = [];
   const started = Promise.withResolvers<void>();
@@ -457,6 +459,8 @@ test("writing settings stay reachable on a short, narrow screen", async ({
 test("settings share persistent navigation and scrolling, and feedback leaves forms in place", async ({
   page,
 }, info) => {
+  // Check the desktop tabs first, then the existing 320px picker journey.
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.route("**/api/grove/**", async (route) => {
     const path = fixturePath(route.request().url());
     const data = path.endsWith("/me")
@@ -729,9 +733,12 @@ for (const editable of [true, false])
         page.getByText("Technical details", { exact: true }),
       ).toHaveCount(0);
       await expect(
-        page.getByText("Search by keyword or meaning is available.", {
-          exact: true,
-        }),
+        page.getByText(
+          "Meaning search is configured. Each search reports whether it used meaning or keyword fallback.",
+          {
+            exact: true,
+          },
+        ),
       ).toBeVisible();
       await expect(
         page.getByRole("button", { name: "Save model settings" }),

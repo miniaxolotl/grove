@@ -8,7 +8,7 @@ import { localDateSchema, type DailyNote } from "@lib/shared/contracts";
 import { errorMessage } from "@/lib/dashboard-api";
 import { RecoveryState } from "@/components/recovery-state";
 import { MemoryInspector } from "./memory-inspector";
-import { useNoteDrafts } from "./note-drafts";
+import { useNoteDrafts, useDraftsInitializing } from "./note-drafts";
 import { useNotebooks } from "./notebooks-provider";
 import { LoadError } from "./load-error";
 import { DocumentSkeleton } from "./workspace-opening";
@@ -33,6 +33,15 @@ function dailyHeading(date: string) {
 
 /** The shared route layout keeps one document alive through its first save. */
 export function NoteDocument({ children }: { children: ReactNode }) {
+  const initializing = useDraftsInitializing();
+  return initializing ? (
+    <DocumentSkeleton label="Checking device draft recovery…" />
+  ) : (
+    <ReadyNoteDocument>{children}</ReadyNoteDocument>
+  );
+}
+
+function ReadyNoteDocument({ children }: { children: ReactNode }) {
   const path = usePathname();
   const query = useSearchParams();
   const router = useRouter();

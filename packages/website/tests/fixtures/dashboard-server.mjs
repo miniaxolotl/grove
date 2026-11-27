@@ -5,6 +5,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import process from "node:process";
 import { URL } from "node:url";
+import { runInNewContext } from "node:vm";
 
 const root = resolve(import.meta.dirname, "../..");
 const fixtureConfig = {
@@ -91,9 +92,27 @@ const telemetryResult = await build({
     ...fixtureConfig.plugins,
   ],
 });
-const css = (await readdir(join(root, ".next/static/chunks"))).filter((file) =>
-  file.endsWith(".css"),
+const availableCss = (await readdir(join(root, ".next/static/chunks"))).filter(
+  (file) => file.endsWith(".css"),
 );
+// Chunk hashes are not cascade order. Keep optional/lazy styles, then apply the
+// actual app layout's production order rather than letting filenames decide it.
+const manifestContext = { globalThis: {} };
+runInNewContext(
+  await readFile(
+    join(root, ".next/server/app/app/page_client-reference-manifest.js"),
+    "utf8",
+  ),
+  manifestContext,
+);
+const manifest = Object.values(manifestContext.globalThis.__RSC_MANIFEST)[0];
+const layoutCss = Object.entries(manifest.entryCSSFiles)
+  .find(([entry]) => entry.endsWith("/src/app/app/layout"))[1]
+  .map(({ path }) => path.replace("static/chunks/", ""));
+const css = [
+  ...availableCss.filter((file) => !layoutCss.includes(file)),
+  ...layoutCss,
+];
 const fonts = [
   ...[400, 500, 600, 700].map((weight) => ({
     family: "Space Grotesk",

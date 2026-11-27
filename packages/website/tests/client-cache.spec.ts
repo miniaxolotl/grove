@@ -167,11 +167,23 @@ test("fresh Notes, Settings and note-detail revisits reuse snapshots without new
   expect(state.reads).toHaveLength(reads);
 });
 
-test("session replacement clears snapshots and retained drafts, including held old-account responses", async ({
+test("session replacement clears snapshots and tab-only drafts, including held old-session responses", async ({
   page,
 }) => {
   await fixture(page);
-  await page.goto(`${base}/app`);
+  // This case exercises the memory-only cache boundary. Same-account encrypted
+  // recovery deliberately survives renewal after fresh authorization.
+  await page.goto(`${base}/app/settings/account`);
+  const recovery = page.getByRole("checkbox", {
+    name: "Recover drafts on this device",
+  });
+  await expect(recovery).toBeChecked();
+  await recovery.click();
+  await page
+    .getByRole("button", { name: "Delete device copies", exact: true })
+    .click();
+  await expect(recovery).not.toBeChecked();
+  await navigate(page, "/app");
   await expect(page.locator(".memory-open")).toHaveText("Cached thought");
   await navigate(page, `/app/memories/${note.id}?mode=edit`);
   const editor = page.getByRole("textbox", {
@@ -265,7 +277,9 @@ test("row deletion retains conflict review when a save replay returns a later ve
   });
   await editor.fill("Committed before connection loss");
   await editor.press("Control+s");
-  await expect(page.locator(".note-save-status")).toContainText("Not saved");
+  await expect(page.locator(".note-save-status")).toContainText(
+    "Not confirmed",
+  );
   const draft = "Retained newer draft. ".repeat(350);
   await editor.fill(draft);
   await navigate(page, "/app");
@@ -648,10 +662,15 @@ test("an intersecting next page waits for the existing background refresh", asyn
     const { cursor } = route.request().postDataJSON();
     cursors.push(cursor ?? null);
     if (!cursor && cursors.length === 2) await refresh.promise;
-    await route.fulfill({ json: { success: true, data: {
-      items: cursor ? [{ ...note, content: "# Appended thought" }] : items,
-      nextCursor: cursor ? null : cursors.length === 1 ? "old" : "fresh",
-    } } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: {
+          items: cursor ? [{ ...note, content: "# Appended thought" }] : items,
+          nextCursor: cursor ? null : cursors.length === 1 ? "old" : "fresh",
+        },
+      },
+    });
   });
   await page.goto(`${base}/app`);
   const rows = page.locator(".memory-open");
@@ -661,7 +680,9 @@ test("an intersecting next page waits for the existing background refresh", asyn
   const edge = page.locator(".library-list .note-continuation-edge");
   await edge.scrollIntoViewIfNeeded();
   await expect(edge).toBeInViewport();
-  await expect(page.getByRole("button", { name: "Load more notes" })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Load more notes" }),
+  ).toBeDisabled();
   expect(cursors).toEqual([null, null]);
   refresh.resolve();
   await expect(rows.last()).toHaveText("Appended thought");

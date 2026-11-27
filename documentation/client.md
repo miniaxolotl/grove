@@ -213,6 +213,14 @@ is a local/team marketplace package, not a submitted public-directory plugin.
 
 ## Other MCP clients
 
+If an expired connection reports `oauth_resource_mismatch` or
+`oauth_issuer_mismatch`, the server is reachable but OAuth discovery no longer
+matches that connection. Run the supported `grove connect <agent>` flow for the
+intended endpoint, complete human sign-in/consent and review the separate note
+access approval. Existing credentials and other agent selections are preserved;
+old tokens are never copied to a new origin. Do not clear credentials or weaken
+resource/issuer checks as a recovery step. See [connection recovery](cloud-onboarding.md#resume-and-errors).
+
 Use remote Streamable HTTP `https://api.grovenote.app/mcp` with OAuth or an API key,
 or configure the local command:
 

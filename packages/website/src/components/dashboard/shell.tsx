@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   RedirectToSignIn,
   UserButton,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { NoteDraftsProvider } from "./note-drafts";
+import { eraseDeviceDrafts } from "@/lib/draft-recovery";
 import {
   WorkspaceCacheProvider,
   noteListWarmup,
@@ -90,6 +91,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       )?.href;
   const { user, isLoaded, isSignedIn } = useUser();
   const { session, isLoaded: sessionLoaded } = useSession();
+  const recoveryOwner = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isLoaded || !sessionLoaded) return;
+    const previous = recoveryOwner.current;
+    recoveryOwner.current = isSignedIn ? (user?.id ?? null) : null;
+    if (previous && previous !== recoveryOwner.current) {
+      void eraseDeviceDrafts(previous).catch(() => {});
+    }
+  }, [isLoaded, sessionLoaded, isSignedIn, user?.id]);
   useEffect(() => {
     if (isLoaded) setAccountBoundary(user?.id ?? null);
   }, [isLoaded, user?.id]);
@@ -132,7 +142,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       sessionId={session.id}
     >
       <ToastProvider>
-        <NoteDraftsProvider>
+        <NoteDraftsProvider account={user!.id}>
           <NoteExportProvider>
             <NotebooksProvider>
               <WorkspaceCommands>

@@ -3,7 +3,9 @@
 The authenticated shell owns an in-memory TanStack Query client per Clerk user
 **and session**. It is destroyed on sign-out, account/session replacement or
 terminal authentication loss after the recovery attempt below. Queries, searches,
-drafts and note content are never persisted to browser storage. Requests use
+and note snapshots are never persisted to browser storage. Note drafts are
+memory-only by default; explicit per-account/browser [device recovery](#device-draft-recovery)
+is a separate encrypted store, not a persisted query cache. Requests use
 `cache: "no-store"` and the BFF sends `Cache-Control: private, no-store`; this cache
 belongs to the mounted workspace.
 
@@ -123,11 +125,80 @@ polls every five seconds for up to two minutes from observation, with background
 polling disabled. Brief reads always revalidate so server expiry/job scheduling
 remains authoritative. Expiry/purge deadlines also prune cached list membership.
 
-This is bounded revalidation, not push synchronization. A Saved editor label alone
-does not prove that no other client has edited the note. The proposed
-[freshness and draft-recovery design](../design/production-reliability.md#s3-bounded-draft-safe-external-edit-freshness)
-requires timed external-write tests and preserves dirty/uncertain drafts; it does
-not replace the current memory-only privacy contract before implementation.
+This is bounded revalidation, not push synchronization. Clean editors adopt newer
+authoritative versions; dirty, saving and uncertain drafts retain their base and
+original retry identity. A newer-version notice requires review. The reserved
+save-status surface distinguishes checking from a failed refresh and offers Retry
+without remounting the editor or pushing a new error panel above it. Saved refers
+to the confirmed local save, not proof that no other client has edited the note.
+The [freshness qualification](../design/production-reliability.md#s3-bounded-draft-safe-external-edit-freshness)
+uses the existing single 60-second scheduler, not a timer per editor.
+
+## Device draft recovery
+
+**Settings → Account → Recover drafts on this device** is on by default for a
+fresh account/browser pair. Existing off choices, sign-out erasure tombstones and
+unavailable keys are never overridden. The default key is created transactionally
+only while no owner choice or retained draft exists; a concurrent disable wins.
+This changes local persistence, not server saves or analytics consent. The setting
+and privacy policy disclose device storage and how to turn it off. The version-1 IndexedDB database
+`grove-draft-recovery` stores non-exportable account/browser AES-GCM keys and
+encrypted draft envelopes, not credentials, share links, search queries, media,
+live promises or a permission cache. Envelope routing metadata includes the owner,
+draft key and note/notebook IDs, not source text. Authenticated associated data
+binds schema, owner epoch, identity, sequence, scope and absolute expiry; each
+encryption uses a fresh nonce. Same-origin keys are not protection against XSS or
+a compromised browser profile.
+
+Recovery is limited to 32 live drafts, 1 MiB of envelope data and seven days from
+the first checkpoint (reads/typing do not extend expiry). Active drafts are never
+silently evicted. Typing checkpoints sample at 350ms while the page executes;
+browser throttling, suspended tabs and interrupted transactions can extend the
+uncheckpointed interval. The editor shows the actual completed checkpoint time,
+not a promise that the latest burst is durable. Open **Device** beside the save
+receipt for the completed **Device copy** time; **Device issue** offers export
+when recovery fails. Storage/key/quota failures retain
+the memory draft with export/copy guidance. Only completed transactions count as
+device checkpoints; only a confirmed server commit counts as Saved.
+
+Before dispatching a recovery-enabled save, persist the exact pending operation/input and
+submitted snapshot. Recovery never sends writes automatically: the editor retains
+the original retry identity, separates newer typing and requires explicit Retry.
+Lost create responses reuse the same create operation; a newer authoritative
+version requires review rather than silently rebasing. Daily-note dates survive
+reload rather than changing at midnight.
+
+An uncertain save shows **Not confirmed** and **Retry save**, not a successful
+receipt. A clean autosaved note does not repeat a disabled Save action. Settings
+keeps the device-only, seven-day and erasure consequences beside its toggle;
+**Privacy and limits** reveals the remaining limits. Turning recovery off or
+deleting device copies requires an explicit confirmation with Cancel. This changes
+the device choice; retention and retry behavior remain unchanged.
+
+On open, fresh authenticated account reads, the complete state-checked paginated
+notebook catalog and current note access/lifecycle checks precede decryption into
+the UI. The legacy first-100 notebook list cannot establish revocation. Lifecycle
+erasure obeys the snapshot version fence; known source expiry also removes its
+checkpoint. Offline or uncertain authorization leaves
+envelopes locked. Deleted, archived, expired, inaccessible or moved-out-of-scope
+sources cannot be restored into another notebook. Transactional sequence checks
+refuse cross-tab overwrites; owner epochs fence late writes after erasure. Broadcasts
+carry only erasure metadata. Known note/notebook lifecycle removal erases matching
+checkpoints. Disable/forget, observed sign-out/account replacement, account deletion
+and terminal session denial erase keys/envelopes. Same-account session replacement
+can unlock only after fresh authorization. Browser closure/offline state prevents
+remote wipe; expired data is unusable and removed at the next authorized open.
+
+Deploy the additive browser schema with the compatible recovery reader. Roll back
+intake/UI without deleting retained unsaved envelopes; retain a compatible unlock/
+export path. Reload/restart, lost-response retry, scope denial, corruption/quota,
+expiry and erasure races require isolated-profile evidence; source wiring alone
+does not establish physical crash/device acceptance.
+
+The [isolated browser evidence](../design/screenshots/production-reliability/README.md)
+distinguishes real API/RLS freshness from synthetic lost-response and local-storage
+checks. Opening a fresh account/browser enables recovery; a stored off choice stays
+off across reloads and other tabs. An erased account never silently resumes recovery.
 
 Public sharing readers never use the authenticated workspace cache. Owner sharing
 dialogs also read their permission/link state afresh on each open or conflict;

@@ -4,6 +4,40 @@ Write for the person using Grove, not the infrastructure running it. Ordinary
 workspace, sign-in, marketing and recovery copy describes features and next steps.
 Do not name backend companies, model names, hosting platforms or internal jobs.
 
+## Messages and feedback
+
+Show, don’t tell. People should see only what they need to understand the current
+state and decide what to do next. Apply this to toasts, alerts, status text,
+dialogs, settings, labels and other user-facing feedback.
+
+- Use everyday words and direct sentences. Prefer **device copy** to
+  **checkpoint** and **Try again** to a technical recovery explanation.
+- Keep a toast or status to a short phrase or one short sentence. Add a second
+  sentence only when it provides an essential next step. Do not turn a toast into
+  instructions, a privacy policy or a system diagnosis.
+- Show one useful next action. Name the action on its button; avoid repeating
+  instructions already clear from the nearby control.
+- Keep optional detail behind a labelled disclosure, such as **Device** or
+  **Privacy and limits**, or in help/operator documentation. Do not add a permanent
+  explanation when the control or state can show the meaning.
+- Stay truthful when simplifying. **Save not confirmed** is not **Saved** or
+  **Save failed** when the result is unknown. Accepted or queued work is not
+  completed work.
+- Keep essential consent, deletion consequences, privacy limits and safety
+  warnings visible where the person makes the decision. Simpler must not mean
+  misleading or incomplete.
+- Review the rendered message at desktop, 390px and 320px. Shorten the words
+  before shrinking text or truncating an important status. Keep feedback in its
+  reserved space without moving content, focus or controls.
+
+| Avoid                                                                                          | Prefer                                         |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Save not confirmed. Retry the save or export your text.                                        | Save not confirmed. Try again.                 |
+| A device checkpoint is separate from a server save. Recent typing may not be checkpointed yet. | Device copy only. Recent edits may be missing. |
+| Saved copy · refresh failed                                                                    | Refresh failed, beside **Retry**               |
+
+## Feature and privacy language
+
 - Name the feature and match its control: **Read aloud**, **Recording
   transcription**, **AI preferences**, **Transcribe** and **Prepare audio**.
 - Explain what a feature does, when it runs and what the person can review.

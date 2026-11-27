@@ -120,7 +120,7 @@ export function MemoryInspector({
   }
   const contents = (
     <>
-      {error && (
+      {error && (!current || actionError) && (
         <LoadError
           title={
             current ? "This note couldn’t update" : "This note couldn’t open"
@@ -195,6 +195,11 @@ export function MemoryInspector({
           <MemoryDetail
             key={`${creationKey ?? id}:${current?.status ?? "active"}`}
             fullPage={fullPage}
+            freshness={{
+              checking: query.isFetching,
+              error: !!query.error,
+              retry: () => void query.refetch(),
+            }}
             initialPreview={initialPreview}
             memory={current ?? undefined}
             creation={creation}
