@@ -12,6 +12,7 @@ import {
 import { Plus, Inbox, Folder, ChevronDown } from "lucide-react";
 import { useNotebooks, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookTree } from "./notebook-tree";
+import { NotebookSort } from "./notebook-sort";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
 import { IconButton } from "./ui/button";
 import {
@@ -203,17 +204,20 @@ export function NotebookExplorer({ expanded = false }: { expanded?: boolean }) {
           </IconButton>
         </div>
         <div id={bodyId} className="notebook-explorer-body">
-          <Link
-            ref={setNodeRef}
-            className="notebook-personal"
-            href="/app?notebook=personal"
-            aria-current={currentNotebook === null ? "page" : undefined}
-            data-destination="personal"
-            data-drop-active={isOver || undefined}
-          >
-            <Inbox size={15} />
-            Unfiled
-          </Link>
+          <div className="notebook-scope-row">
+            <Link
+              ref={setNodeRef}
+              className="notebook-personal"
+              href="/app?notebook=personal"
+              aria-current={currentNotebook === null ? "page" : undefined}
+              data-destination="personal"
+              data-drop-active={isOver || undefined}
+            >
+              <Inbox size={15} />
+              Unfiled
+            </Link>
+            <NotebookSort compact />
+          </div>
           {active?.kind === "notebook" && (
             <NotebookDropTarget projectId={null} name="Top level" root />
           )}

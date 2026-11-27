@@ -42,20 +42,31 @@ open. See the [Ask Grove example](design/screenshots/dropdown-contrast/ask-noteb
 - Filtered Organize lists omit adjacent Move up/down until the search is cleared;
   a filtered list is not the complete sibling group. Archived notebooks remain in
   their separate list with Restore/Delete, not ordering controls.
-- The manager has one row menu, one count and a full-width search. Explorer,
-  manager and sub-notebook lists all use saved sibling order. Rename keeps order;
+- The manager has one row menu, one count and a full-width search. **Notebook display
+  order** in the manager and explorer offers Saved order, Name A–Z/Z–A and
+  Newest/Oldest created. It sorts siblings within the complete authorized catalog,
+  preserving hierarchy and stored positions. The account-scoped display choice
+  survives reload; **Organize** always shows saved manual order. Rename keeps order;
   new notebooks append. Long manager titles wrap to two lines with the full name
   retained in their link's accessible name/title.
+
 - With a mouse, drop onto a highlighted notebook row to move inside it; drop on
   the insertion line to move before or after a sibling. For keyboard nesting,
   press Space on the grip, use the arrow keys to choose a destination, then Space
   to drop or Escape or Tab to cancel. On touch, hold the grip to lift, then drag to a
-  notebook row or the destination tray. The preview follows the contact and sits
-  above it when there is room. The grip stops native scrolling; the rest of the
+  notebook row or the destination tray. The floating preview follows the contact
+  and sits above it when there is room. Targets use a background highlight without
+  a coloured left border; sibling placement keeps its insertion marker. The grip
+  stops native scrolling; the rest of the
   row keeps vertical scrolling and pinch zoom. Tap or click the folder control
   to open **Organize**, including for exact sibling placement without dragging.
   Release on the highlighted destination to move. Releasing outside it or over
   **Drop here to cancel** cancels without a move. Covered rows cannot receive drops.
+
+Creation sorting uses each notebook's actual immutable creation date. Older servers
+may omit it; undated notebooks sort last in either direction. There is no notebook
+edit timestamp, so Grove does not offer an invented edited-date sort or infer one
+from child notes.
 
 The organizer keeps the tree above the selection’s actions at both sizes.
 Move keeps its action
@@ -139,8 +150,8 @@ Source/browser tests are not deployment or physical-device acceptance.
 - `limit`: 1–200, default 200.
 - `cursor`: the exact `nextCursor` from the preceding response.
 
-It returns `{ items, state, nextCursor }`. Each notebook includes `position` along
-with its existing ID, name, identity, parent, version and status. Positions are
+It returns `{ items, state, nextCursor }`. Each notebook includes `position` and
+ISO `createdAt` along with its existing ID, name, identity, parent, version and status. Positions are
 relative to a parent; top-level notebooks form their own sibling group. Pages
 order by parent (top level first), position and ID, not a flattened depth-first tree.
 The owner UI must combine pages before rendering a complete tree. Parent IDs are

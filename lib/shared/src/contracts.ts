@@ -175,6 +175,8 @@ export type Notebook = {
   status?: "active" | "archived";
   /** Owning-session display order. Scoped agent responses omit positions. */
   position?: number;
+  /** Actual notebook creation date; older servers may omit it. */
+  createdAt?: string;
 };
 export const projectSchema = z
   .object({

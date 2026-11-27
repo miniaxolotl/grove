@@ -146,6 +146,7 @@ function OrganizerContent() {
                 aria-label="Notebooks to organize"
               >
                 <NotebookTree
+                  displaySort="custom"
                   projects={notebooks.projects}
                   query={query}
                   defaultExpanded

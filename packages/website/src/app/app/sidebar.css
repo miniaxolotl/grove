@@ -718,3 +718,12 @@
     transition: none;
   }
 }
+.notebook-scope-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.notebook-scope-row .notebook-personal {
+  flex: 1;
+  min-width: 0;
+}

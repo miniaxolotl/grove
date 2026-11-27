@@ -2751,15 +2751,21 @@ export class MemoryService {
       const offset = cursor ? Number(cursor.after) : 0;
       if (!Number.isSafeInteger(offset) || offset < 0)
         throw new GroveError("invalid_cursor", "Invalid notebook cursor");
-      const rows: Notebook[] = await trx("projects")
-        .select(notebookFields)
-        .where({ status: input.status })
-        .orderByRaw("parent_id NULLS FIRST")
-        .orderBy("position")
-        .orderBy("id")
-        .offset(offset)
-        .limit(input.limit + 1);
-      const items = rows.slice(0, input.limit);
+      const rows: (Omit<Notebook, "createdAt"> & { createdAt: Date })[] =
+        await trx("projects")
+          .select([...notebookFields, "createdAt"])
+          .where({ status: input.status })
+          .orderByRaw("parent_id NULLS FIRST")
+          .orderBy("position")
+          .orderBy("id")
+          .offset(offset)
+          .limit(input.limit + 1);
+      const items = rows
+        .slice(0, input.limit)
+        .map(({ createdAt, ...notebook }) => ({
+          ...notebook,
+          createdAt: createdAt.toISOString(),
+        }));
       return {
         items,
         state,

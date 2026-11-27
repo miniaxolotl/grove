@@ -20,6 +20,8 @@ import { Button } from "@/components/dashboard/ui/button";
 import { NotebookActions } from "@/components/dashboard/notebook-actions";
 import { NotebookBulkLifecycleDialog } from "@/components/dashboard/notebook-bulk-lifecycle";
 import { SearchField } from "@/components/dashboard/ui/search-field";
+import { NotebookSort } from "@/components/dashboard/notebook-sort";
+import { notebookDisplayOrder } from "@/lib/notebooks";
 import {
   NotebookDropTarget,
   useWorkspaceDrag,
@@ -53,9 +55,11 @@ export default function ProjectsPage() {
   const [checked, setChecked] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const [sharing, setSharing] = useState<string | null>(null);
-  const matches = projects.filter((p) =>
-    p.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
-  );
+  const matches = projects
+    .filter((p) =>
+      p.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+    )
+    .sort(notebookDisplayOrder(active.displaySort));
   const selectedArchived = archived
     ? matches.filter((project) => checked.includes(project.id))
     : [];
@@ -112,6 +116,7 @@ export default function ProjectsPage() {
               ? `${matches.length} of ${projects.length} notebooks`
               : `${projects.length} ${projects.length === 1 ? "notebook" : "notebooks"}`}
           </span>
+          <NotebookSort />
         </div>
       )}
       {error && (
