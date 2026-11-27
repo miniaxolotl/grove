@@ -20,6 +20,7 @@ import {
 import {
   defaultKeymap,
   history,
+  historyField,
   historyKeymap,
   redo,
   undo,
@@ -43,6 +44,7 @@ import {
   Redo2,
   ListTree,
   Type,
+  SpellCheck,
 } from "lucide-react";
 import { Markdown } from "./markdown";
 import { liveMarkdown, prefixLines, wrapSelection } from "./markdown-surface";
@@ -59,7 +61,7 @@ import { InspectorDialog } from "./ui/inspector-dialog";
 import { RecordingControl } from "./recording-control";
 import { ReadAloud } from "./speech-controls";
 import {
-  noteHeadings,
+  noteOutline as noteHeadings,
   headingFromHash,
   type NoteHeading,
 } from "@/lib/note-headings";
@@ -68,7 +70,6 @@ import { useWorkspaceNavigationState } from "./workspace-navigation-state";
 import { useWorkspaceCommands } from "./workspace-commands";
 import { workspaceCommand } from "@/lib/workspace-commands";
 import { NoteContextMenu } from "./note-context-menu";
-import { englishMessages } from "@lib/shared/writing-settings";
 import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { writingField } from "@/lib/writing/proofing";
 import {
@@ -76,6 +77,10 @@ import {
   WritingIssueCard,
   WritingStatusButton,
 } from "./note-writing";
+import { WritingSuggestions } from "./writing-suggestions";
+import { findGroveLinks } from "@lib/shared/internal-link-source";
+import { LinkEditor, type LinkDraft } from "./link-editor";
+import { useNoteDrafts } from "./note-drafts";
 
 const formattingActions = [
   { name: "Undo", icon: Undo2, run: undo, reading: true },
@@ -115,12 +120,6 @@ const formattingActions = [
     icon: Code,
     run: (view: EditorView) => wrapSelection(view, "`"),
   },
-  {
-    name: "Link",
-    icon: LinkIcon,
-    run: (view: EditorView) =>
-      wrapSelection(view, "[", "](https://example.com)", "link text"),
-  },
 ];
 
 const highlighting = HighlightStyle.define([
@@ -147,6 +146,7 @@ export function MarkdownEditor({
   upload,
   speechReady = false,
   noteId,
+  sessionKey,
 }: {
   value: string;
   onChange: (value: string, immediate?: boolean) => void;
@@ -161,8 +161,11 @@ export function MarkdownEditor({
   upload?: (file: File, signal: AbortSignal) => Promise<string>;
   speechReady?: boolean;
   noteId?: string;
+  sessionKey?: string;
 }) {
   const id = useId();
+  const drafts = useNoteDrafts();
+  const initialSessionKey = useRef(sessionKey);
   const documentValue = value.replace(/\r\n?/g, "\n");
   const host = useRef<HTMLDivElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -170,6 +173,42 @@ export function MarkdownEditor({
   const scrollPositions = useRef(new Map<string, number>());
   const previousScroll = useRef(0);
   const view = useRef<EditorView | null>(null);
+  const [linkDraft, setLinkDraft] = useState<
+    | (LinkDraft & {
+        editor: EditorView;
+        doc: EditorState["doc"];
+        from: number;
+        to: number;
+        noteId?: string;
+        version?: number;
+      })
+    | null
+  >(null);
+  function openLink(editor: EditorView) {
+    if (disabled || preview || editor.state.readOnly) return false;
+    const source = editor.state.doc.toString();
+    const selection = editor.state.selection.main;
+    const existing = findGroveLinks(source, window.location.origin).find(
+      (link) => selection.from >= link.from && selection.to <= link.to,
+    );
+    const label = existing?.label ?? source.slice(selection.from, selection.to);
+    setLinkDraft({
+      editor,
+      doc: editor.state.doc,
+      from: existing?.from ?? selection.from,
+      to: existing?.to ?? selection.to,
+      noteId,
+      version: media?.version,
+      href: existing?.resource.href ?? "",
+      label: label || "Link",
+      followTitle: existing?.followTitle ?? !label.trim(),
+      editing: !!existing,
+    });
+    return true;
+  }
+  const openLinkFromKey = useEffectEvent((editor: EditorView) =>
+    openLink(editor),
+  );
   const fileInput = useRef<HTMLInputElement>(null);
   const [recordingStatus, setRecordingStatus] = useState<HTMLDivElement | null>(
     null,
@@ -371,79 +410,104 @@ export function MarkdownEditor({
     change.current = onChange;
     reading.current = preview;
   }, [onChange, preview]);
-  useEffect(() => {
-    const editor = new EditorView({
-      parent: host.current!,
-      state: EditorState.create({
-        doc: initial.current.value,
-        selection: { anchor: initial.current.value.length },
-        extensions: [
-          history(),
-          drawSelection(),
-          EditorView.lineWrapping,
-          markdown({ base: markdownLanguage, completeHTMLTags: false }),
-          syntaxHighlighting(highlighting),
-          compartments.current.mode.of(liveMarkdown),
-          compartments.current.editable.of([]),
-          compartments.current.writing.of(writingField),
-          editorPlaceholder(initial.current.placeholder ?? "Start writing…"),
-          EditorView.contentAttributes.of({
-            id,
-            "aria-label": "What should stay with you?",
-            "data-focus-key": "note-editor",
-            "aria-describedby": `${id}-help`,
-            spellcheck: "true",
-            autocapitalize: "sentences",
-          }),
-          keymap.of([
-            { key: "Mod-Shift-z", run: redo, preventDefault: true },
-            { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
-            { key: "Mod-i", run: (view) => wrapSelection(view, "_") },
-            {
-              key: "Mod-k",
-              run: (view) =>
-                wrapSelection(view, "[", "](https://example.com)", "link text"),
-            },
-            ...historyKeymap,
-            ...defaultKeymap,
-          ]),
-          EditorView.updateListener.of((update) => {
-            if (update.selectionSet || update.docChanged)
-              queueTracking("cursor");
-            if (update.docChanged) {
-              observeProofing(update);
-              change.current(
-                update.state.doc.toString(),
-                update.transactions.some(
-                  (transaction) =>
-                    transaction.isUserEvent("input.task") ||
-                    (reading.current &&
-                      (transaction.isUserEvent("undo") ||
-                        transaction.isUserEvent("redo"))),
-                ),
-              );
-            }
-            const next = {
-              undo: undoDepth(update.state) > 0,
-              redo: redoDepth(update.state) > 0,
-            };
-            setHistoryState((current) =>
-              current.undo === next.undo && current.redo === next.redo
-                ? current
-                : next,
-            );
-          }),
-        ],
-      }),
+  const rememberEditor = useEffectEvent((editor: EditorView) => {
+    if (!drafts || !sessionKey) return;
+    const json = editor.state.toJSON({ history: historyField });
+    drafts.editors.delete(sessionKey);
+    // Bound both total retained editors and any unusually long edit history.
+    if (new TextEncoder().encode(JSON.stringify(json)).byteLength > 1_048_576)
+      return;
+    if (drafts.editors.size >= 20)
+      drafts.editors.delete(drafts.editors.keys().next().value!);
+    drafts.editors.set(sessionKey, {
+      source: editor.state.doc.toString(),
+      json,
+      scroll: layout.current?.scrollTop ?? previousScroll.current,
     });
+  });
+  useEffect(() => {
+    const configuration = {
+      doc: initial.current.value,
+      selection: { anchor: initial.current.value.length },
+      extensions: [
+        history(),
+        drawSelection(),
+        EditorView.lineWrapping,
+        markdown({ base: markdownLanguage, completeHTMLTags: false }),
+        syntaxHighlighting(highlighting),
+        compartments.current.mode.of(liveMarkdown),
+        compartments.current.editable.of([]),
+        compartments.current.writing.of(writingField),
+        editorPlaceholder(initial.current.placeholder ?? "Start writing…"),
+        EditorView.contentAttributes.of({
+          id,
+          "aria-label": "What should stay with you?",
+          "data-focus-key": "note-editor",
+          "aria-describedby": `${id}-help`,
+          spellcheck: "true",
+          autocapitalize: "sentences",
+        }),
+        keymap.of([
+          { key: "Mod-Shift-z", run: redo, preventDefault: true },
+          { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
+          { key: "Mod-i", run: (view) => wrapSelection(view, "_") },
+          {
+            key: "Mod-k",
+            run: (editor) => openLinkFromKey(editor),
+          },
+          ...historyKeymap,
+          ...defaultKeymap,
+        ]),
+        EditorView.updateListener.of((update) => {
+          if (update.selectionSet || update.docChanged) queueTracking("cursor");
+          if (update.docChanged) {
+            observeProofing(update);
+            change.current(
+              update.state.doc.toString(),
+              update.transactions.some(
+                (transaction) =>
+                  transaction.isUserEvent("input.task") ||
+                  (reading.current &&
+                    (transaction.isUserEvent("undo") ||
+                      transaction.isUserEvent("redo"))),
+              ),
+            );
+          }
+          const next = {
+            undo: undoDepth(update.state) > 0,
+            redo: redoDepth(update.state) > 0,
+          };
+          setHistoryState((current) =>
+            current.undo === next.undo && current.redo === next.redo
+              ? current
+              : next,
+          );
+        }),
+      ],
+    };
+    const retained = initialSessionKey.current
+      ? drafts?.editors.get(initialSessionKey.current)
+      : undefined;
+    const matching = retained?.source === initial.current.value;
+    if (retained && !matching)
+      drafts?.editors.delete(initialSessionKey.current!);
+    if (matching) previousScroll.current = retained.scroll;
+    const state = matching
+      ? EditorState.fromJSON(retained.json, configuration, {
+          history: historyField,
+        })
+      : EditorState.create(configuration);
+    const editor = new EditorView({ parent: host.current!, state });
+    setHistoryState({ undo: undoDepth(state) > 0, redo: redoDepth(state) > 0 });
     view.current = editor;
     setProofingView(editor);
     return () => {
+      rememberEditor(editor);
       editor.destroy();
       view.current = null;
       setProofingView(null);
     };
-  }, [id]);
+  }, [id, drafts]);
   useEffect(() => {
     const editor = view.current;
     if (editor && editor.state.doc.toString() !== documentValue) {
@@ -620,6 +684,10 @@ export function MarkdownEditor({
       </button>
     );
   }
+  const actions = [
+    ...formattingActions,
+    { name: "Link", icon: LinkIcon, run: openLink },
+  ];
   return (
     <div
       ref={root}
@@ -672,11 +740,11 @@ export function MarkdownEditor({
           role="group"
           aria-label="Markdown formatting"
         >
-          {formattingActions.map((action) => formatButton(action))}
+          {actions.map((action) => formatButton(action))}
         </div>
         <span className="editor-format-menu">
           <ActionMenu label="Formatting" icon={<Type size={18} />}>
-            {formattingActions.map((action) => formatButton(action, true))}
+            {actions.map((action) => formatButton(action, true))}
           </ActionMenu>
         </span>
         <IconButton
@@ -686,6 +754,33 @@ export function MarkdownEditor({
           onClick={openOutline}
         >
           <ListTree size={17} />
+        </IconButton>
+        <IconButton
+          label="Spelling and grammar"
+          className="editor-proofing-toggle"
+          aria-haspopup="dialog"
+          aria-expanded={proofing.listOpen}
+          aria-description={
+            proofing.status === "off"
+              ? "Writing checks paused"
+              : proofing.status === "checking"
+                ? "Checking spelling and grammar"
+                : proofing.status === "unavailable"
+                  ? "Writing checks unavailable"
+                  : proofing.status === "idle"
+                    ? "Ready to check"
+                    : `${proofing.issues.length} suggestions found`
+          }
+          onClick={() => {
+            proofing.selectIssue(null);
+            proofing.setListOpen(true);
+            if (proofing.status === "idle") void proofing.checkNow();
+          }}
+        >
+          <SpellCheck size={17} />
+          <span className="editor-proofing-count" aria-hidden="true">
+            {proofing.issues.length || ""}
+          </span>
         </IconButton>
         <input
           ref={fileInput}
@@ -892,6 +987,52 @@ export function MarkdownEditor({
             </aside>
           )}
         </div>
+        {linkDraft && (
+          <LinkEditor
+            initial={linkDraft}
+            close={() => setLinkDraft(null)}
+            onDismissed={() => {
+              if (
+                view.current === linkDraft.editor &&
+                root.current?.isConnected
+              )
+                linkDraft.editor.focus();
+            }}
+            apply={(markdown) => {
+              const editor = view.current;
+              if (
+                !editor ||
+                editor !== linkDraft.editor ||
+                disabled ||
+                preview ||
+                editor.state.readOnly ||
+                editor.state.doc !== linkDraft.doc ||
+                noteId !== linkDraft.noteId ||
+                media?.version !== linkDraft.version
+              )
+                throw new Error(
+                  "The note changed. Close and reopen Link before applying this edit.",
+                );
+              if (
+                editor.state.doc.length -
+                  (linkDraft.to - linkDraft.from) +
+                  markdown.length >
+                NOTE_CONTENT_MAX
+              )
+                throw new Error("Shorten the note before inserting this link.");
+              editor.dispatch({
+                changes: {
+                  from: linkDraft.from,
+                  to: linkDraft.to,
+                  insert: markdown,
+                },
+                selection: { anchor: linkDraft.from + markdown.length },
+                annotations: isolateHistory.of("full"),
+                userEvent: "input.link",
+              });
+            }}
+          />
+        )}
         {outline && (
           <InspectorDialog
             title="Note outline"
@@ -932,8 +1073,20 @@ export function MarkdownEditor({
                 onOpen={() => proofing.setListOpen(true)}
                 onRetry={() => proofing.checkNow()}
               />
-              {proofing.enhanced && <button type="button" className="text-button" onClick={() => void proofing.checkEnhanced()}>Check paragraph</button>}
-              {proofing.enhanced && proofing.enhancedStatus && <span role="status" className="grove-writing-status">{proofing.enhancedStatus}</span>}
+              {proofing.enhanced && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => void proofing.checkEnhanced()}
+                >
+                  Check paragraph
+                </button>
+              )}
+              {proofing.enhanced && proofing.enhancedStatus && (
+                <span role="status" className="grove-writing-status">
+                  {proofing.enhancedStatus}
+                </span>
+              )}
               {!proofing.settings.automatic && proofing.status !== "off" && (
                 <button
                   type="button"
@@ -949,7 +1102,8 @@ export function MarkdownEditor({
             {value.trim()
               ? value.trim().split(/\s+/).length.toLocaleString()
               : 0}{" "}
-            words · {value.length.toLocaleString()} / 6,000
+            words · {value.length.toLocaleString()} /{" "}
+            {NOTE_CONTENT_MAX.toLocaleString()}
           </span>
         </div>
       </div>
@@ -962,7 +1116,9 @@ export function MarkdownEditor({
           onApply={(replacement) =>
             proofing.applyReplacement(proofing.selected!, replacement)
           }
-          onIgnore={() => proofing.selected && proofing.ignoreIssue(proofing.selected)}
+          onIgnore={() =>
+            proofing.selected && proofing.ignoreIssue(proofing.selected)
+          }
           onAddWord={() =>
             proofing.selected && proofing.addWord(proofing.selected.original)
           }
@@ -974,54 +1130,17 @@ export function MarkdownEditor({
         />
       )}
       {proofing.listOpen && (
-        <InspectorDialog
-          title="Writing suggestions"
-          close={() => proofing.setListOpen(false)}
-          onDismissed={() => proofing.selectIssue(null)}
-        >
-          {proofing.status === "unavailable" && proofing.notice ? (
-            <p className="app-error" role="alert">
-              {proofing.notice}{" "}
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => proofing.checkNow()}
-              >
-                Retry
-              </button>
-            </p>
-          ) : proofing.issues.length === 0 ? (
-            <p className="text-muted">
-              No issues found by spelling and basic grammar checks. This is not
-              a complete grammar guarantee.
-            </p>
-          ) : (
-            <ul className="grove-writing-list">
-              {proofing.issues.map((issue) => (
-                <li key={issue.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      proofing.setListOpen(false);
-                      proofing.selectIssue(issue.id);
-                      proofingView?.focus();
-                    }}
-                  >
-                    <strong>
-                      {issue.rule === "spelling" ? "Spelling" : "Grammar"}
-                    </strong>
-                    <span>“{issue.original}” — {englishMessages[issue.message]}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </InspectorDialog>
+        <WritingSuggestions
+          proofing={proofing}
+          view={proofingView}
+          readOnly={preview || disabled}
+        />
       )}
       {limit && (
         <p role="alert" className="app-error">
-          This draft exceeds the 6,000-character save limit. Shorten it to save,
-          or use Export to keep a copy of all your writing.
+          This draft exceeds the {NOTE_CONTENT_MAX.toLocaleString()}-character
+          save limit. Shorten it to save, or use Export to keep a copy of all
+          your writing.
         </p>
       )}
     </div>

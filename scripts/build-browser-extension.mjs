@@ -72,6 +72,8 @@ export async function buildBrowserExtension({
   );
   const assets = {
     "GROVE-LICENSE.txt": "LICENSE",
+    "lucide-LICENSE.txt":
+      "packages/browser-extension/assets/lucide-LICENSE.txt",
     "space-grotesk-OFL.txt":
       "packages/website/public/brand-kit/licenses/space-grotesk-OFL.txt",
     "space-grotesk-LICENSE.txt":

@@ -87,6 +87,60 @@ export const publicShareSchema = z
   .strict();
 export type PublicShare = z.infer<typeof publicShareSchema>;
 
+export const publicNavigationQuerySchema = z
+  .object({
+    noteId: uuidSchema.optional(),
+    notebookId: uuidSchema.optional(),
+    q: z.string().trim().max(100).default(""),
+    cursor: z.string().max(SHARE_CURSOR_MAX).optional(),
+  })
+  .strict();
+const summary = publicNoteSchema.pick({
+  id: true,
+  title: true,
+  updatedAt: true,
+});
+export const publicNavigationSchema = z
+  .object({
+    folder: notebook.extend({ parentId: uuidSchema.nullable() }).nullable(),
+    previous: summary.nullable(),
+    next: summary.nullable(),
+    results: z.array(summary.extend({ notebookName: z.string() })),
+    nextCursor: z.string().nullable(),
+  })
+  .strict();
+export type PublicNavigation = z.infer<typeof publicNavigationSchema>;
+export const publicReaderStateSchema = z.object({
+  data: publicShareSchema,
+  navigation: publicNavigationSchema.nullable(),
+  listing: publicShareSchema.nullable(),
+});
+export type PublicReaderState = z.infer<typeof publicReaderStateSchema>;
+export const publicReaderQuerySchema = z
+  .object({
+    kind: z.enum(["root", "notes", "notebooks"]),
+    id: uuidSchema.optional(),
+    cursor: z.string().max(SHARE_CURSOR_MAX).optional(),
+    listingCursors: z
+      .array(z.string().max(SHARE_CURSOR_MAX).nullable())
+      .min(1)
+      .max(3)
+      .default([null]),
+    listingFolder: uuidSchema.optional(),
+  })
+  .strict();
+export const publicReaderInputSchema = z
+  .object({
+    ...publicReaderQuerySchema.shape,
+    kind: z.enum(["root", "notes", "notebooks", "search"]),
+    q: z.string().trim().max(100).optional(),
+    validator: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+  })
+  .strict();
+
 /** Public titles are derived only from the text the owner chose to share. */
 export function sharedNoteTitle(content: string): string {
   return noteTitle(content) || "Untitled note";

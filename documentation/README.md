@@ -23,7 +23,7 @@ acceptance. [Dated records](archive/README.md) must not be treated as current st
 
 - [Tools, authentication and API](server.md) · [agent note-writing contract](agent-note-writing.md)
   · [structured notes and revision diffs](structured-documents.md)
-- [Browser extension](browser-extension.md) — unsigned local installation, privacy,
+- [Browser extension](browser-extension.md) — store and unsigned installation, privacy,
   capture and source recall; store/live-provider acceptance remains separate.
 - [Models and preferences](models.md) · [relationships](relationships.md)
   · [AI caching](ai-caching.md) · [background jobs](jobs.md)
@@ -44,6 +44,8 @@ acceptance. [Dated records](archive/README.md) must not be treated as current st
   and deferred scope for Chrome, Firefox and Edge.
 - [Structured documents, targeted edits and revision diffs](design/structured-documents.md)
   — design rationale; current behavior is in the structured-notes guide above.
+- [Production reliability](design/production-reliability.md) — proposed retrieval,
+  external-edit freshness, private draft recovery and connection diagnostics.
 
 ## Maintain the source of truth
 

@@ -50,6 +50,10 @@ deletion, bulk detach, reparenting or sharing changes. Read-aloud audio and expo
 archives are separate temporary data, not uploaded files.
 
 The view refreshes on entry, periodically while visible, and on **Refresh files**.
+Transient refresh failures keep mounted rows, expanded locations and storage values,
+with visible feedback beside the failed refresh and a location-specific retry.
+Denied or missing resources remove retained private results instead. These cached
+values are not a successful live refresh.
 Downloads reauthorize against the original route at request time. Account/session
 switches discard the private workspace cache; data is not persisted in the browser.
 

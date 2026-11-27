@@ -27,7 +27,11 @@ import {
   shortcutHint,
 } from "@/lib/workspace-shortcuts";
 import { Shortcut } from "./ui/shortcut";
-import { CommandMenu } from "./command-menu";
+import { deferredFeature } from "./deferred-feature";
+const CommandMenu = deferredFeature(
+  async () => ({ default: (await import("./command-menu")).CommandMenu }),
+  "Opening commands…",
+);
 type Registration = {
   root: RefObject<HTMLElement | null>;
   commands: WorkspaceCommand[];

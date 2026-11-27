@@ -12,6 +12,7 @@ import {
 import { Plus, Inbox, Folder, ChevronDown } from "lucide-react";
 import { useNotebooks, useCurrentNotebook } from "./notebooks-provider";
 import { NotebookTree } from "./notebook-tree";
+import { NotebookSort } from "./notebook-sort";
 import { NotebookDialog, type NotebookAction } from "./notebook-dialog";
 import { IconButton } from "./ui/button";
 import {
@@ -30,15 +31,19 @@ const subscribeDesktop = (callback: () => void) => {
   return () => media.removeEventListener("change", callback);
 };
 
-export function NotebookExplorer() {
+export function useWideWorkspace() {
+  return useSyncExternalStore(subscribeDesktop, desktop, () => false);
+}
+
+export function NotebookExplorer({ expanded = false }: { expanded?: boolean }) {
   const { projects, loading, error, reload, openOrganizer } = useNotebooks();
   const path = usePathname();
   const currentNotebook = useCurrentNotebook();
   const [action, setAction] = useState<NotebookAction | null>(null);
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [sharing, setSharing] = useState<string | null>(null);
-  const open = openPath === path;
-  const wide = useSyncExternalStore(subscribeDesktop, desktop, () => false);
+  const open = expanded || openPath === path;
+  const wide = useWideWorkspace();
   const id = useId();
   const bodyId = useId();
   const [sectionCollapsed, setSectionCollapsed] = useState(() => {
@@ -199,17 +204,20 @@ export function NotebookExplorer() {
           </IconButton>
         </div>
         <div id={bodyId} className="notebook-explorer-body">
-          <Link
-            ref={setNodeRef}
-            className="notebook-personal"
-            href="/app?notebook=personal"
-            aria-current={currentNotebook === null ? "page" : undefined}
-            data-destination="personal"
-            data-drop-active={isOver || undefined}
-          >
-            <Inbox size={15} />
-            Unfiled
-          </Link>
+          <div className="notebook-scope-row">
+            <Link
+              ref={setNodeRef}
+              className="notebook-personal"
+              href="/app?notebook=personal"
+              aria-current={currentNotebook === null ? "page" : undefined}
+              data-destination="personal"
+              data-drop-active={isOver || undefined}
+            >
+              <Inbox size={15} />
+              Unfiled
+            </Link>
+            <NotebookSort compact />
+          </div>
           {active?.kind === "notebook" && (
             <NotebookDropTarget projectId={null} name="Top level" root />
           )}

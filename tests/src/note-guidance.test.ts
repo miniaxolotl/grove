@@ -87,7 +87,10 @@ test("writing guidance does not change accepted content, scope defaults or versi
   assert.equal(memoryTools.memories.schema.parse({}).projectId, undefined);
   assert.equal(memoryTools.recall.schema.parse({}).projectId, null);
   assert.throws(() =>
-    memoryTools.remember.schema.parse({ ...input, content: "x".repeat(6001) }),
+    memoryTools.remember.schema.parse({
+      ...input,
+      content: "x".repeat(250_001),
+    }),
   );
   assert.throws(() =>
     memoryTools.remember.schema.parse({ ...input, category: "invented" }),

@@ -1,3 +1,5 @@
+import { NOTE_CONTENT_MAX } from "./limits.ts";
+
 /** Shared prose policy, not a validator or authority to create/change notes. */
 export const noteWritingPolicyVersion = "note-writing-v2";
 
@@ -8,5 +10,4 @@ export const noteWritingInstructions = [
 ].join("\n\n");
 
 /** Kept beside the policy so tool argument docs remain concise and consistent. */
-export const noteContentDescription =
-  "The complete note body in CommonMark/GitHub-flavored Markdown (1–6000 characters). Write concise, human-readable prose; headings/lists only when useful. On edits this replaces the whole body, not a fragment: preserve unrequested content, links and attachment references. Do not wrap the whole note in a code fence.";
+export const noteContentDescription = `The complete note body in CommonMark/GitHub-flavored Markdown (1–${NOTE_CONTENT_MAX} characters). Write concise, human-readable prose; headings/lists only when useful. On edits this replaces the whole body, not a fragment: preserve unrequested content, links and attachment references. Do not wrap the whole note in a code fence.`;

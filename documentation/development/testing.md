@@ -54,7 +54,11 @@ Bound backend test-file concurrency to local capacity when necessary:
 
 ```sh
 pnpm exec tsx --test --test-concurrency=2 tests/src/*.test.ts
+pnpm exec tsx --test --test-concurrency=1 tests/src/scale/*.test.ts
 ```
+
+`pnpm test` runs the scale checks after the parallel suite so competing test
+files do not consume their database statement deadlines.
 
 `TEST_AMQP_URL` enables disposable broker checks. Optional source-store S3 tests
 are described in [media verification](../media.md#storage-implementation-and-verification); export-store tests

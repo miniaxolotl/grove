@@ -1,13 +1,14 @@
 import { z } from "zod";
+import { NOTE_CONTENT_MAX } from "./limits.ts";
 
 const text = z
   .string()
-  .max(6000)
+  .max(NOTE_CONTENT_MAX)
   .refine((s) => !/[\uD800-\uDFFF]/u.test(s));
 export const sourceEditSchema = z
   .object({
-    from: z.number().int().min(0).max(6000),
-    to: z.number().int().min(0).max(6000),
+    from: z.number().int().min(0).max(NOTE_CONTENT_MAX),
+    to: z.number().int().min(0).max(NOTE_CONTENT_MAX),
     oldText: text,
     text,
   })
@@ -20,7 +21,7 @@ export function applySourceEdits(source: string, raw: unknown): string {
   for (const edit of edits) {
     inserted += edit.text.length;
     if (
-      inserted > 6000 ||
+      inserted > NOTE_CONTENT_MAX ||
       edit.from > edit.to ||
       edit.to > source.length ||
       source.slice(edit.from, edit.to) !== edit.oldText
@@ -29,7 +30,11 @@ export function applySourceEdits(source: string, raw: unknown): string {
         "The selected text changed. Read the note and review your edit again.",
       );
     const next = source.slice(0, edit.from) + edit.text + source.slice(edit.to);
-    if (!next.trim() || next.length > 6000 || /[\uD800-\uDFFF]/u.test(next))
+    if (
+      !next.trim() ||
+      next.length > NOTE_CONTENT_MAX ||
+      /[\uD800-\uDFFF]/u.test(next)
+    )
       throw new Error("Invalid note edit");
     source = next;
   }

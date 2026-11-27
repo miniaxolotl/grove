@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Invoked only by the protected, admitted coordinated publish job.
+# Invoked only by the protected, admitted checker publish job.
 set -euo pipefail
 [[ $RELEASE_SOURCE_SHA =~ ^[0-9a-f]{40}$ && $(git rev-parse HEAD) == "$RELEASE_SOURCE_SHA" ]]
 node scripts/ci/current-ref.mjs
@@ -22,6 +22,6 @@ docker pull "$repo@$digest"
 # Exercise the pulled registry digest under the production resource ceiling.
 probe=$(docker run -d --network none --read-only --log-driver none --memory 1g --memory-swap 1g --cpus 1 --tmpfs /tmp:rw,nosuid,nodev,noexec,size=32m "$repo@$digest")
 trap 'docker rm -f "$probe" >/dev/null; rm -f "$err"' EXIT
-docker exec "$probe" curl -fsS --retry 25 --retry-all-errors --retry-delay 2 --max-time 2 http://127.0.0.1:8081/ready >/dev/null
+docker exec "$probe" curl -fsS --retry 90 --retry-all-errors --retry-delay 2 --retry-max-time 180 --max-time 2 http://127.0.0.1:8081/ready >/dev/null
 node scripts/ci/current-ref.mjs
 printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"

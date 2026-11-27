@@ -1,5 +1,6 @@
 import { Markdown } from "./markdown";
 import { diffDocumentText } from "@lib/shared/document-diff";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 
 /** Exact source changes first; complete rendered versions remain available for context. */
 export function RevisionCompare({
@@ -16,8 +17,8 @@ export function RevisionCompare({
   media?: { noteId: string; beforeVersion: number; afterVersion: number };
 }) {
   const diff =
-    before.length <= 6000 &&
-    after.length <= 6000 &&
+    before.length <= NOTE_CONTENT_MAX &&
+    after.length <= NOTE_CONTENT_MAX &&
     !/[\uD800-\uDFFF]/u.test(before) &&
     !/[\uD800-\uDFFF]/u.test(after)
       ? diffDocumentText(before, after)
@@ -60,8 +61,8 @@ export function RevisionCompare({
         </>
       ) : (
         <p>
-          This draft cannot be compared as a saved note yet. Compare the full
-          versions below.
+          A highlighted comparison isn’t available for these versions. Compare
+          the full versions below.
         </p>
       )}
       <details className="revision-complete">

@@ -6,9 +6,9 @@ const config = [
   ...nextVitals,
   {
     ignores: [
-      ".next/**",
+      "**/.next/**",
       "public/proofing/**",
-      "next-env.d.ts",
+      "**/next-env.d.ts",
       "test-results/**",
       "playwright-report/**",
     ],

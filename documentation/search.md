@@ -5,6 +5,22 @@ connected-agent recall share lexical matching. It works without an AI provider;
 semantic retrieval remains an additional scoped lane. Existing AI allowances
 and keyword fallback are unchanged.
 
+Configured semantic support is not proof that an individual query used it:
+`searchMode` identifies the executed lane, and provider failures can leave keyword
+results usable. Query responses can also include optional `retrieval` diagnostics:
+`requested` and `executed` (`hybrid` or `lexical`) and an allowlisted `reason` on
+fallback. Explicit keyword mode has no failure reason. Provider timeout, rejection,
+cooldown, budget, incompatible query vectors, exhausted recall allowance and a
+cursor pinned to lexical ranking remain distinct. Unknown failures become
+`query_unavailable`, never raw provider messages. Recall and Ask source search
+propagate the same diagnostic. These fields describe the query lane, not index
+coverage or model quality; `hybrid` alone does not prove a semantic-only match.
+
+The library labels keyword fallback without removing results or changing filters.
+Settings reports configured meaning-search capability, not an unperformed live
+provider test. Start a new search to retry semantic work; an existing degraded
+relevance traversal keeps its ranking mode until explicitly restarted.
+
 With no phrase entered, global search shows recently updated notes in the selected
 notebook. Use the arrow keys to move between results and **Enter** to open a
 note. In global search, the library and Ask Grove's Search tab, **Cancel search**
@@ -61,9 +77,13 @@ of at most 64 UTF-16 units each; the full accepted query still reaches strict
 parsing when expansion is disabled.
 
 In **Filters → Sort by**, **Automatic** shows recently edited notes when
-browsing and the best matches when searching. Choose a date order to keep it
+browsing and the best matches when searching. Choose created/edited oldest/newest
+or **Title A–Z / Z–A** to keep that order
 when entering or clearing a query or filter. Sorting applies to the full
 matching library or notebook before paging; subsequent pages use the same order.
+Title order uses the same visible title as search: ASCII letters are folded to
+lowercase, then PostgreSQL's bytewise `C` collation and note ID break ties. This is
+deterministic Unicode ordering, not locale-specific alphabetization or accent folding.
 
 ## Evidence and passages
 
@@ -85,7 +105,11 @@ authoritative source body.
 ## Pagination, privacy and operation
 
 `listSchema.sort` accepts `relevance`; query searches without a sort also use it.
-Existing explicit date-sort paths remain compatible. Signed relevance cursors
+Omitted sorts and legacy defaults are unchanged. Explicit title/date sorts use
+versioned signed cursors with the complete eligible set and a microsecond-safe key;
+old explicit-sort cursors require a restart rather than being reused with new rules.
+Changed eligible rows or titles return `stale_search`, not a silently shifted page.
+Signed relevance cursors
 bind account/grant, filters, provider/title configuration, parser version, search
 mode and rank position. A complete matched-set fingerprint and page are computed
 in **one SQL statement**. Notes created after the first-page ceiling are excluded
@@ -129,6 +153,15 @@ retention and invoker-only prerequisites. Browser `search quality` cases in
 marks, stale refresh, explicit sorting and accessible 1440/390/320px layouts.
 The `palette to Ask` workspace case checks draft recovery, explicit send and the
 notebook or Unfiled scope used to create each conversation.
+
+`retrieval-reliability.test.ts` adds a synthetic one-second cold query and exact
+cache reuse against an indexed semantic-only target, plus timeout/cooldown,
+incompatible query vectors, explicit keyword, quota, cancellation and telemetry
+privacy cases. The query-provider deadline is bounded to 2500ms; caller deadlines
+still win. No worker timeout, billing policy, retained provider evidence or RLS
+boundary changes. A healthy synthetic provider does not establish the root cause
+of production lexical fallback; real-provider cold/warm quality and capacity need
+the separately approved [qualification run](design/production-reliability.md#regression-and-acceptance-matrix).
 
 `pnpm exec tsx tests/src/performance/search-quality.ts` uses disposable role URLs
 from [testing](development/testing.md), creates/removes its own `_test` database

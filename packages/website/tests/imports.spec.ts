@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openWorkspaceNavigation } from "./fixtures/workspace-navigation";
 import AxeBuilder from "@axe-core/playwright";
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
 import { note as savedNote } from "./fixtures/workspace-fixture";
@@ -414,10 +415,7 @@ for (const width of [1440, 390, 320])
     });
     expect(errors).toEqual([]);
     await page.keyboard.press("Escape");
-    if (width !== 1440)
-      await page
-        .getByRole("button", { name: "Notebooks", exact: true })
-        .click();
+    if (width !== 1440) await openWorkspaceNavigation(page);
     await expect(
       page
         .locator(".notebook-explorer")

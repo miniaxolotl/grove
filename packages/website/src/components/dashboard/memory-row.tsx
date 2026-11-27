@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useDraggable } from "@dnd-kit/core";
 import { GripVertical } from "lucide-react";
 import type { Memory } from "@lib/shared/contracts";
@@ -103,11 +104,27 @@ export function MemoryRow({
           </button>
         </div>
         <div className="memory-row-content">
-          <button
+          <Link
             className="memory-open"
             data-note-page-link
-            disabled={busy}
-            onClick={onOpen}
+            href={`/app/memories/${memory.id}`}
+            aria-disabled={busy || undefined}
+            onClick={(event) => {
+              if (busy) {
+                event.preventDefault();
+                return;
+              }
+              if (
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              )
+                return;
+              event.preventDefault();
+              onOpen();
+            }}
             onPointerEnter={onIntent}
             onFocus={onIntent}
             onKeyDown={(event) => {
@@ -125,7 +142,7 @@ export function MemoryRow({
                 const rows = [
                   ...event.currentTarget
                     .closest("ul")!
-                    .querySelectorAll<HTMLButtonElement>(".memory-open"),
+                    .querySelectorAll<HTMLAnchorElement>(".memory-open"),
                 ];
                 const index = rows.indexOf(event.currentTarget);
                 rows[
@@ -175,7 +192,7 @@ export function MemoryRow({
                 )}
               </span>
             )}
-          </button>
+          </Link>
           <div className="memory-row-details">
             <div className="memory-meta">
               {memory.kind !== "fact" && (

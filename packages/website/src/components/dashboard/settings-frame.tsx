@@ -1,6 +1,5 @@
 import { PageHeading } from "./ui/page-heading";
 import { SettingsNavigation } from "./settings-navigation";
-import { PreferenceEditor } from "./preference-editor";
 import "./settings-layout.css";
 
 export function SettingsFrame({
@@ -11,14 +10,12 @@ export function SettingsFrame({
   billing?: boolean;
 }) {
   return (
-    <PreferenceEditor>
-      <div className="settings-frame">
-        <header className="settings-header">
-          <PageHeading title="Settings" />
-          <SettingsNavigation billing={billing} />
-        </header>
-        <div className="settings-page">{children}</div>
-      </div>
-    </PreferenceEditor>
+    <div className="settings-frame">
+      <header className="settings-header">
+        <PageHeading title="Settings" />
+        <SettingsNavigation billing={billing} />
+      </header>
+      <div className="settings-page">{children}</div>
+    </div>
   );
 }

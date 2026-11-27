@@ -23,7 +23,7 @@ import {
   Type,
 } from "lucide-react";
 import { Markdown } from "./markdown";
-import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
+import { ASK_QUERY_MAX } from "@lib/shared/limits";
 
 export function AskComposer({
   value,
@@ -116,7 +116,7 @@ export function AskComposer({
           )
           .join("\n")
       : `${before}${selected}${after}`;
-    if (value.length - (end - from) + insert.length > NOTE_CONTENT_MAX) {
+    if (value.length - (end - from) + insert.length > ASK_QUERY_MAX) {
       setLimit(true);
       return;
     }
@@ -201,7 +201,7 @@ export function AskComposer({
         id={id}
         value={value}
         rows={1}
-        maxLength={NOTE_CONTENT_MAX}
+        maxLength={ASK_QUERY_MAX}
         disabled={disabled}
         hidden={preview}
         placeholder="Ask, or choose sources with @note…"
@@ -303,7 +303,7 @@ export function AskComposer({
         </span>
         {value.length > 5400 && (
           <small>
-            {value.length.toLocaleString()} / {NOTE_CONTENT_MAX.toLocaleString()}
+            {value.length.toLocaleString()} / {ASK_QUERY_MAX.toLocaleString()}
           </small>
         )}
         {pending ? (

@@ -8,9 +8,11 @@ import {
 } from "@/components/dashboard/workspace-search";
 
 export default function AskPage() {
-  const id = useSearchParams().get("draft");
+  const params = useSearchParams();
+  const id = params.get("draft");
+  const chat = params.get("chat");
   const workspace = useWorkspaceSearch();
-  if (id === null) return <AskGrove />;
+  if (id === null) return <AskGrove locationChat={chat} />;
   const sessionKey = paletteSessionKey(id);
   if (!workspace?.sessions.has(sessionKey))
     return (
@@ -19,5 +21,7 @@ export default function AskPage() {
         <Link href="/app/ask">Open Ask Grove</Link>
       </p>
     );
-  return <AskGrove key={sessionKey} sessionKey={sessionKey} />;
+  return (
+    <AskGrove key={sessionKey} sessionKey={sessionKey} locationChat={chat} />
+  );
 }

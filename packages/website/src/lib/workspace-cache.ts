@@ -16,6 +16,10 @@ import type {
 } from "@lib/shared/notebook-organization";
 import type { AskResult } from "@lib/shared/models";
 import type {
+  GroveLinkPreview,
+  LinkPreviewRequest,
+} from "@lib/shared/internal-links";
+import type {
   ConnectionPage,
   ConnectionQuery,
 } from "@lib/shared/relationships";
@@ -25,6 +29,12 @@ import { notebookOrder } from "./notebooks";
 
 type Filters = Omit<MemoryList, "cursor">;
 type Change = { ids?: string[]; scopes?: (string | null)[]; resource?: string };
+const previewResource = (path: unknown) =>
+  typeof path === "string"
+    ? /^\/link-previews\/(note|notebook)\/([^/?]+)(?:\?revision=\d+)?$/.exec(
+        path,
+      )
+    : null;
 /** A staged optimistic change. commit() drops the journal; rollback() restores it. */
 export type StagedChange = { commit(): void; rollback(): void };
 type NotePages = InfiniteData<Page<Memory>, string | null>;
@@ -90,6 +100,30 @@ export class WorkspaceCache {
   private expiry?: ReturnType<typeof setTimeout>;
   private unsubscribe?: () => void;
   private publish?: (change: Change) => void;
+  private privacyListeners = new Set<
+    (change: {
+      terminal?: boolean;
+      ids?: string[];
+      scopes?: (string | null)[];
+    }) => void
+  >();
+  observePrivacy(
+    listener: (change: {
+      terminal?: boolean;
+      ids?: string[];
+      scopes?: (string | null)[];
+    }) => void,
+  ) {
+    this.privacyListeners.add(listener);
+    return () => {
+      this.privacyListeners.delete(listener);
+    };
+  }
+  private endSession() {
+    this.privacyListeners.forEach((listener) => listener({ terminal: true }));
+    this.dispose();
+    this.accessLost();
+  }
 
   constructor(
     private transport: typeof api = api,
@@ -209,8 +243,22 @@ export class WorkspaceCache {
       this.assertActive(generation, signal);
       if (error instanceof DashboardApiError) {
         if (error.status === 401) {
-          this.dispose();
-          this.accessLost();
+          this.endSession();
+        } else if (
+          [403, 404, 410].includes(error.status) &&
+          previewResource(path)
+        ) {
+          const target = previewResource(path)!;
+          const predicate = (query: Query) => {
+            const linked = previewResource(query.queryKey[2]);
+            return (
+              query.queryKey[1] === "resource" &&
+              linked?.[1] === target[1] &&
+              linked[2] === target[2]
+            );
+          };
+          void this.client.cancelQueries({ predicate });
+          this.client.setQueriesData({ predicate }, null);
         } else if (
           [403, 404].includes(error.status) &&
           path !== "/memories/search" &&
@@ -219,6 +267,9 @@ export class WorkspaceCache {
           void this.client.cancelQueries({
             predicate: (query) => query.queryKey[1] === "notes",
           });
+          this.privacyListeners.forEach((listener) =>
+            listener({ ids: [path.split("/")[2]] }),
+          );
           this.forget(path.split("/")[2]);
         } else if ([403, 404].includes(error.status)) {
           this.client.setQueryData(workspaceKeys.resource(path, body), null);
@@ -227,12 +278,8 @@ export class WorkspaceCache {
       throw error;
     }
   }
-  private seed(note: Memory, at: number): Memory | null {
-    if (
-      this.deleted.has(note.id) ||
-      (note.purgeAt && Date.parse(note.purgeAt) <= Date.now())
-    )
-      return null;
+  private seed(note: Memory, at: number, authoritative = true): Memory | null {
+    if (this.deleted.has(note.id)) return null;
     const key = workspaceKeys.note(note.id);
     const previous = this.client.getQueryData<Memory | null>(key);
     const state = this.client.getQueryState(key);
@@ -243,6 +290,16 @@ export class WorkspaceCache {
         (previous.version === note.version && (state?.dataUpdatedAt ?? 0) > at))
     )
       return previous;
+    // Lifecycle erasure obeys the same version fence as the visible snapshot.
+    // A held old archive/expiry response cannot erase a newer restored draft.
+    if (
+      authoritative &&
+      (note.status === "archived" ||
+        (note.expiresAt && Date.parse(note.expiresAt) <= Date.now()) ||
+        (note.purgeAt && Date.parse(note.purgeAt) <= Date.now()))
+    )
+      this.privacyListeners.forEach((listener) => listener({ ids: [note.id] }));
+    if (note.purgeAt && Date.parse(note.purgeAt) <= Date.now()) return null;
     this.client.setQueryData(key, note, { updatedAt: at });
     this.scheduleExpiry();
     return note;
@@ -315,6 +372,30 @@ export class WorkspaceCache {
               ? 60_000
               : 15_000,
       gcTime: path === "/ask" ? 60_000 : 300_000,
+    });
+  }
+  linkPreview(input: LinkPreviewRequest) {
+    const path = `/link-previews/${input.kind}/${input.id}${input.revision === undefined ? "" : `?revision=${input.revision}`}`;
+    const key = workspaceKeys.resource(path);
+    return queryOptions({
+      queryKey: key,
+      queryFn: async ({ signal }): Promise<GroveLinkPreview | null> => {
+        if (input.kind === "note" && this.deleted.has(input.id)) return null;
+        const value = await this.read<GroveLinkPreview>(
+          path,
+          undefined,
+          signal,
+        );
+        if (value.expiresAt && Date.parse(value.expiresAt) <= Date.now())
+          return null;
+        this.client.setQueryData(key, value);
+        this.scheduleExpiry();
+        return value;
+      },
+      // Only explicit preview readers fetch. Historical metadata is never retained
+      // after its reader closes; current metadata may label other mounted links.
+      staleTime: 0,
+      gcTime: input.revision === undefined ? 60_000 : 0,
     });
   }
   notebookCatalog(status: "active" | "archived" = "active") {
@@ -469,6 +550,32 @@ export class WorkspaceCache {
 
   private affected(query: Query, change: Change) {
     const [, kind, key, body] = query.queryKey;
+    const preview = kind === "resource" && previewResource(key);
+    if (preview) {
+      if (change.resource)
+        return (
+          preview[1] === "notebook" && change.resource.startsWith("/projects")
+        );
+      return preview[1] === "note"
+        ? !change.ids || change.ids.includes(preview[2])
+        : !change.ids;
+    }
+    if (change.resource === "/memories/order") {
+      if (
+        kind === "resource" &&
+        typeof key === "string" &&
+        key.startsWith("/tasks")
+      )
+        return true;
+      const filters = key as Filters;
+      return (
+        kind === "notes" &&
+        filters.sort === "custom" &&
+        (change.scopes
+          ? change.scopes.includes(filters.projectId!)
+          : filters.projectId === undefined)
+      );
+    }
     if (
       kind === "resource" &&
       typeof key === "string" &&
@@ -533,6 +640,12 @@ export class WorkspaceCache {
     void this.client.cancelQueries({ predicate });
     for (const query of this.client.getQueryCache().getAll()) {
       if (
+        predicate(query) &&
+        query.queryKey[1] === "resource" &&
+        previewResource(query.queryKey[2])
+      )
+        this.client.setQueryData(query.queryKey, null);
+      if (
         !predicate(query) ||
         query.queryKey[1] !== "resource" ||
         typeof query.queryKey[2] !== "string" ||
@@ -576,10 +689,24 @@ export class WorkspaceCache {
       typeof query.queryKey[2] === "string" &&
       (query.queryKey[2] === `/memories/${id}/revisions` ||
         query.queryKey[2].startsWith(`/memories/${id}/revisions/`));
+    const previews = (query: Query) => {
+      const target = previewResource(query.queryKey[2]);
+      return (
+        query.queryKey[1] === "resource" &&
+        target?.[1] === "note" &&
+        target[2] === id
+      );
+    };
+    void this.client.cancelQueries({
+      predicate: (query) => revisions(query) || previews(query),
+    });
+    this.client.setQueriesData({ predicate: previews }, null);
     this.client.setQueriesData({ predicate: revisions }, null);
     this.client.removeQueries({ predicate: revisions });
   }
   private notebookLifecycle(action: string, scopes: (string | null)[]) {
+    if (action !== "restore")
+      this.privacyListeners.forEach((listener) => listener({ scopes }));
     void this.client.cancelQueries({ queryKey: root });
     this.applyNotebookLifecycle(action, scopes);
     // Lifecycle previews freeze the reviewed scope; evict them so the next
@@ -651,6 +778,8 @@ export class WorkspaceCache {
     }
   }
   private noteLifecycle(action: string, ids: string[]) {
+    if (action !== "restore" && action !== "refresh")
+      this.privacyListeners.forEach((listener) => listener({ ids }));
     const change = { ids };
     void this.client.cancelQueries({
       predicate: (query) => this.affected(query, change),
@@ -673,7 +802,7 @@ export class WorkspaceCache {
    */
   applyNoteRecords(records: Map<string, Memory | null>) {
     for (const [id, note] of records) {
-      if (note) this.seed(note, Date.now());
+      if (note) this.seed(note, Date.now(), false);
       else this.forget(id);
     }
     this.patchPages(records);
@@ -993,6 +1122,12 @@ export class WorkspaceCache {
       .getAll()
       .flatMap((query) => {
         const kind = query.queryKey[1];
+        if (kind === "resource" && previewResource(query.queryKey[2])) {
+          const value = query.state.data as GroveLinkPreview | null;
+          return value?.expiresAt && Date.parse(value.expiresAt) > now
+            ? [Date.parse(value.expiresAt)]
+            : [];
+        }
         if (kind === "resource" && query.queryKey[2] === "/ask") {
           const data = query.state.data as AskResult | undefined;
           return (
@@ -1049,6 +1184,14 @@ export class WorkspaceCache {
           .getQueryCache()
           .findAll({ queryKey: [...root, "note"] })) {
           const note = query.state.data as Memory | null;
+          if (
+            note &&
+            ((note.expiresAt && Date.parse(note.expiresAt) <= Date.now()) ||
+              (note.purgeAt && Date.parse(note.purgeAt) <= Date.now()))
+          )
+            this.privacyListeners.forEach((listener) =>
+              listener({ ids: [note.id] }),
+            );
           if (note?.purgeAt && Date.parse(note.purgeAt) <= Date.now())
             this.forget(note.id);
           else if (note) updates.set(note.id, note);
@@ -1108,11 +1251,18 @@ export class WorkspaceCache {
       const result = await request;
       this.assertActive(generation, signal);
       if (path === "/account/delete") {
-        this.dispose();
-        this.accessLost();
+        this.endSession();
         return result;
       }
-      if (path.startsWith("/memories")) {
+      if (/^\/memories\/[^/]+\/organize$/.test(path)) {
+        const input = body as { projectId?: string | null };
+        const change = {
+          resource: "/memories/order",
+          scopes: input.projectId === undefined ? undefined : [input.projectId],
+        };
+        this.invalidate(change);
+        this.publish?.(change);
+      } else if (path.startsWith("/memories")) {
         const records = new Map<string, Memory | null>();
         if (isMemory(result)) records.set(result.id, result);
         if (path === "/memories/delete") {
@@ -1157,11 +1307,24 @@ export class WorkspaceCache {
         });
         for (const [noteId, note] of records) {
           if (note) records.set(noteId, this.seed(note, Date.now()));
-          else this.forget(noteId);
+          else {
+            this.privacyListeners.forEach((listener) =>
+              listener({ ids: [noteId] }),
+            );
+            this.forget(noteId);
+          }
         }
         this.patchPages(records);
         this.invalidate(change, new Set(records.keys()));
         this.publish?.(change);
+        const removedIds = [...records]
+          .filter(([, note]) => note === null)
+          .map(([id]) => id);
+        if (removedIds.length)
+          this.publish?.({
+            resource: "/memories/lifecycle/delete",
+            ids: removedIds,
+          });
       } else if (path.startsWith("/assistance")) {
         if (/\/(apply|undo)$/.test(path)) {
           this.invalidate({});
@@ -1365,8 +1528,7 @@ export class WorkspaceCache {
     } catch (error) {
       if (this.active && generation === this.generation) {
         if (error instanceof DashboardApiError && error.status === 401) {
-          this.dispose();
-          this.accessLost();
+          this.endSession();
         } else if (
           path.startsWith("/memories") ||
           /\/(apply|undo)$/.test(path)

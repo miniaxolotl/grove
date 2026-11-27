@@ -5,6 +5,10 @@ reconciliation and general effect release. It is not an authorization to deploy,
 change provider settings, apply schema, publish or send. Follow the protected
 [release path](../release-conventions.md) and [rollout prerequisites](../deploy.md).
 
+Held publication is retired from normal Source Release and Deploy. The lifecycle
+runtime and manual continuation tools below remain for historical recovery; no
+declaration, receipt phase or hold-removal option is part of an ordinary release.
+
 ## Explicit controls
 
 An image built with `GROVE_HELD_RELEASE_BUILD=true` requires exactly one control:
@@ -108,20 +112,20 @@ Neither path clears uncertain acceptance or billing history to make a check pass
 
 ## Publication and continuation
 
-No held release is selected by this change. An optional reviewed source-only
+The retired held-publication path used an optional reviewed source-only
 `scripts/release/held-decision.json` selects `held-publication-only`, exact app,
 previous image digest and preceding source `anchor`. Its declaration commit may
 change only that file. The following coordinated Release Please stamp is verified
 with the shared stamp checker and patch-first release-intent policy; extra source
 edits, floating heads and mixed selected/held declarations are rejected.
 
-Source Release discovers both the declaration push and its direct version-stamp
+Historical source tooling discovers both the declaration push and its direct version-stamp
 push through those same strict validators. Production admission still requires
 the explicit stamped-source validation. A code/docs repair retires any previous
 source-bound declaration; after it merges, a separate declaration-only PR must
 anchor the newly accepted source before its next coordinated patch release.
 
-Protected Deploy persists `publication_pending` **before** image/package writes,
+Historical held Deploy persisted `publication_pending` **before** image/package writes,
 then verifies every package integrity, both image registries and the actual held
 image metadata/entrypoints. Only then does it emit `published_held`. Ordinary
 deployment, generic delivery receipts and website jobs are excluded. Failed runs
@@ -193,8 +197,9 @@ privately before execution. Provider completion waits within the original comman
 deadline; unknown acceptance is never retried.
 
 An ordinary coordinated successor must not retain a source-bound held control.
-After public acceptance, an owner-dispatched Deploy may explicitly request
-`retire_held_runtime:true`. Both current named instances must prove the same
+After public acceptance, separately authorized operator recovery may call
+`scripts/deploy-digitalocean.mjs --retire-held-runtime`. Ordinary Deploy does not
+expose or invoke this option. Both current named instances must prove the same
 persisted public phase, approval and complete reconciliation, with real public
 readiness. The expected-state guarded update removes only the three release
 controls **in the same spec update as the different, ordinary image**. It preserves

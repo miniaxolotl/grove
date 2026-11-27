@@ -3,6 +3,8 @@ import { type NextRequest } from "next/server";
 import { site } from "@/lib/site";
 import { showBilling } from "@/lib/flags";
 import { boundedProofingBody, proofingRoute } from "@/lib/writing/bff";
+import { requestBodyLimit } from "@lib/shared/limits";
+import { apiOrigin } from "@/lib/api-origin";
 
 export const maxDuration = 180;
 
@@ -29,8 +31,15 @@ async function forward(
     return fail(403, "Request origin is not allowed");
   const path = (await context.params).path.join("/");
   const proofing = proofingRoute(path, request.method);
-  if (proofing && (!session.sessionId || session.sessionId !== request.headers.get('X-Grove-Proofing-Session')))
-    return fail(401, 'Writing session changed');
+  const linkPreview =
+    request.method === "GET" &&
+    /^link-previews\/(?:note|notebook)\/[0-9a-f-]+$/.test(path);
+  if (
+    proofing &&
+    (!session.sessionId ||
+      session.sessionId !== request.headers.get("X-Grove-Proofing-Session"))
+  )
+    return fail(401, "Writing session changed");
   const billing = /^(billing|billing\/(?:checkout|portal|trial))$/.test(path);
   const admin =
     path === "admin" || path === "admin/audit"
@@ -43,9 +52,9 @@ async function forward(
           ].includes(path)
         ? request.method === "POST"
         : ["admin/accounts", "admin/accounts/support"].includes(path) &&
-          request.method === "PATCH"
-        ? true
-        : path === "admin/accounts/trial-reset" && request.method === "POST";
+            request.method === "PATCH"
+          ? true
+          : path === "admin/accounts/trial-reset" && request.method === "POST";
   if (billing && process.env.BILLING_CONFIGURED !== "true")
     return fail(404, "Route not found");
   if (billing && !(await showBilling())) return fail(404, "Route not found");
@@ -85,13 +94,14 @@ async function forward(
     !billing &&
     !admin &&
     !proofing &&
+    !linkPreview &&
     !speech &&
     !allowed.test(path) &&
     !(
       ["GET", "POST"].includes(request.method) &&
       /^memories\/daily\/\d{4}-\d{2}-\d{2}$/.test(path)
     ) &&
-    !/^memories\/[0-9a-f-]+\/edit$/.test(path) &&
+    !/^memories\/[0-9a-f-]+\/(?:edit|organize)$/.test(path) &&
     !/^(ask-tools|conversations\/[0-9a-f-]+\/tools)$/.test(path) &&
     path !== "conversations/search" &&
     !/^files\/(?:search|storage|locations)$/.test(path) &&
@@ -102,20 +112,12 @@ async function forward(
     return fail(404, "Route not found");
   const token = await session.getToken();
   if (!token) return fail(401, "Sign in to Grove to continue");
-  const origin = new URL(process.env.GROVE_API_URL);
-  if (
-    origin.pathname !== "/" ||
-    origin.search ||
-    origin.hash ||
-    origin.username ||
-    origin.password ||
-    (origin.protocol !== "https:" &&
-      !(
-        origin.protocol === "http:" &&
-        ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)
-      ))
-  )
+  let origin: URL;
+  try {
+    origin = apiOrigin(process.env.GROVE_API_URL);
+  } catch {
     return fail(503, "Invalid API configuration");
+  }
   try {
     const binary =
       (media || importFile || chatDocumentFile) && request.method === "PUT";
@@ -135,11 +137,18 @@ async function forward(
         )
       : ["GET", "HEAD"].includes(request.method)
         ? undefined
-        : proofing ? await boundedProofingBody(request.body) : await request.text();
-    if (proofing && content === null) return fail(413, 'Request body is too large');
-    if (typeof content === "string" && Buffer.byteLength(content) > 128 * 1024)
-      return fail(413, "Request body is too large");
+        : await boundedProofingBody(
+            request.body,
+            proofing ? 16_384 : requestBodyLimit(path),
+          );
+    if (content === null) return fail(413, "Request body is too large");
     const target = new URL(`/v1/${path}`, origin.origin);
+    if (linkPreview && request.nextUrl.searchParams.has("revision")) {
+      const revisions = request.nextUrl.searchParams.getAll("revision");
+      if (revisions.length !== 1)
+        return fail(400, "Use one revision per preview");
+      target.searchParams.set("revision", revisions[0]);
+    }
     if (path === "projects/catalog")
       for (const key of ["status", "limit", "cursor"])
         if (request.nextUrl.searchParams.has(key))
@@ -168,8 +177,13 @@ async function forward(
       method: request.method,
       headers: {
         Authorization: `Bearer ${token}`,
-        ...(proofing ? { Origin: site.url, 'X-Grove-Telemetry': 'off' } : {}),
-        ...(path === 'proofing/check' ? {'X-Grove-Proofing-Mode': request.headers.get('X-Grove-Proofing-Mode') ?? 'manual'} : {}),
+        ...(proofing ? { Origin: site.url, "X-Grove-Telemetry": "off" } : {}),
+        ...(path === "proofing/check"
+          ? {
+              "X-Grove-Proofing-Mode":
+                request.headers.get("X-Grove-Proofing-Mode") ?? "manual",
+            }
+          : {}),
         ...(media && request.headers.get("range")
           ? { Range: request.headers.get("range")! }
           : {}),

@@ -16,9 +16,13 @@ data
 *.log
 *.tsbuildinfo
 *.md
+!packages/grove-claude-plugin/skills/memory/SKILL.md
+!packages/grove-codex-plugin/skills/memory/SKILL.md
 docker-compose.yml
 worktrees
 plans
 **/.next
+**/.vercel
+website-image-env.json
 **/playwright-report
 **/test-results

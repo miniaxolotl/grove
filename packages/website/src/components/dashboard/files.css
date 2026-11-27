@@ -447,3 +447,20 @@
     grid-column: 2;
   }
 }
+.files-refresh-controls {
+  min-width: 0;
+  max-width: 32ch;
+}
+.files-refresh-status {
+  display: block;
+  min-height: 32px;
+  line-height: 16px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.file-locations-feedback {
+  min-height: 44px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-muted);
+}

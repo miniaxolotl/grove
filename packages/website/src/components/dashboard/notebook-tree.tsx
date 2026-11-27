@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { useDraggable } from "@dnd-kit/core";
 import type { Project } from "@/lib/dashboard-api";
-import { notebookOrder, notebookPath } from "@/lib/notebooks";
+import {
+  notebookDisplayOrder,
+  notebookPath,
+  type NotebookDisplaySort,
+} from "@/lib/notebooks";
 import { useNotebooks } from "./notebooks-provider";
 import { IconButton } from "./ui/button";
 import {
@@ -40,6 +44,7 @@ export function NotebookTree({
   notesVisible = true,
   remember = false,
   draggable = true,
+  displaySort,
 }: {
   projects: readonly Project[];
   selectedId?: string | null;
@@ -51,6 +56,7 @@ export function NotebookTree({
   notesVisible?: boolean;
   remember?: boolean;
   draggable?: boolean;
+  displaySort?: NotebookDisplaySort;
 }) {
   const coarse = useSyncExternalStore(
     subscribeCoarse,
@@ -72,7 +78,10 @@ export function NotebookTree({
     if (remember && navigation?.ready) navigation.update({ expanded: next });
     else setLocalExpanded(next);
   };
-  const sorted = [...projects].sort(notebookOrder);
+  const notebooks = useNotebooks();
+  const sorted = [...projects].sort(
+    notebookDisplayOrder(displaySort ?? notebooks.displaySort),
+  );
   const byId = new Map(projects.map((p) => [p.id, p]));
   const paths = new Map(
     projects.map((p) => [p.id, notebookPath(projects, p.id, byId)]),
@@ -224,10 +233,7 @@ function NotebookBranch(props: NotebookBranchProps) {
         data-current={props.current || undefined}
       >
         {props.disclosure}
-        <span
-          className="notebook-organizer-folder"
-          aria-hidden="true"
-        >
+        <span className="notebook-organizer-folder" aria-hidden="true">
           {props.icon}
         </span>
         {props.row}

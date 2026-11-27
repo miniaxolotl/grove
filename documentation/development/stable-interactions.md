@@ -64,6 +64,10 @@ controls and transient feedback should use space already available.
   autosave. Preview follows scroll; writing follows cursor or scrolled source block;
   edits recompute from the cursor, while actual scroll/resize events remain scroll-
   based. The last section is active at the document's scroll end.
+- Preview also indexes top-level list points. Shared/private outlines reuse target
+  rows and filtering; rows expand in batches so a long note does not mount its whole
+  outline at once. Public section-copy URLs remain under the current share. The
+  renderer uses a source-offset map rather than searching every target per node.
 - Saved-note fragments resolve inside the mounted editor after data/chunks load and
   on hash/history changes. Unknown or malformed fragments do nothing. New-note copy
   stays disabled until first-save identity arrives. These links never create public
@@ -75,6 +79,9 @@ controls and transient feedback should use space already available.
 - Sidebar persistence belongs to the authenticated account owner, not a reusable
   tree or a module-level global. Follow the metadata/restore contract in
   [client caching](client-cache.md); scroll listeners are passive and writes debounced.
+- A navigation-sheet link handles its click before the sheet closes. Closing the
+  sheet during event capture can turn a client transition into a full page load
+  on WebKit, losing the session's in-memory drafts.
 - Heading jumps and conversation history use `Dialog.onDismissed` to hand focus
   over **after** normal opener restoration. React's closed state or an animation
   frame alone does not guarantee the modal's deferred cleanup has finished. Delete
@@ -117,6 +124,10 @@ controls and transient feedback should use space already available.
   keyboard focus kept readable at phone widths.
 - Desktop note grips appear on row hover or focus without changing the reserved
   space. Touch layouts keep the grip visible.
+- Dragging retains the floating label preview, destination background highlight,
+  insertion markers, cancellation control and accessible announcements. The drop
+  target has no coloured left-border stripe. Mouse, deliberate touch-hold, pen
+  and keyboard keep the same authorization and move path.
 - Ask Grove fills the space beneath navigation and keeps conversation/search
   scrolling inside the console. The composer stays visible at ordinary desktop,
   tablet and phone sizes; short windows can scroll the page to reach its controls.

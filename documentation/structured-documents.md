@@ -22,13 +22,61 @@ grouped diff instead of truncated results. Unsaved drafts above the note limit
 retain full-version comparison rather than crashing the review.
 Revision history opens the latest previous logical revision's diff first; the complete
 current revision follows it. Individual comparisons can still be opened or closed.
+If a highlighted comparison cannot be produced within the bound, the fallback
+offers full versions without calling a saved revision a draft. A failed history
+read has **Retry history**, which only reloads history and never restores a note.
+Saved-source revision links have a bounded, keyboard-focusable reading region;
+**Open current note** remains separate from the cited version.
 
 The editor stays mounted through saves. Existing local Undo, held saves, newer
 typing, session-memory draft ownership and uncertain-operation retry rules remain.
 No edits are silently rebased over another writer. On conflict, retain the draft,
 review the current note and deliberately resolve it. Restore creates a new revision;
 history is never rewritten. Existing version-fenced assistance Undo refuses stale
-state instead of overwriting later edits. There is no new on-disk draft storage.
+state instead of overwriting later edits. Drafts remain memory-only unless the
+owner explicitly enables [encrypted device recovery](development/client-cache.md#device-draft-recovery).
+
+## Internal links and private previews
+
+**Link** in the writing toolbar, or Ctrl/Cmd+K while editing, opens a focused
+Insert link dialog using the captured text selection. For an existing Grove link,
+place the cursor inside it to edit its destination, caption or **Follow the linked
+title** choice. Apply is one isolated local Undo step; Cancel/Escape changes no
+source. Validation errors retain the inputs. A changed editor/source/version or
+read-only state requires reopening the dialog rather than applying stale offsets.
+
+Ordinary note/notebook ID links keep their original destination, revision query
+and section fragment. Explicit Markdown captions stay literal. The optional title
+`"grove:title:v1"` opts a readable fallback caption into displaying a resolved
+private title; actual bare/angle autolinks can do the same. Rendering never edits
+the saved Markdown or historical revision. Plain-Markdown exports and public
+readers retain the authored fallback, not private resolved metadata.
+
+In an authenticated workspace, the separate **Preview linked note/notebook**
+button reads a compact title, type and optional excerpt on demand. The adjacent
+link opens a same-origin note or notebook without reloading the workspace or
+discarding session drafts. Hovering or focusing the link preloads its route and,
+for a current note, its contents in the session cache. Data Saver skips this
+warm-up. Only the preview button requests an excerpt. External links are never
+prefetched, and a recognized cloud URL in another
+self-hosted installation cannot resolve a coincidentally matching local ID.
+
+`GET /v1/link-previews/:kind/:id` is session-only (`note` or `notebook`), with one
+optional positive integer `revision` for notes. It returns only kind, ID, title
+(up to 90 UTF-16 units), excerpt (up to 180 units, null for notebooks), version and
+expiry. Exact revisions use that revision's source, never the current note as a
+substitute. Missing, foreign, inactive, expired and deleted targets disclose no
+preview. These bounded reads create no revisions, jobs or permissions; responses
+are private/no-store. Deploy the API before the corresponding website; an older
+API leaves the ordinary link usable with unavailable-preview feedback.
+
+Verify with `internal-links.test.ts` and `internal-link-previews.test.ts` against
+real non-owner PostgreSQL roles, plus website `internal-links.spec.ts`,
+`link-editor.spec.ts`, `cache.spec.ts` and `sharing.spec.ts`. Cover held/denied/
+expired reads, literal versus title-following captions, private/public separation,
+source changes during editing, Undo and keyboard/focus at desktop/390/short-320.
+The [gallery](design/screenshots/structured-documents/README.md#internal-links--26-november-2026)
+records synthetic captures and qualification limits.
 
 ## API and connected agents
 
@@ -121,9 +169,12 @@ batching tradeoffs and the separate live-service qualification limits.
 
 ## Limits, rollout and verification
 
-Keep the 6,000-character note limit. Source edits allow at most 50 operations and
-6,000 cumulative inserted UTF-16 units; ranges cannot split surrogate pairs. Empty
+Notes support 250,000 UTF-16 units. Source edits allow at most 50 operations and
+250,000 cumulative inserted units; ranges cannot split surrogate pairs. Empty
 results, invalid old text, no-op agent previews and conflicting versions are rejected.
+
+![Editing a research note at the 250,000-character limit](design/screenshots/long-note/editor.png)
+
 The [core contract](development/document-core.md) owns block/diff budgets. Stable IDs
 and diffs are not CRDT/OT, fine-grained locking or proof of multi-person convergence.
 

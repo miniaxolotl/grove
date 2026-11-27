@@ -38,6 +38,7 @@ import {
   withTelemetry,
 } from "@lib/telemetry/context";
 import { Hono } from "hono";
+import { NOTE_REQUEST_BYTES_MAX, requestBodyLimit } from "@lib/shared/limits";
 import { cors } from "hono/cors";
 import {
   browserCaptureRequestSchema,
@@ -49,6 +50,7 @@ import {
   notebookCatalogSchema,
   organizeNotebookSchema,
 } from "@lib/shared/notebook-organization";
+import { organizeNoteSchema } from "@lib/shared/note-organization";
 import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { searchConversationHistory } from "@lib/memory";
 import { createLifecycleIngress } from "./lifecycle-ingress.ts";
@@ -96,6 +98,8 @@ import {
 } from "./admission.ts";
 import {
   publicShareQuerySchema,
+  publicNavigationQuerySchema,
+  publicReaderQuerySchema,
   shareEnableSchema,
   shareMutationSchema,
   shareScopeSchema,
@@ -407,7 +411,7 @@ export function createApp(deps: AppDependencies) {
               ? 16384
               : c.req.path === "/v1/proofing/consent"
                 ? 512
-                : undefined,
+                : requestBodyLimit(c.req.path),
           );
         await next();
         if (!c.get("streaming") && !c.error) signal.throwIfAborted();
@@ -1417,6 +1421,24 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/public/shares/:token/navigation", async (c) =>
+    c.json({
+      success: true,
+      data: await sharing.navigation(
+        c.req.param("token"),
+        await body(c, publicNavigationQuerySchema),
+      ),
+    }),
+  );
+  app.post("/public/shares/:token/reader", async (c) =>
+    c.json({
+      success: true,
+      data: await sharing.reader(
+        c.req.param("token"),
+        await body(c, publicReaderQuerySchema),
+      ),
+    }),
+  );
   app.get("/public/shares/:token", async (c) =>
     c.json({
       success: true,
@@ -1613,6 +1635,16 @@ export function createApp(deps: AppDependencies) {
         c.get("principal"),
         uuidSchema.parse(c.req.param("id")),
         await body(c, organizeNotebookSchema),
+      ),
+    }),
+  );
+  app.post("/v1/memories/:id/organize", async (c) =>
+    c.json({
+      success: true,
+      data: await service.organizeNote(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, organizeNoteSchema),
       ),
     }),
   );
@@ -1835,6 +1867,27 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.get("/v1/link-previews/:kind/:id", async (c) => {
+    const query = c.req.queries();
+    if (
+      Object.entries(query).some(
+        ([key, values]) => key !== "revision" || values.length !== 1,
+      )
+    )
+      throw new GroveError(
+        "invalid_request",
+        "Unsupported or repeated preview parameter",
+        400,
+      );
+    return c.json({
+      success: true,
+      data: await service.linkPreview(c.get("principal"), {
+        kind: c.req.param("kind"),
+        id: c.req.param("id"),
+        ...(query.revision ? { revision: query.revision[0] } : {}),
+      }),
+    });
+  });
   app.get("/v1/memories/:id", async (c) =>
     c.json({
       success: true,
@@ -2303,7 +2356,7 @@ export function createApp(deps: AppDependencies) {
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
-      maxRequestBodySize: 128 * 1024,
+      maxRequestBodySize: NOTE_REQUEST_BYTES_MAX,
     });
     try {
       await server.connect(transport);

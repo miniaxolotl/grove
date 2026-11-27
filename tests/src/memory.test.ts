@@ -110,6 +110,35 @@ test("runtime RLS blocks missing tenant context and pooled cross-account reuse",
   );
 });
 
+test("HTTP long-note saves preserve Unicode, reject overflow and keep tenant isolation", async () => {
+  const content = "日".repeat(250_000);
+  const response = await app.request("/v1/memories", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer alice",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ operationId: randomUUID(), content }),
+  });
+  assert.equal(response.status, 200);
+  const { data: note } = await response.json();
+  assert.equal(note.content, content);
+  assert.equal((await service.get(a, note.id)).content, content);
+  await assert.rejects(service.get(b, note.id), { code: "not_found" });
+  const overflow = await app.request("/v1/memories", {
+    method: "POST",
+    headers: {
+      authorization: "Bearer alice",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      operationId: randomUUID(),
+      content: content + "日",
+    }),
+  });
+  assert.equal(overflow.status, 400);
+});
+
 test("idempotency, concurrent corrections, archive and retained hidden deletion history", async () => {
   const save = input("Use PostgreSQL for the memory database.", {
     kind: "decision",
@@ -576,7 +605,9 @@ test("HTTP authorization, validation, and official MCP initialize/tools/errors",
     });
     assert.notEqual(saved.isError, true);
     assert(saved.structuredContent);
-    const stored = (saved.structuredContent as { data: { id: string; version: number } }).data;
+    const stored = (
+      saved.structuredContent as { data: { id: string; version: number } }
+    ).data;
     const updated = await client.callTool({
       name: "update_memory",
       arguments: {

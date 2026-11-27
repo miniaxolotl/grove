@@ -10,7 +10,26 @@ checker is ready, choose **Check writing** without having to edit the text again
 
 - Spelling issues use a red wavy underline; grammar uses a dotted green one.
   Color is never the only signal: every issue opens the same short explanation.
-- Click an underline, or press **Alt+Enter** for the full list. The compact card
+- Choose **Spelling and grammar** in the note toolbar, or press **Alt+Enter**,
+  for the current issue list. The toolbar shows the number of found suggestions;
+  existing notes are checked as well as newly edited prose. The list stays open
+  as results arrive and shows every currently found spelling and grammar issue,
+  its surrounding text, explanation and available replacements.
+  On narrow editors, modes and tools occupy two stable rows to keep the
+  spelling/grammar control and other touch targets usable. Additional replacement
+  choices are behind **More replacements** in each issue, not hidden in a new page.
+- **Apply** changes just that occurrence. **Apply … to N similar** changes the
+  currently found occurrences with the same exact text, rule, explanation and
+  offered replacement in one Undo step. It is not a global find-and-replace:
+  protected Markdown, other wording and ignored occurrences are untouched. All
+  ranges and any required enhanced-check consent are revalidated before the
+  atomic edit; a stale batch is refused rather than partly applied.
+- **Ignore** hides one occurrence; **Ignore N similar** hides matching issues
+  already found in this note. These ignores last only in the current editor
+  session, follow unrelated edits, and do not add dictionary words or disable a
+  rule. **Show in text** closes the list, scrolls to and selects the exact issue
+  in the existing editor without changing the text or its Undo history.
+- Click an underline for the compact card. It
   shows the category, an explanation and up to three replacements, then
   **Ignore**, **Add word** (spelling only) and **All issues**.
 - One click applies a replacement to that exact range only, with normal Undo.
@@ -38,6 +57,8 @@ immediately and stays on this device:
   **Check writing** when you want results in manual mode.
 - **Advanced rules**: ten independent rule switches. Turning a parent off keeps
   the individual choices for when it returns.
+  Local child controls are nested under the master and paused while it is off;
+  a checked child records the saved choice, not an effective running check.
 - **Personal dictionary**: save up to 1,000 names, brands and terms. Case,
   straight or curly apostrophes, and equivalent forms of accented letters count
   as the same entry. A saved name also covers its possessive.
@@ -57,6 +78,12 @@ immediately and stays on this device:
   anywhere. The web app loads its own Harper worker and WebAssembly assets. An initialized worker is reused across edits.
   Spelling and grammar checks are unlimited on every plan.
 - Only English is supported. Protected Markdown spans are excluded from edits.
+- Checks are bounded to the existing local-check window (6,000 characters or
+  the selected eligible paragraph for longer drafts) and up to 50 suggestions
+  per pass. At the suggestion limit, the list explains that resolving issues
+  and choosing **Check writing** can reveal more; it never claims an exhaustive
+  grammar guarantee. Paused, checking and failed checks have distinct messages.
+  Opening the toolbar does not enable checks or grant enhanced-grammar consent.
 - Sentence rewrites with AI alternatives stay in the browser extension for now:
   they need an explicit consent and a connection-scoped authorization the
   website session does not carry yet. There they use a monthly writing

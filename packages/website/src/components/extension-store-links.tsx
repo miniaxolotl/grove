@@ -5,17 +5,17 @@ import { useSyncExternalStore } from "react";
 const stores = [
   [
     "firefox",
-    "Firefox Add-ons",
+    "Add to Firefox",
     "https://addons.mozilla.org/firefox/addon/grove-private-notes/",
   ],
   [
     "edge",
-    "Microsoft Edge Add-ons",
+    "Add to Edge",
     "https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo",
   ],
   [
     "chrome",
-    "Chrome Web Store (not yet available)",
+    "Add to Chrome",
     "https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa",
   ],
 ] as const;
@@ -23,7 +23,7 @@ const stores = [
 const setupLabels = {
   firefox: "Add to Firefox",
   edge: "Add to Edge",
-  chrome: "Chrome setup guide",
+  chrome: "Add to Chrome",
 };
 
 // Recommend a store for a supported desktop browser, not its underlying engine.
@@ -70,9 +70,7 @@ export function ExtensionStoreLinks({
             <li key={browser}>
               <a
                 className={`app-button ${detected === browser ? "primary" : "secondary"}`}
-                href={
-                  browser === "chrome" ? "/install#browser-extension" : href
-                }
+                href={href}
               >
                 {setupLabels[browser]}
                 {detected === browser && (
@@ -82,10 +80,6 @@ export function ExtensionStoreLinks({
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-xs text-muted">
-          For Chrome, follow the manual setup guide until the store listing is
-          available.
-        </p>
       </div>
     );
   return (

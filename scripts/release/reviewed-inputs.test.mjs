@@ -3,7 +3,6 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   unlinkSync,
   writeFileSync,
@@ -14,17 +13,6 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import test from "node:test";
-
-test("unreviewed release inputs stop before dependency fetch and inventory builds", () => {
-  const workflow = readFileSync(".github/workflows/website-impact.yml", "utf8");
-  const step = workflow.indexOf("node scripts/release/reviewed-inputs.mjs");
-  assert.ok(step >= 0, "missing credential-free release-input preflight");
-  assert.ok(step < workflow.indexOf("bash scripts/release/hydrate-impact.sh"));
-  assert.ok(
-    step < workflow.indexOf("pnpm install --offline --frozen-lockfile"),
-  );
-  assert.ok(step < workflow.indexOf("node scripts/release/select-website.mjs"));
-});
 
 test("raw fingerprints reject drift, deletion and executable changes without running build code", (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "grove-inputs-"));

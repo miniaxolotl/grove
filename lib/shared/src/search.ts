@@ -1,5 +1,15 @@
 /** Search evidence is query-scoped, never part of a canonical saved note. */
 import { NOTE_EXCERPT_MAX, NOTE_TITLE_MAX } from "./limits.ts";
+export const noteSorts = [
+  "custom",
+  "updated_desc",
+  "updated_asc",
+  "created_desc",
+  "created_asc",
+  "title_asc",
+  "title_desc",
+  "relevance",
+] as const;
 export type SearchText = { text: string; ranges: [number, number][] };
 export type SearchMatch = {
   version: number;

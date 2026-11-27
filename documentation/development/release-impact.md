@@ -1,33 +1,14 @@
 # Preview release impact
 
-The comparison answers **what would change for each destination?** It prints JSON. Source Release consumes website-only admission and opt-in hosted decisions through `website-impact.yml`; npm/download proposals remain advisory. Release Please, frozen promotion, `CI Gate` and protected production Deploy own version and delivery decisions.
+The comparison answers **what would change for each destination?** It prints JSON.
+These retained offline tools are advisory: Source Release and Deploy do not consume
+their fingerprints, destination ledger or selective decisions. The normal
+[pipeline](../pipeline-conventions.md#grove-release-flow) releases all packages,
+browser downloads, API/worker and website together.
 
-The website-only route checks the ledger's exact reviewed release-tool fingerprints
-before dependency fetch or inventory builds. A mismatch holds the release and names
-the input that needs review. It never refreshes fingerprints or destination receipts
-automatically. Passing this cheap preflight is not approval: full snapshots still
-check unknown inputs and per-target changes. Source Release must remain held when
-the destination ledger or selected scope does not describe the current candidate.
-The historical coordinated v1.11.28 repair is not authorization for a new candidate.
-
-Future website/hosted-only candidates can opt in through an exact source-bound
-[release decision](selected-release-writer.md#opt-in-to-website--hosted-service-delivery).
-It reuses these comparisons and requires unchanged installer/download inventories;
-it does not refresh this ledger or enable selected npm publication. Missing or
-stale decisions never authorize service changes as website-only.
-
-The coordinated domain patch has a separate bounded admission: development PR
-[#303](https://github.com/miniaxolotl/grove/pull/303), based exactly on `ba78d851`,
-and its otherwise unchanged direct Release Please v1.11.29 stamp. It publishes
-all five bundled packages and browser downloads together instead of carrying
-forward the obsolete website-only receipts. It preserves the existing API/worker
-topology and does not publish, add or activate the historical paid checker.
-Other source heads still require website-impact admission; this is not a moving
-development-head grant. Exact-source CI, Release Please provenance, protected
-frozen promotion, runtime-role schema preflight, registry integrity and the
-fresh admitted-source Vercel production build remain mandatory. Apply the pending
-forward migrations through the [schema procedure](../operations/schema.md)
-before deployment; source admission does not perform or qualify that operation.
+Historical website-only and source-bound admission exceptions are retired. Do not
+refresh this ledger or add declaration-only PRs to unblock an ordinary release.
+The ledger records dated observations, not the current live production state.
 
 Use reviewed Git commits, Node 24, pnpm 10.33 and GNU tar in a disposable build environment without provider credentials. The snapshot runs the revision’s install/build code; a temporary directory is not a sandbox. Warm the pnpm store for each lockfile with `ONNXRUNTIME_NODE_INSTALL_CUDA=skip pnpm fetch --frozen-lockfile`. If `/tmp` uses another filesystem, point `TMPDIR` at an existing scratch directory on the warm store’s filesystem. Use the same toolchain and build configuration on both sides.
 

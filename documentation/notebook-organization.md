@@ -21,8 +21,8 @@ open. See the [Ask Grove example](design/screenshots/dropdown-contrast/ask-noteb
 
 ## Organize in the website
 
-- Open **Organize** in the sidebar’s Notebooks heading. On a phone, first expand
-  **Notebooks** to see the full-width tree. The heading links to the notebook manager;
+- Open **Organize** in the sidebar’s Notebooks heading. On a phone, first open
+  **Grove navigation** from the compact scope button. The heading links to the notebook manager;
   the plus button creates a notebook. Organize selects the current
   notebook when there is one; otherwise choose from the tree. The manager’s
   **Organize** button and a row’s **Rearrange notebook** action also open it.
@@ -42,20 +42,31 @@ open. See the [Ask Grove example](design/screenshots/dropdown-contrast/ask-noteb
 - Filtered Organize lists omit adjacent Move up/down until the search is cleared;
   a filtered list is not the complete sibling group. Archived notebooks remain in
   their separate list with Restore/Delete, not ordering controls.
-- The manager has one row menu, one count and a full-width search. Explorer,
-  manager and sub-notebook lists all use saved sibling order. Rename keeps order;
+- The manager has one row menu, one count and a full-width search. **Notebook display
+  order** in the manager and explorer offers Saved order, Name A–Z/Z–A and
+  Newest/Oldest created. It sorts siblings within the complete authorized catalog,
+  preserving hierarchy and stored positions. The account-scoped display choice
+  survives reload; **Organize** always shows saved manual order. Rename keeps order;
   new notebooks append. Long manager titles wrap to two lines with the full name
   retained in their link's accessible name/title.
+
 - With a mouse, drop onto a highlighted notebook row to move inside it; drop on
   the insertion line to move before or after a sibling. For keyboard nesting,
   press Space on the grip, use the arrow keys to choose a destination, then Space
   to drop or Escape or Tab to cancel. On touch, hold the grip to lift, then drag to a
-  notebook row or the destination tray. The preview follows the contact and sits
-  above it when there is room. The grip stops native scrolling; the rest of the
+  notebook row or the destination tray. The floating preview follows the contact
+  and sits above it when there is room. Targets use a background highlight without
+  a coloured left border; sibling placement keeps its insertion marker. The grip
+  stops native scrolling; the rest of the
   row keeps vertical scrolling and pinch zoom. Tap or click the folder control
   to open **Organize**, including for exact sibling placement without dragging.
   Release on the highlighted destination to move. Releasing outside it or over
   **Drop here to cancel** cancels without a move. Covered rows cannot receive drops.
+
+Creation sorting uses each notebook's actual immutable creation date. Older servers
+may omit it; undated notebooks sort last in either direction. There is no notebook
+edit timestamp, so Grove does not offer an invented edited-date sort or infer one
+from child notes.
 
 The organizer keeps the tree above the selection’s actions at both sizes.
 Move keeps its action
@@ -87,6 +98,50 @@ If a newer invalidation cancels the read reconciling a successful move, the UI
 joins/restarts the catalog read once. This is a bounded read retry, not another
 organization operation or an Undo rebase. Other refresh errors remain visible.
 
+## Custom note order
+
+Notes have independent owner-only arrangements for **All notes**, **Unfiled** and
+each notebook. Select **Custom order** in Filters, then **Arrange notes**. The
+dialog reads the complete scope progressively, without applying library search,
+kind or tag refinements. Use up/down beside a note, or its placement menu for the
+start/end; load another page before moving across an unloaded adjacent position.
+Display date/title sorts never rewrite these arrangements.
+
+New notes append. Moving a note appends it in its new container and preserves its
+separate All-notes position. Archive retains rank for restoration; deleted notes
+remain absent. Ordering metadata is separate from source/revision history and does
+not queue inference, change note versions or consume AI allowances.
+
+`sort: "custom"` list responses include an opaque `orderState`. Owning sessions can
+POST `/v1/memories/:id/organize` with `operationId`, `expectedVersion`,
+`expectedState`, optional `projectId` (omit for All notes; null for Unfiled), and
+one optional `beforeId`/`afterId`; omit both to append. The source and anchor must
+be current, active notes in that exact scope. No permission or filing changes occur.
+API keys/OAuth cannot read or change custom ordering.
+
+Writes serialize under the existing account lock and return `{ id, state, undo }`.
+Exact lost-response retries reuse their operation ID and body; changed payloads
+conflict. New moves stop until an uncertain response is reconciled. A changed
+scope/order/source requires review rather than rebasing the original intent or
+Undo. Private retry state remains in the current workspace session, not on disk.
+Custom page cursors reject changed membership/order instead of mixing snapshots.
+An excessively dense insertion is refused atomically before its decimal key can
+outgrow the bounded cursor; other positions, including start/end, remain available.
+
+Private NDJSON exports include versioned `customOrder` decimal strings, never
+lossy JSON numbers. Account exports include All-notes and container ranks;
+notebook-scoped exports include only container ranks. Reordering invalidates an
+existing export. This is portable order evidence, not a new backup-import or
+deleted-note restore feature; ordinary source imports create new notes at the end.
+
+The forward-only **051 note-order migration** must precede the new API/worker code.
+It adds tenant-RLS-protected sparse rank overrides, deterministic creation/ID
+defaults and append behavior for legacy create/move writes. Existing content and
+revisions are not rewritten; runtime readiness rejects an older schema. Populated
+upgrade, real API/worker-role isolation, full-result cursor, replay, move/archive
+and export tests are in `note-order-migration.test.ts` and `note-custom-order.test.ts`.
+Source/browser tests are not deployment or physical-device acceptance.
+
 ## Complete owner catalog
 
 `GET /v1/projects/catalog` requires the owning website session. It accepts:
@@ -95,8 +150,8 @@ organization operation or an Undo rebase. Other refresh errors remain visible.
 - `limit`: 1–200, default 200.
 - `cursor`: the exact `nextCursor` from the preceding response.
 
-It returns `{ items, state, nextCursor }`. Each notebook includes `position` along
-with its existing ID, name, identity, parent, version and status. Positions are
+It returns `{ items, state, nextCursor }`. Each notebook includes `position` and
+ISO `createdAt` along with its existing ID, name, identity, parent, version and status. Positions are
 relative to a parent; top-level notebooks form their own sibling group. Pages
 order by parent (top level first), position and ID, not a flattened depth-first tree.
 The owner UI must combine pages before rendering a complete tree. Parent IDs are

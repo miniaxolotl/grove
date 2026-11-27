@@ -24,10 +24,14 @@ import type {
 import { WorkspaceNotice } from "./toasts";
 import { isCancelledError, useQuery } from "@tanstack/react-query";
 import { useWorkspaceCache } from "./workspace-cache";
+import { useWorkspaceNavigationState } from "./workspace-navigation-state";
+import type { NotebookDisplaySort } from "@/lib/notebooks";
 
 type NotebookLocation = { path: string; projectId: string | null | undefined };
 type Notebooks = {
   projects: Project[];
+  displaySort: NotebookDisplaySort;
+  setDisplaySort: (sort: NotebookDisplaySort) => void;
   loading: boolean;
   error: string;
   reload: () => void;
@@ -58,6 +62,7 @@ type PendingMove = { project: Project; input: OrganizeNotebook; undo: boolean };
 const Context = createContext<Notebooks | null>(null);
 
 export function NotebooksProvider({ children }: { children: ReactNode }) {
+  const navigation = useWorkspaceNavigationState();
   const cache = useWorkspaceCache();
   const query = useQuery(cache.notebookCatalog());
   const projects = query.data?.items ?? [];
@@ -184,15 +189,13 @@ export function NotebooksProvider({ children }: { children: ReactNode }) {
   // Guards concurrent writes (expectedState chaining) without blocking the
   // whole UI for the request duration: the tree already reordered optimistically.
   const organizationLocked =
-    !!pending ||
-    reviewRequired ||
-    query.isError ||
-    query.isFetching ||
-    loading;
+    !!pending || reviewRequired || query.isError || query.isFetching || loading;
   return (
     <Context.Provider
       value={{
         projects,
+        displaySort: navigation?.state.notebookSort ?? "custom",
+        setDisplaySort: (notebookSort) => navigation?.update({ notebookSort }),
         loading,
         error,
         reload,

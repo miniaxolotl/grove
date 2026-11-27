@@ -100,7 +100,13 @@ async function account() {
 }
 test("048 is additive; runtime roles cannot author release admission or enumerate lifecycle inbox", async () => {
   const all = await migrationSource.getMigrations([]);
-  assert.equal(all.at(-1)?.name, "20261119_048_lifecycle_reconciliation");
+  assert.equal(
+    all.filter(
+      (migration) => migration.name === "20261119_048_lifecycle_reconciliation",
+    ).length,
+    1,
+    "the lifecycle migration remains registered exactly once after additive upgrades",
+  );
   await open();
   await assert.rejects(
     api("lifecycle_release_control").update({ phase: "released" }),
@@ -1455,13 +1461,11 @@ test("ordinary owners can inspect persisted failure and request scoped recovery 
   const task = await admin("background_tasks")
     .where({ accountId: id, kind: "billing_reconcile" })
     .first();
-  await admin("background_tasks")
-    .where({ id: task.id })
-    .update({
-      status: "failed",
-      errorCode: "lifecycle_reconciliation_failed",
-      attempts: 5,
-    });
+  await admin("background_tasks").where({ id: task.id }).update({
+    status: "failed",
+    errorCode: "lifecycle_reconciliation_failed",
+    attempts: 5,
+  });
   const stripe = new Stripe("sk_test_status", {
     httpClient: Stripe.createFetchHttpClient(async () => {
       throw new Error("Recovery must not call Stripe");

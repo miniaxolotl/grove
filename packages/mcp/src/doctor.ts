@@ -33,6 +33,8 @@ const codes = new Set([
   "credential_store_unavailable",
   "awaiting_grant",
   "api_version_unsupported",
+  "oauth_resource_mismatch",
+  "oauth_issuer_mismatch",
 ]);
 const safeCode = (error: unknown) =>
   error instanceof GroveError && codes.has(error.code)

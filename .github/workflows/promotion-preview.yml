@@ -1,0 +1,32 @@
+name: Promotion preview
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: ["promote/production/v*"]
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+jobs:
+  preview:
+    if: github.repository == 'miniaxolotl/grove' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }} # default-branch tooling, never execute the PR
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+      - name: Preview the protected merge request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          echo "Read-only preview for [native CI]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$CI_RUN)." >> "$GITHUB_STEP_SUMMARY"
+          node scripts/release/promotion.mjs preview "$CI_RUN" | tee -a "$GITHUB_STEP_SUMMARY"
+        shell: bash

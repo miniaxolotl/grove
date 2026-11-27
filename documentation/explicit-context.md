@@ -40,8 +40,8 @@ inside the selected notebooks using keyword relevance, then newest-update order 
 stable IDs. No unrestricted lexical/vector recall runs in strict mode. This first
 version uses keyword ranking, not semantic embeddings, for notebook-local retrieval.
 
-At most 12 complete notes are supplied for a reply (up to 72,000 note-content
-characters under the existing 6,000-character note limit). Selected notes and overlapping
+At most 12 notes are supplied for a reply. For notes longer than 6,000 characters,
+Ask supplies a relevant passage of up to 2,000 characters. Selected notes and overlapping
 notebook membership are deduplicated. Notebook membership itself is not capped at 12.
 If pins consume every slot, the answer explicitly states that no additional notebook
 notes were provided. Narrow pins or ask a more specific question to change coverage.

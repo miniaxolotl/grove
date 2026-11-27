@@ -1,5 +1,24 @@
 # Ask Grove tools — visual verification
 
+## Draft-only question examples — 27 November 2026
+
+Actual Ask components with synthetic HTTP responses on `feat/ui-ux-implementation`,
+parent `4e2ac9f` plus the Ask hierarchy changes. Production CSS build
+`9U8tIIgcdDZUobDo5nr5b`; Chromium at 1440×900 and 390×900. Reviewed examples
+are disclosed with **Try a question**, and the chosen text is still an unsent
+draft. No invented conversation or provider result fills the empty reading area.
+
+| Desktop                                                                   | Phone                                                         |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| ![Disclosed desktop examples and unsent message](question-draft-1440.png) | ![Phone draft and secondary examples](question-draft-390.png) |
+
+`ui-ux.spec.ts` verifies disclosure and zero turn requests at 1440/768/390/320px.
+Short windows retain a scrollable workspace; expanded ideas can require scrolling
+to the composer. These captures are fixture-backed, not live-authenticated or
+physical-keyboard acceptance. The earlier tools/provider evidence below is historical.
+
+## Earlier tools verification
+
 UI source: `da27de5`, production website build `FcjGUIgoeCD_xTlv9lqIM`.
 Captures use synthetic garden notes and model/search responses, the real
 conversation API and a disposable PostgreSQL database with the non-owner API role.

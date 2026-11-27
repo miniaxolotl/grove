@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { checkLocally } from "./writing/local-check.ts";
+import { reviewActionSchema } from "./writing/review.ts";
 import {
   writingRequestSchema,
   unavailableWriting,
@@ -7,7 +8,7 @@ import {
 } from "@lib/shared/writing-assistance";
 import { GroveError } from "@lib/shared/contracts";
 import { webCaptureSchema } from "@lib/shared/web-capture";
-import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
+import { NOTE_CONTENT_MAX, PROOFING_CONTENT_MAX } from "@lib/shared/limits";
 import { BrowserOAuth } from "./oauth.ts";
 import { ExtensionClient } from "./client.ts";
 import {
@@ -301,7 +302,7 @@ async function localWriting(raw: unknown) {
       connectionId: z.uuid(),
       payload: z
         .object({
-          text: z.string().max(NOTE_CONTENT_MAX),
+          text: z.string().max(PROOFING_CONTENT_MAX),
         })
         .strict(),
     })
@@ -651,19 +652,164 @@ async function aiWriting(raw: unknown, sender: MessageSender, panel: boolean) {
   }
   return work;
 }
+async function reviewForPanel(raw: unknown) {
+  const input = z
+    .object({
+      kind: z.enum([
+        "writingReviewGet",
+        "writingReviewAction",
+        "writingReviewView",
+      ]),
+      windowId: z.number().int().nonnegative(),
+      accountId: z.uuid().optional(),
+      connectionId: z.uuid().optional(),
+      payload: reviewActionSchema.optional(),
+    })
+    .strict()
+    .refine(
+      (input) =>
+        (input.kind === "writingReviewAction") ===
+        (input.payload !== undefined),
+      "Review actions need an exact action payload; reads accept none.",
+    )
+    .parse(raw);
+  if (input.kind === "writingReviewView") {
+    const key = `writingView:${input.windowId}`;
+    const value = await session.get(key);
+    await session.remove(key);
+    return value === "writing" || value === "settings" ? value : null;
+  }
+  if (!(await preferences()).enabled || !host.tabs.sendMessage) return null;
+  const [tab] = await host.tabs.query({
+    active: true,
+    windowId: input.windowId,
+  });
+  const origin =
+    tab?.url && tab.id !== undefined
+      ? writingSenderOrigin(
+          { id: host.runtime.id, frameId: 0, tab, url: tab.url },
+          host.runtime.id,
+        )
+      : null;
+  if (
+    !origin ||
+    tab.id === undefined ||
+    !(await host.permissions?.contains({
+      origins: [writingSitePattern(origin, config.target)],
+    }))
+  )
+    return null;
+  const identity = (await session.get("identity")) as
+    | { accountId?: string; connectionId?: string }
+    | undefined;
+  if (
+    input.accountId !== identity?.accountId ||
+    input.connectionId !== identity?.connectionId
+  )
+    return null;
+  if (
+    !writingSettingsFor(await writing.read(identity?.accountId), origin, true)
+      .enabled
+  )
+    return null;
+  const result = await host.tabs.sendMessage(tab.id, {
+    kind: input.kind,
+    ...(input.payload ? { payload: input.payload } : {}),
+  });
+  const [current] = await host.tabs.query({
+    active: true,
+    windowId: input.windowId,
+  });
+  const after = (await session.get("identity")) as typeof identity;
+  if (
+    current?.id !== tab.id ||
+    current.url !== tab.url ||
+    after?.accountId !== identity?.accountId ||
+    after?.connectionId !== identity?.connectionId ||
+    !(await preferences()).enabled ||
+    !(await host.permissions?.contains({
+      origins: [writingSitePattern(origin, config.target)],
+    }))
+  )
+    return null;
+  return result && typeof result === "object"
+    ? { ...result, site: new URL(tab.url!).hostname }
+    : null;
+}
+
 host.runtime.onMessage.addListener((message, sender, respond) => {
   const panel = trustedPanel(sender, host.runtime);
   if (!panel && !writingSenderOrigin(sender, host.runtime.id)) return false;
   // A local worker check must never hold the capture/auth/settings queue.
   const kind = (message as { kind?: string })?.kind;
+  if (!panel && kind === "writingReviewOpen") {
+    const parsed = z
+      .object({
+        kind: z.literal("writingReviewOpen"),
+        payload: z.object({ view: z.enum(["writing", "settings"]) }).strict(),
+      })
+      .strict()
+      .safeParse(message);
+    if (!parsed.success) return false;
+    // Opening a panel is not access to field text; invoke during the gesture.
+    let opening: Promise<void>;
+    try {
+      opening = openNativePanel(config.target, host, sender.tab!.windowId!);
+    } catch {
+      respond({ ok: false });
+      return false;
+    }
+    void Promise.all([
+      opening,
+      session.set(
+        `writingView:${sender.tab!.windowId}`,
+        parsed.data.payload.view,
+      ),
+    ]).then(
+      async () => {
+        await host.runtime
+          .sendMessage({
+            kind: "writingReviewNavigate",
+            windowId: sender.tab!.windowId,
+            view: parsed.data.payload.view,
+          })
+          .catch(() => {});
+        respond({ ok: true, data: true });
+      },
+      () => respond({ ok: false }),
+    );
+    return true;
+  }
+  if (!panel && kind === "writingReviewChanged") {
+    if (
+      !z
+        .object({ kind: z.literal("writingReviewChanged") })
+        .strict()
+        .safeParse(message).success
+    )
+      return false;
+    void host.runtime
+      .sendMessage({
+        kind: "writingReviewChanged",
+        windowId: sender.tab!.windowId,
+      })
+      .catch(() => {});
+    respond({ ok: true, data: true });
+    return false;
+  }
   void (
-    typeof kind === "string" && kind.startsWith("writingAI")
-      ? aiWriting(message, sender, panel)
-      : !panel
-        ? websiteWriting(message, sender)
-        : kind === "writingCheck"
-          ? localWriting(message)
-          : serial(() => dispatch(message))
+    panel &&
+    ["writingReviewGet", "writingReviewAction", "writingReviewView"].includes(
+      kind ?? "",
+    )
+      ? reviewForPanel(message)
+      : typeof kind === "string" && kind.startsWith("writingAI")
+        ? aiWriting(message, sender, panel)
+        : !panel
+          ? websiteWriting(message, sender)
+          : kind === "writingCheck"
+            ? localWriting(message)
+            : serial(() => dispatch(message))
   ).then(
     (data) => respond({ ok: true, data }),
     (error) =>

@@ -5,15 +5,69 @@ The standalone website uses npm; the products use their pinned pnpm versions.
 Keep common action pins and workflow
 contracts synchronized when updating them.
 
-| File          | Name                     | Responsibility                                                     |
-| ------------- | ------------------------ | ------------------------------------------------------------------ |
-| `ci.yml`      | CI                       | Validate source or admit a frozen promotion; finish with `CI Gate` |
-| `release.yml` | Source Release           | Release Please on development; immutable source tags               |
-| `promote.yml` | Select Release Candidate | Operator-selected tag, independent source CI, frozen PR            |
-| `deploy.yml`  | Deploy                   | Burrow/Grove production: `candidate` → `publish` → `deploy`        |
+| File          | Name           | Responsibility                                                                       |
+| ------------- | -------------- | ------------------------------------------------------------------------------------ |
+| `ci.yml`      | CI             | Validate source or admit a frozen promotion; finish with `CI Gate`                   |
+| `release.yml` | Source Release | Release Please on development; Grove automatically prepares the frozen production PR |
+| `deploy.yml`  | Deploy         | Grove production: `candidate` → `publish` → `deploy` → `website`                     |
 
 Fern delivers through `stage-release.yml` (images and production services), Xcode
 Cloud (eligible TestFlight), and `store-release.yml` (prepare the accepted build).
+
+## Grove release flow
+
+**Branch → development → Release Please → production.** Merge the feature PR,
+then the coordinated Release Please PR. Source Release fetches the immutable tag,
+waits for full CI on that exact source and opens `promote/production/vX.Y.Z`.
+Merge that PR to deploy. There is no candidate-selection dispatch, release-scope
+declaration, fingerprint refresh or separate deployment approval.
+
+One Release Please configuration updates the product, all five packages and plugin
+pins. Production publishes them together, deploys the API/worker by digest and
+then builds/deploys the website. An ordinary commit without its own release tag
+does not open a production PR. Retrying Source Release reuses the same frozen PR.
+
+Automatic promotion authenticates the successful exact-source Source Release run,
+not an expiring selection artifact. CI dispatched for that PR waits for Source
+Release to finish if needed; Source Release never waits on production-PR CI.
+Legacy selection evidence remains readable for existing production history.
+Held continuation workflows remain manual, isolated recovery tools, not release
+stages. Offline impact/selection tools do not gate or select normal releases.
+
+### Bot merge rehearsal
+
+`Promotion preview` observes native CI on the frozen PR. It reports the Release
+Please PR, source, tree, production base and the proposed merge-commit request
+bound to the frozen head OID. It cannot submit that request. A successful
+generated-PR dispatch is not a substitute for the native PR run. The observer
+reads protected default-branch tooling and never waits inside Source Release.
+
+Before enabling a writer, use a separate repository with equivalent effective
+protections, no bypass, no production credentials and a no-write Deploy. Use
+the intended workflow identity, not an operator's CLI token:
+
+1. Merge the generated Release Please PR; record the source/tag and successful
+   exact-source CI. Retry selection and confirm the same frozen PR and head.
+2. Record any approval prompts on **both** generated PRs. Require native checks
+   and resolved conversations. Verify that a changed head or production base
+   stops the request. In `miniaxolotl/grove-promotion-rehearsal` only, set the
+   sandbox copy's policy and workflow repository guards to its own identity.
+   Use the protected observer job's own `GITHUB_TOKEN` with `contents: write`
+   and `pull-requests: write`; replace its preview command with
+   `bash scripts/release/rehearse-auto-merge.sh "$CI_RUN"`. This requests
+   `enablePullRequestAutoMerge` with the verified `pullRequestId`,
+   `expectedHeadOid` and `MERGE`; it has no direct-merge fallback.
+3. Capture the actual merge SHA and two independent **push** runs: full CI and
+   no-write Deploy on that SHA. Make CI fail once and verify no deployment effect.
+   A green dispatch cannot prove the merge emitted these events. If suppressed,
+   rehearse a repository-scoped App or an exact-SHA dispatch with duplicate-run
+   protection; keep the current route until proved.
+4. Before production cutover, define routine scope (unknown changes, schema
+   operations and recovery stay manual), finish in-flight releases on the old
+   route, and verify the Bramble pilot. On the first intended Grove release,
+   count human interactions and verify all five packages, the API/worker digest
+   and readiness, and the website's live identity. Browser store submissions
+   remain separate.
 
 ## Common baseline
 
