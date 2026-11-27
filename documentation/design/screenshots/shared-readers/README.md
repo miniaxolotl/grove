@@ -2,8 +2,8 @@
 
 ## Notebook navigation — 27 November 2026
 
-Synthetic notes, no signed-in session. Application source: `7256732` on `de69345`,
-production build `7uXKs5vWHLQwNqvjRWg5v`. The PR records final verification.
+Synthetic notes, no signed-in session. Application source: `b449cd2` on `de69345`,
+production build `OFhGpswO2fZFtNkSh4xVO`. The PR records final verification.
 Captures use Chromium at
 1440/768/390/320px.
 
@@ -16,6 +16,9 @@ Captures use Chromium at
 | ![Notebook contents](navigation-notebook-1440.png) | ![Phone notebook contents](navigation-notebook-390.png) | ![Tablet reader](navigation-note-768.png) | ![320px reader](navigation-note-320.png) |
 
 The article keeps its reading width while notebook contents and the outline fold.
+The white ground and neutral selection fills keep the text central. Search
+results have no decorative icons or trailing arrows; pagination is a text action.
+Only directional navigation and disclosures retain arrows or chevrons.
 Selection, focus, slow/error transitions and no-JS links are exercised in
 `shared-reader.spec.ts`. Automatic accessibility checks are not physical-device or
 screen-reader acceptance. Very structure-heavy Markdown retains the underlying

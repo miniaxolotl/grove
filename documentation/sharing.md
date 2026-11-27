@@ -71,6 +71,11 @@ stay inside the shared root. **Find a note** searches saved titles across permit
 sub-notebooks, including notes not loaded in the sidebar. A direct note share has
 no notebook navigation or search. Phones fold navigation above the article.
 
+Shared routes use a white reading surface and neutral selection fills. Search
+results and **More notes** are text-led; arrows indicate back/next navigation,
+and chevrons indicate disclosures. This styling does not change saved Markdown
+or the signed-in workspace palette.
+
 **On this page** finds headings and optionally list points. Section links preserve
 existing heading fragments; copy a heading link from its link icon or the outline.
 A missing section keeps the note readable and offers the outline. The footer opens
