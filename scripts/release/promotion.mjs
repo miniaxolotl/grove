@@ -71,6 +71,20 @@ export function assertCandidate(policy, candidate, tree) {
   );
 }
 
+function successfulJobs(run, jobs, required) {
+  return required.every((name) => {
+    const matching = jobs.filter((job) => job.name === name);
+    return (
+      matching.length === 1 &&
+      matching[0].run_id === run.id &&
+      matching[0].run_attempt === run.run_attempt &&
+      matching[0].head_sha === run.head_sha &&
+      matching[0].status === "completed" &&
+      matching[0].conclusion === "success"
+    );
+  });
+}
+
 export function assertCi(run, jobs, { repository, sha, required, exclude }) {
   return (
     run.path === ".github/workflows/ci.yml" &&
@@ -82,17 +96,7 @@ export function assertCi(run, jobs, { repository, sha, required, exclude }) {
     ["push", "workflow_dispatch"].includes(run.event) &&
     run.status === "completed" &&
     run.conclusion === "success" &&
-    required.every((name) => {
-      const matching = jobs.filter((job) => job.name === name);
-      return (
-        matching.length === 1 &&
-        matching[0].run_id === run.id &&
-        matching[0].run_attempt === run.run_attempt &&
-        matching[0].head_sha === sha &&
-        matching[0].status === "completed" &&
-        matching[0].conclusion === "success"
-      );
-    })
+    successfulJobs(run, jobs, required)
   );
 }
 
@@ -435,6 +439,95 @@ export function productionCandidate(policy, sha) {
   return candidate;
 }
 
+// Observe only. No mutation, dispatch, fallback selection or provider access.
+function previewAutoMerge(policy, id) {
+  requireThat(/^[1-9]\d*$/.test(id), "Expected native promotion CI run ID");
+  const repository = `repos/${policy.repository}`;
+  const run = api(`${repository}/actions/runs/${id}`);
+  const prefix = "promote/production/";
+  requireThat(
+    run.id === Number(id) &&
+      run.path === ".github/workflows/ci.yml" &&
+      run.head_repository?.full_name === policy.repository &&
+      run.event === "pull_request" &&
+      run.head_branch.startsWith(prefix) &&
+      tagPattern.test(run.head_branch.slice(prefix.length)) &&
+      hashPattern.test(run.head_sha) &&
+      Number.isSafeInteger(run.run_attempt) &&
+      run.run_attempt > 0 &&
+      run.status === "completed" &&
+      run.conclusion === "success",
+    "Successful native frozen-PR CI required",
+  );
+  const jobs = pages(
+    `${repository}/actions/runs/${id}/attempts/${run.run_attempt}/jobs`,
+    "jobs",
+  );
+  requireThat(
+    successfulJobs(run, jobs, ["Promotion Admission", "CI Gate"]),
+    "Native promotion checks incomplete",
+  );
+  const [pr, ...others] = pages(
+    `${repository}/pulls?state=open&base=production&head=${policy.repository.split("/")[0]}:${run.head_branch}`,
+  );
+  requireThat(
+    pr &&
+      !others.length &&
+      pr.state === "open" &&
+      pr.draft === false &&
+      pr.node_id &&
+      pr.base.ref === "production" &&
+      pr.base.repo?.full_name === policy.repository &&
+      pr.head.ref === run.head_branch &&
+      pr.head.sha === run.head_sha &&
+      pr.user.login === "github-actions[bot]" &&
+      pr.user.type === "Bot" &&
+      /<!-- release-source:\d+ -->/.test(pr.body),
+    "Open exact-head automatically selected production PR required",
+  );
+  const candidate = admitPromotion(policy, pr, pr.head.sha);
+  requireThat(
+    candidate.releasePr.user?.login === "github-actions[bot]" &&
+      candidate.releasePr.user.type === "Bot" &&
+      candidate.releasePr.head.ref ===
+        "release-please--branches--development--components--grove",
+    "Expected the generated Release Please ship decision",
+  );
+  const base = api(`${repository}/branches/production`);
+  requireThat(
+    run.pull_requests?.some(
+      (tested) =>
+        tested.number === pr.number &&
+        tested.head.ref === pr.head.ref &&
+        tested.head.sha === pr.head.sha &&
+        tested.base.ref === pr.base.ref &&
+        tested.base.sha === base.commit.sha,
+    ),
+    "Native run must identify this PR, head and production base",
+  );
+  requireThat(
+    base.protected === true &&
+      git("show", "-s", "--format=%P", pr.head.sha) ===
+        `${base.commit.sha} ${candidate.sha}`,
+    "Frozen parents no longer match protected production and released source",
+  );
+  return {
+    mode: "preview-only",
+    releasePr: candidate.releasePr.number,
+    sha: candidate.sha,
+    tree: candidate.tree,
+    tag: candidate.tag,
+    production: base.commit.sha,
+    pr: pr.number,
+    nativeCi: run.id,
+    input: {
+      pullRequestId: pr.node_id,
+      expectedHeadOid: pr.head.sha,
+      mergeMethod: "MERGE",
+    },
+  };
+}
+
 function output(candidate) {
   const values = Object.fromEntries(
     ["tag", "sha", "tree", "version"].map((key) => [key, candidate[key]]),
@@ -607,7 +700,9 @@ if (
         await waitForCi(policy, source);
         openPromotion(policy, tag, "production");
       }
-    } else if (command === "production")
+    } else if (command === "preview")
+      console.log(JSON.stringify(previewAutoMerge(policy, first)));
+    else if (command === "production")
       output(productionCandidate(policy, first));
     else if (command === "wait-ci") {
       requireThat(hashPattern.test(first), "Expected a full CI commit SHA");
@@ -617,7 +712,7 @@ if (
     else if (command === "open") openPromotion(policy, first, second);
     else
       throw new Error(
-        "Usage: promotion.mjs auto | admit | production <SHA> | wait-ci <SHA> | resolve <tag> [tree] | open <tag> <target>",
+        "Usage: promotion.mjs auto | admit | preview <native CI run ID> | production <SHA> | wait-ci <SHA> | resolve <tag> [tree] | open <tag> <target>",
       );
   } catch (error) {
     console.error(error.message);
