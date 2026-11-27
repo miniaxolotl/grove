@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.39](https://github.com/miniaxolotl/grove/compare/v1.11.38...v1.11.39) (2026-11-27)
+
+
+### Features
+
+* **release:** automate compatible production migrations ([#363](https://github.com/miniaxolotl/grove/issues/363)) ([51a6ec1](https://github.com/miniaxolotl/grove/commit/51a6ec1a952accffaaff69d24229452374f05da6))
+
 ## [1.11.38](https://github.com/miniaxolotl/grove/compare/v1.11.37...v1.11.38) (2026-11-27)
 
 
