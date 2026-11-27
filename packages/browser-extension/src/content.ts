@@ -4,15 +4,15 @@ import {
   type WritingResult,
   type WritingSettings,
 } from "./writing/core.ts";
-import { isWritingEditor } from "./writing/editor.ts";
+import { isWritingEditor, writingEditorFrom } from "./writing/editor.ts";
 import { WritingController } from "./writing/controller.ts";
+import { reviewActionSchema } from "./writing/review.ts";
 import {
   unavailableWriting,
   type WritingAvailability,
 } from "@lib/shared/writing-assistance";
 import { PROOFING_CONTENT_MAX } from "@lib/shared/limits";
 
-// Isolated-world flag prevents duplicate controllers after explicit re-injection.
 const environment = globalThis as typeof globalThis & {
   groveWritingInstalled?: boolean;
 };
@@ -20,99 +20,60 @@ if (!environment.groveWritingInstalled) {
   environment.groveWritingInstalled = true;
   let settings = writingSettingsSchema.parse({ enabled: false });
   let controller: WritingController | undefined,
-    active: HTMLTextAreaElement | undefined;
-  let epoch = 0;
-  let tools = unavailableWriting,
+    active: HTMLElement | undefined;
+  let epoch = 0,
+    tools = unavailableWriting,
     binding: string | null = null;
-  const badge = document.createElement("button");
+  let notification = false;
   const nativeMarker = "data-grove-native-writing";
-  badge.type = "button";
-  badge.hidden = true;
-  badge.dataset.groveWritingUi = "true";
-  Object.assign(badge.style, {
-    position: "fixed",
-    zIndex: "2147483646",
-    minHeight: "32px",
-    padding: "4px 8px",
-    font: "13px/20px system-ui,sans-serif",
-    background: "Canvas",
-    color: "CanvasText",
-    border: "1px solid GrayText",
-    borderRadius: "6px",
-    cursor: "pointer",
+  const pauses = new WeakSet<HTMLElement>();
+  const rootChanges = new MutationObserver(() => {
+    if (active && (!settings.enabled || !isWritingEditor(active))) detach();
   });
-  badge.addEventListener("click", (event) => {
-    if (event.isTrusted) controller?.review();
-  });
-  document.documentElement.append(badge);
   async function rpc<T>(kind: string, payload?: unknown): Promise<T> {
     const result = (await host.runtime.sendMessage({
       kind,
       ...(payload ? { payload } : {}),
       ...(kind.startsWith("writingAI") && binding ? { binding } : {}),
-    })) as { ok: boolean; data: T; error?: { message?: string } };
+    })) as { ok: boolean; data: T };
     if (!result?.ok)
       throw new Error("Writing checks aren’t available. Try again.");
     return result.data;
   }
+  function notify() {
+    if (notification) return;
+    notification = true;
+    queueMicrotask(() => {
+      notification = false;
+      void rpc("writingReviewChanged").catch(() => {});
+    });
+  }
   function detach() {
+    rootChanges.disconnect();
+    if (!controller && !active) return;
     controller?.destroy();
     controller = undefined;
     active = undefined;
-    badge.hidden = true;
+    notify();
   }
-  function status(result: WritingResult | null, error?: string) {
-    badge.hidden = true;
-    if (
-      !active ||
-      !settings.enabled ||
-      !isWritingEditor(active) ||
-      (!result?.issues.length && !error)
-    )
-      return;
-    const rect = active.getBoundingClientRect(),
-      top = rect.bottom + 4;
-    // Never place a writing affordance over the editor or an existing host control.
-    if (top + 32 > innerHeight || rect.left < 0) return;
-    const beneath = document.elementFromPoint(rect.left + 4, top + 16);
-    if (
-      beneath &&
-      beneath !== document.body &&
-      beneath !== document.documentElement &&
-      beneath !== active.parentElement
-    )
-      return;
-    badge.textContent = error
-      ? "Retry writing checks"
-      : `${result!.issues.length} suggestion${result!.issues.length === 1 ? "" : "s"}`;
-    badge.title = error ?? "Spelling and basic grammar · Alt+Enter";
-    badge.style.left = `${Math.max(4, rect.left)}px`;
-    badge.style.top = `${top}px`;
-    badge.hidden = false;
-  }
-  function bind(element: EventTarget | null) {
-    // First-party Grove pages with native proofing own their editor: never
-    // inject a second writer there. The webapp sets this marker while its
-    // own proofing is mounted and enabled.
+  function bind(target: EventTarget | null) {
     if (document.documentElement.hasAttribute(nativeMarker)) {
       detach();
       return;
     }
-    // Check metadata BEFORE reading .value. All inputs and unqualified rich editors
-    // remain unbound; the first supported website adapter is multiline textarea.
-    if (
-      !(element instanceof HTMLTextAreaElement) ||
-      !settings.enabled ||
-      !isWritingEditor(element)
-    ) {
-      if (element !== badge) detach();
+    const element = writingEditorFrom(target);
+    if (!element || !settings.enabled || !isWritingEditor(element)) {
+      detach();
       return;
     }
     if (element === active) return;
     detach();
     active = element;
+    const root = element.getRootNode();
+    if (root instanceof ShadowRoot) rootChanges.observe(root, observation);
     controller = new WritingController(element, {
       settings: () => settings,
+      indicator: true,
       check: async (text) => {
         const result = await rpc<WritingResult>("writingSiteCheck", {
           text: text.slice(0, PROOFING_CONTENT_MAX),
@@ -139,14 +100,34 @@ if (!environment.groveWritingInstalled) {
         await rpc("writingSiteAddWord", { word });
         await refresh();
       },
-      status,
-      feedback: (message) => {
-        badge.textContent = message;
-        badge.setAttribute("aria-live", "polite");
-        badge.hidden = false;
+      status: () => {},
+      changed: () => {
+        if (controller?.state()?.phase === "paused") pauses.add(element);
+        else if (controller?.state()) pauses.delete(element);
+        notify();
+      },
+      settingsAction: () => {
+        void rpc("writingReviewOpen", { view: "settings" }).catch(() => {});
+      },
+      sidebarAction: () => {
+        void rpc("writingReviewOpen", { view: "writing" }).catch(() => {});
       },
     });
-    controller.refresh();
+    if (pauses.has(element)) {
+      const state = controller.state();
+      if (state)
+        void controller.action({
+          editorId: state.editorId,
+          revision: state.revision,
+          action: "pause",
+        });
+    } else controller.refresh();
+  }
+  function focused(): Element | null {
+    let element = document.activeElement;
+    while (element?.shadowRoot?.activeElement)
+      element = element.shadowRoot.activeElement;
+    return element;
   }
   async function refresh() {
     const current = ++epoch;
@@ -161,8 +142,9 @@ if (!environment.groveWritingInstalled) {
       tools = next.tools ?? unavailableWriting;
       binding = next.binding ?? null;
       if (!settings.enabled) detach();
+      else if (active && !isWritingEditor(active)) detach();
       else if (active) controller?.refresh();
-      else bind(document.activeElement);
+      else bind(focused());
     } catch {
       if (current === epoch) {
         settings = writingSettingsSchema.parse({ enabled: false });
@@ -171,18 +153,25 @@ if (!environment.groveWritingInstalled) {
     }
   }
   document.addEventListener("focusin", (event) => {
+    const path = event.composedPath();
     if (
-      event
-        .composedPath()
-        .some(
-          (node) =>
-            node instanceof HTMLElement &&
-            node.dataset.groveWritingUi === "true",
-        )
+      path.some(
+        (node) =>
+          node instanceof HTMLElement && node.dataset.groveWritingUi === "true",
+      )
     )
       return;
-    bind(event.target);
+    bind(path[0] ?? event.target);
   });
+  for (const name of ["pointerdown", "keydown"] as const)
+    document.addEventListener(
+      name,
+      (event) => {
+        if (!active && settings.enabled && event.isTrusted)
+          bind(event.composedPath()[0] ?? event.target);
+      },
+      { capture: true },
+    );
   const changes = new MutationObserver((records) => {
     if (
       records.some(
@@ -191,17 +180,28 @@ if (!environment.groveWritingInstalled) {
           record.attributeName === nativeMarker,
       )
     ) {
-      bind(document.activeElement);
+      bind(focused());
       return;
     }
     if (active && (!settings.enabled || !isWritingEditor(active))) detach();
+    if (
+      !active &&
+      settings.enabled &&
+      focused() instanceof HTMLElement &&
+      isWritingEditor(focused() as HTMLElement)
+    )
+      bind(focused());
   });
   const observation: MutationObserverInit = {
     subtree: true,
+    childList: true,
+    characterData: true,
     attributes: true,
     attributeFilter: [
       nativeMarker,
       "type",
+      "inputmode",
+      "contenteditable",
       "autocomplete",
       "readonly",
       "disabled",
@@ -221,39 +221,47 @@ if (!environment.groveWritingInstalled) {
       "class",
       "style",
     ],
-    childList: true,
-    characterData: true,
   };
   changes.observe(document.documentElement, observation);
-  host.runtime.onMessage.addListener((message, sender) => {
-    if (
-      sender.id === host.runtime.id &&
-      !sender.tab &&
-      (message as { kind?: string })?.kind === "writingToolsState"
-    ) {
-      tools = (message as { tools: WritingAvailability }).tools;
-      controller?.refreshTools();
+  host.runtime.onMessage.addListener((message, sender, respond) => {
+    if (sender.id !== host.runtime.id || sender.tab) return false;
+    const kind = (message as { kind?: string })?.kind;
+    if (kind === "writingReviewGet") {
+      respond(controller?.state() ?? null);
       return false;
     }
-    if (
-      sender.id === host.runtime.id &&
-      !sender.tab &&
-      (message as { kind?: string })?.kind === "writingRefresh"
-    )
-      void refresh();
+    if (kind === "writingReviewAction") {
+      const parsed = reviewActionSchema.safeParse(
+        (message as { payload?: unknown }).payload,
+      );
+      if (!parsed.success || !controller) {
+        respond(null);
+        return false;
+      }
+      const owner = controller;
+      void owner.action(parsed.data, true).then(
+        () => respond(owner === controller ? owner.state() : null),
+        () => respond(null),
+      );
+      return true;
+    }
+    if (kind === "writingToolsState") {
+      tools = (message as { tools: WritingAvailability }).tools;
+      controller?.refreshTools();
+    }
+    if (kind === "writingRefresh") void refresh();
     return false;
   });
   window.addEventListener("pagehide", () => {
     epoch++;
     detach();
     changes.disconnect();
-    badge.remove();
   });
   window.addEventListener("pageshow", (event) => {
-    if (!event.persisted) return;
-    document.documentElement.append(badge);
-    changes.observe(document.documentElement, observation);
-    void refresh();
+    if (event.persisted) {
+      changes.observe(document.documentElement, observation);
+      void refresh();
+    }
   });
   void refresh();
 }

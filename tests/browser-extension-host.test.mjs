@@ -11,7 +11,7 @@ import process from "node:process";
 const require = createRequire(
   new URL("../packages/website/package.json", import.meta.url),
 );
-const { chromium } = require("@playwright/test");
+const { chromium, expect } = require("@playwright/test");
 const { default: AxeBuilder } = require("@axe-core/playwright");
 const accountId = "00000000-0000-4000-a000-000000000001",
   connectionId = "00000000-0000-4000-a000-000000000002";
@@ -165,7 +165,7 @@ for (const target of ["chrome", "edge"])
         .waitFor({ state: "attached", timeout: 3000 });
       await localPage.locator("#draft").press("Alt+Enter");
       await localPage
-        .getByRole("button", { name: "onyl — Spelling", exact: true })
+        .locator('.issue-label[data-original="onyl"][data-category="spelling"]')
         .click();
       if (process.env.EXTENSION_SCREENSHOTS) {
         await mkdir(process.env.EXTENSION_SCREENSHOTS, { recursive: true });
@@ -200,6 +200,9 @@ for (const target of ["chrome", "edge"])
       const guestPanel = await context.newPage();
       await guestPanel.goto(`chrome-extension://${extensionId}/panel.html`);
       await guestPanel
+        .getByRole("button", { name: "Writing", exact: true })
+        .click();
+      await guestPanel
         .getByRole("button", { name: "Writing settings" })
         .click();
       for (const off of ["spelling", "grammar"]) {
@@ -217,7 +220,7 @@ for (const target of ["chrome", "edge"])
         await localPage.locator(`mark.${off}`).waitFor();
       }
       const guestHome = guestPanel.getByRole("button", {
-        name: "Home",
+        name: "Notes",
         exact: true,
       });
       await guestHome.press("Enter");
@@ -251,9 +254,22 @@ for (const target of ["chrome", "edge"])
         .waitFor({ state: "detached" });
       await localPage.goto("https://deep.notes.writing-fixture.test/form");
       await localPage.locator("#draft").fill("This is a sentnce.");
-      await localPage
-        .locator("button[data-grove-writing-ui]")
-        .waitFor({ state: "attached" });
+      await expect
+        .poll(() =>
+          worker.evaluate(async () => {
+            const [tab] = (await chrome.tabs.query({})).filter((tab) =>
+              tab.url?.startsWith("https://deep.notes.writing-fixture.test/"),
+            );
+            return (
+              await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "ISOLATED",
+                func: () => globalThis.groveWritingInstalled === true,
+              })
+            )[0].result;
+          }),
+        )
+        .toBe(true);
       const domainState = await worker.evaluate(async () => {
         const [tab] = (await chrome.tabs.query({})).filter((tab) =>
           tab.url?.startsWith("https://deep.notes.writing-fixture.test/"),
@@ -308,9 +324,22 @@ for (const target of ["chrome", "edge"])
         .waitFor({ state: "detached" });
       await localPage.reload();
       await localPage.locator("#draft").focus();
-      await localPage
-        .locator("button[data-grove-writing-ui]")
-        .waitFor({ state: "attached" });
+      await expect
+        .poll(() =>
+          worker.evaluate(async () => {
+            const [tab] = (await chrome.tabs.query({})).filter((tab) =>
+              tab.url?.startsWith("https://deep.notes.writing-fixture.test/"),
+            );
+            return (
+              await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "ISOLATED",
+                func: () => globalThis.groveWritingInstalled === true,
+              })
+            )[0].result;
+          }),
+        )
+        .toBe(true);
       assert.equal(
         await localPage.locator("div[data-grove-writing-ui]").count(),
         0,
@@ -621,7 +650,7 @@ for (const target of ["chrome", "edge"])
       });
       assert.deepEqual(
         await page.locator("#navigation button").allTextContents(),
-        ["Notes", "Search", "Settings"],
+        ["Writing", "Notes", "Search", "Settings"],
       );
       assert.equal(await page.locator("#new-note").isVisible(), false);
       assert.equal(await page.locator("#save-details").count(), 0);
@@ -687,12 +716,16 @@ for (const target of ["chrome", "edge"])
         .waitFor();
       await page.locator("#note").press("Alt+Enter");
       await page
-        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .locator(
+          '.issue-label[data-original="sentnce"][data-category="spelling"]',
+        )
         .waitFor();
       await page.keyboard.press("Escape");
       await page.locator("#writing-review").click();
       await page
-        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .locator(
+          '.issue-label[data-original="sentnce"][data-category="spelling"]',
+        )
         .click();
       await page
         .getByRole("button", { name: "sentence", exact: true })
@@ -780,7 +813,9 @@ for (const target of ["chrome", "edge"])
         .waitFor({ state: "attached" });
       await sourcePage.locator("#body").press("Alt+Enter");
       await sourcePage
-        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .locator(
+          '.issue-label[data-original="sentnce"][data-category="spelling"]',
+        )
         .click();
       await sourcePage
         .getByRole("button", { name: "sentence", exact: true })
@@ -826,7 +861,7 @@ for (const target of ["chrome", "edge"])
           <label id="wrapped-label">Message <textarea id="wrapped" rows="6">Username</textarea></label>
           <span id="security-label">Verification code</span><textarea id="security-field" rows="6" aria-labelledby="security-label">PRIVATE_FIELD_CANARY</textarea>
           <label>Name <textarea id="identity-field" rows="6">PRIVATE_FIELD_CANARY</textarea></label>
-          <label>Message <textarea id="single-line" rows="6" aria-multiline="false">PRIVATE_FIELD_CANARY</textarea></label>
+          <label>Verification code <textarea id="single-line" rows="6" aria-multiline="false">PRIVATE_FIELD_CANARY</textarea></label>
         `,
         );
       });
@@ -960,13 +995,15 @@ for (const target of ["chrome", "edge"])
       await sourcePage.locator("#wrapped").press("Alt+Enter");
       await sourcePage
         .getByRole("dialog", { name: "Writing suggestions" })
-        .getByText("No issues found by spelling and basic grammar checks.", {
+        .getByText("No issues found.", {
           exact: true,
         })
         .waitFor();
       assert.equal(
         await sourcePage
-          .getByRole("button", { name: "sentnce — Spelling", exact: true })
+          .locator(
+            '.issue-label[data-original="sentnce"][data-category="spelling"]',
+          )
           .count(),
         0,
         "late results must not revive an old typo",
@@ -986,7 +1023,9 @@ for (const target of ["chrome", "edge"])
         .fill("This is a sentnce with a zorbler.");
       await sourcePage.locator("#wrapped").press("Alt+Enter");
       await sourcePage
-        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .locator(
+          '.issue-label[data-original="sentnce"][data-category="spelling"]',
+        )
         .click();
       await sourcePage
         .getByRole("button", { name: "sentence", exact: true })
@@ -1006,7 +1045,9 @@ for (const target of ["chrome", "edge"])
         .click();
       await sourcePage.locator("#wrapped").press("Alt+Enter");
       await sourcePage
-        .getByRole("button", { name: "zorbler — Spelling", exact: true })
+        .locator(
+          '.issue-label[data-original="zorbler"][data-category="spelling"]',
+        )
         .click();
       await sourcePage
         .getByRole("dialog", { name: "Writing suggestions" })
@@ -1024,13 +1065,15 @@ for (const target of ["chrome", "edge"])
         .getByRole("button", { name: "All issues", exact: true })
         .click();
       await sourcePage
-        .getByRole("button", { name: "zorbler — Spelling", exact: true })
+        .locator(
+          '.issue-label[data-original="zorbler"][data-category="spelling"]',
+        )
         .waitFor();
       await sourcePage.keyboard.press("Escape");
       await sourcePage.locator("#wrapped").fill("They was late.");
       await sourcePage.locator("#wrapped").press("Alt+Enter");
       await sourcePage
-        .getByRole("button", { name: "was — Grammar", exact: true })
+        .locator('.issue-label[data-original="was"][data-category="grammar"]')
         .click();
       await sourcePage
         .getByRole("dialog", { name: "Writing suggestions" })
@@ -1097,7 +1140,9 @@ for (const target of ["chrome", "edge"])
         .fill("This is a sentnce. ".repeat(10000));
       await sourcePage.locator("#wrapped").press("Alt+Enter");
       await sourcePage
-        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .locator(
+          '.issue-label[data-original="sentnce"][data-category="spelling"]',
+        )
         .first()
         .waitFor();
       const mirroredLength = await sourcePage
@@ -1525,7 +1570,9 @@ for (const target of ["chrome", "edge"])
         .waitFor();
       await page.locator("#note").press("Alt+Enter");
       await page
-        .getByRole("button", { name: "sentnce — Spelling", exact: true })
+        .locator(
+          '.issue-label[data-original="sentnce"][data-category="spelling"]',
+        )
         .click();
       await page.getByRole("button", { name: "sentence", exact: true }).click();
       assert.equal(
@@ -2018,7 +2065,7 @@ for (const target of ["chrome", "edge"])
       await worker.evaluate(() => globalThis.releaseSearch());
       await page
         .locator("#results-status")
-        .filter({ hasText: "1 note · checked" })
+        .filter({ hasText: "1 note. Checked at" })
         .waitFor();
       assert.equal(
         await page.evaluate(
@@ -2045,7 +2092,7 @@ for (const target of ["chrome", "edge"])
       await page.locator("#query").press("Enter");
       await page
         .locator("#results-status")
-        .filter({ hasText: "1 note · checked" })
+        .filter({ hasText: "1 note. Checked at" })
         .waitFor();
       assert.equal(
         await page
@@ -2553,7 +2600,7 @@ for (const target of ["chrome", "edge"])
         await page
           .locator("#navigation [data-nav]")
           .evaluateAll((items) => items.map((item) => item.dataset.nav)),
-        ["capture", "search", "settings"],
+        ["writing", "capture", "search", "settings"],
         "Settings stays last in workspace navigation",
       );
       for (const name of ["capture", "search", "settings"]) {
@@ -2598,7 +2645,7 @@ for (const target of ["chrome", "edge"])
       await page.locator("#query").pressSequentially("source", { delay: 15 });
       await page
         .locator("#results-status")
-        .filter({ hasText: "1 note · checked" })
+        .filter({ hasText: "1 note. Checked at" })
         .waitFor();
       assert.equal(
         await worker.evaluate(() => globalThis.fixtureSearchQueries.length),
@@ -2634,7 +2681,7 @@ for (const target of ["chrome", "edge"])
       await worker.evaluate(() => globalThis.releaseLatest());
       await page
         .locator("#results-status")
-        .filter({ hasText: "1 note · checked" })
+        .filter({ hasText: "1 note. Checked at" })
         .waitFor();
       await page.locator("#query").fill("");
       await page

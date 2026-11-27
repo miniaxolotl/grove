@@ -103,6 +103,7 @@ export function effectiveWritingSettings(
 export type EditorMetadata = {
   tag: string;
   type?: string;
+  inputmode?: string;
   visible: boolean;
   rows?: number;
   multiline?: boolean;
@@ -118,7 +119,10 @@ export type EditorMetadata = {
   name?: string;
 };
 /** Metadata only: never inspect value/text to decide whether a field is safe. */
-export function eligibleEditor(meta: EditorMetadata): boolean {
+export function eligibleEditor(
+  meta: EditorMetadata,
+  options: { proseFields?: boolean } = {},
+): boolean {
   if (
     !meta.visible ||
     meta.disabled ||
@@ -126,17 +130,33 @@ export function eligibleEditor(meta: EditorMetadata): boolean {
     meta.inert ||
     meta.code ||
     meta.labelComplete === false ||
-    meta.multiline === false ||
+    (!options.proseFields && meta.multiline === false) ||
     meta.spellcheck === false
   )
     return false;
   const tag = meta.tag.toLowerCase();
-  if (tag !== "textarea" && !(meta.editable && meta.multiline)) return false;
-  if (
-    tag === "input" ||
-    (tag === "textarea" && (meta.rows ?? 2) < 2 && !meta.multiline)
-  )
-    return false;
+  if (options.proseFields) {
+    if (tag === "body" || tag === "html") return false;
+    if (
+      ["numeric", "decimal", "tel", "email", "url", "search"].includes(
+        (meta.inputmode ?? "").toLowerCase(),
+      )
+    )
+      return false;
+    if (tag !== "textarea" && tag !== "input" && !meta.editable) return false;
+    if (
+      tag === "input" &&
+      !["", "text"].includes((meta.type ?? "").toLowerCase())
+    )
+      return false;
+  } else {
+    if (tag !== "textarea" && !(meta.editable && meta.multiline)) return false;
+    if (
+      tag === "input" ||
+      (tag === "textarea" && (meta.rows ?? 2) < 2 && !meta.multiline)
+    )
+      return false;
+  }
   const autocomplete = (meta.autocomplete ?? "").toLowerCase().split(/\s+/);
   if (
     autocomplete.some((part) =>
@@ -149,6 +169,25 @@ export function eligibleEditor(meta: EditorMetadata): boolean {
   const purpose = `${meta.label ?? ""} ${meta.name ?? ""}`
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/[_-]/g, " ");
+  if (options.proseFields) {
+    const prosePurpose =
+      /\b(?:message|comment|subject|article\s*title|post\s*title|description|feedback|caption|reply|summary|headline)\b/i.test(
+        purpose,
+      );
+    if (
+      /\bemail\b/i.test(purpose) &&
+      (!prosePurpose ||
+        /email(?:address)?$/i.test((meta.name ?? "").replace(/[\W_]/g, "")))
+    )
+      return false;
+    if (
+      /\b(?:password|passcode|user\s*name|login|otp|verification\s*code|security\s*code|credit\s*card|card\s*number|cvv|social\s*security|email\s*(?:address|id)|phone|telephone|address|postal|zip|search|filter|query|tags?|name|job\s*title|api\s*key|token|secret|bank|account\s*number|tax|passport|ssn)\b/i.test(
+        purpose,
+      )
+    )
+      return false;
+    return tag !== "input" || prosePurpose;
+  }
   return !/\b(?:password|passcode|user\s*name|login|otp|verification\s*code|security\s*code|credit\s*card|card\s*number|cvv|social\s*security|email\s*address|phone|telephone|address|postal|zip|search|filter|subject|title|tags?|name|email)\b/i.test(
     purpose,
   );
