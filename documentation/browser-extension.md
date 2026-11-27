@@ -88,6 +88,10 @@ shows the save destination and page details.
 
 ### English writing checks
 
+The [writing coverage and feedback proposal](design/extension-writing-coverage.md)
+plans broader prose-field support, a right-edge field control and updated sidebar
+and correction menus. It is planning only; the limits below remain current.
+
 Spelling and basic grammar run locally by default in eligible textareas across normal
 website tabs, even while signed out, and they keep working after the anonymous
 grace period ends (see below). Notes uses the same checker. Open an underline
