@@ -2,9 +2,9 @@
 
 ## Margin writing — 27 November 2026
 
-Unsigned product `1.11.37`, source `dd763c756582562d049cd04dc272478b41b65354`
+Unsigned product `1.11.37`, source `ead50908e0945197e96541e9ad74d27ec0116886`
 on development `79fd5d243`. Chrome ZIP SHA-256:
-`124533e27e3542b1b1b0bbdb69becf6f7b0942832026e709d44dac1bb6582b91`.
+`dc76919e2af625321b0d5d33cb5c90775006c9eeb187396a1ad5cbc065597946`.
 The accompanying feature PR records the exact reviewed head and checks. Installed
 Chromium `156.0.8078.4`, synthetic English fields, signed out and with Grove network
 requests blocked. These captures are local development evidence, not a store build.
@@ -14,8 +14,11 @@ requests blocked. These captures are local development evidence, not a store bui
 | ![Source-order spelling and grammar issues without coloured left rails](margin-overview.png) | ![One replacement with other suggestions disclosed, Ignore and field checking below](margin-detail-390.png) | ![The same correction with neutral dark surfaces and no glow](margin-detail-dark-390.png) | ![Signed-out Writing with current field scope and Settings last in navigation](margin-sidebar-320.png) |
 
 Overview is 900 × 720; corrections are 390 × 844; sidebar is 320 × 480. The
-right-angle margin mark carries the current field count. Spelling uses red,
-grammar amber and only a complete current zero uses green. The overview remains an
+soft-fill indicator carries the current field count beside a category icon.
+The most common remaining error type supplies red spelling or amber grammar;
+spelling wins ties. A complete current zero uses a green check and disabled checking
+a grey pause. Unchecked, checking, failed and partial-zero states are neutral;
+partial findings retain their dominant colour and +. The overview remains an
 unboxed list. Selecting an issue switches to a compact correction menu without
 overview counts, filters or other issues. One fix, Ignore, All issues and a single
 Options disclosure replace the former stack of controls. Grammar keeps its useful
@@ -29,16 +32,25 @@ The mark sits wholly inside the field, clear of the resize handle/scrollbar and
 measured glyphs/caret. Crowded, obscured or unprovable geometry hides it rather than
 moving outside or changing host padding; Alt+Enter and the sidebar remain available.
 
-| Inside-field indicator                                                                                | Focused edit context menu                                                                             |
-| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| ![Small semibold count and two category corner strokes inside the textarea](margin-indicator-390.png) | ![One correction, Ignore, All issues, one Options disclosure and field checking](margin-menu-390.png) |
+| Inside-field indicator                                                            | Focused edit context menu                                                                             |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| ![Soft red spelling icon and count inside the textarea](margin-indicator-390.png) | ![One correction, Ignore, All issues, one Options disclosure and field checking](margin-menu-390.png) |
 
 These are crops of the field and actual menu in the same 390px installed viewport,
 not mockups. Earlier count/filters-heavy menu captures remain in Git history at
 `4162c9a9d`; they are not the current design.
 
-The existing Grove palette, system type and mark remain; no new imagery or type
-was introduced. The pass removes coloured row rails, dot-separated copy, repeated
+| Spelling dominates                                                              | Grammar dominates                                                               | Complete zero                                                        | Checking off                                                        |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| ![Soft red spelling icon with three findings](indicator-spelling-light-390.png) | ![Soft amber grammar icon with three findings](indicator-grammar-light-390.png) | ![Green check after a complete check](indicator-clean-light-390.png) | ![Grey pause while checking is off](indicator-paused-light-390.png) |
+| ![Dark spelling indicator](indicator-spelling-dark-390.png)                     | ![Dark grammar indicator](indicator-grammar-dark-390.png)                       | ![Dark green check](indicator-clean-dark-390.png)                    | ![Dark grey pause](indicator-paused-dark-390.png)                   |
+
+The selected Soft fill design is shown in installed 390px field crops, not the
+earlier choice mockups. Lucide's local SVG paths carry no remote icon request;
+Lucide and Feather notices ship in every extension ZIP.
+
+The existing Grove palette and system type remain. The pass removes coloured row
+rails, dot-separated copy, repeated
 replacement buttons and decorative motion. It preserves useful category colour
 on actual wording, labels and the margin count. Source design lint reports no
 failures; its shadow warnings refer to actual overlays and shadow-DOM code. The
@@ -49,7 +61,10 @@ screenshots, geometry and axe checks provide the browser evidence instead.
 native Undo, field pause isolation, rich formatting, sensitive metadata exclusions,
 open shadow roots, CSS-hidden projection barriers, scoped sidebar actions,
 source-order filtering, compact selected-mode/Options/Escape, partial warnings,
-inside-input bounds, crowded-field keyboard recovery, focus and
+inside-input bounds, dominant-category changes/ties, partial counts, icon-only
+zero/paused states, theme round trips, forced colours, keyboard focus and
+320/390/768/1440px indicator bounds in light/dark themes. It also checks
+crowded-field keyboard recovery and
 280/320/390/768px overflow/accessibility. Native
 Firefox `160.0` additionally passed temporary installation, signed-out offline
 Harper textarea checks, native sidebar and synthetic capture/search/reader-copy.
