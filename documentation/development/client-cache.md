@@ -123,6 +123,12 @@ polls every five seconds for up to two minutes from observation, with background
 polling disabled. Brief reads always revalidate so server expiry/job scheduling
 remains authoritative. Expiry/purge deadlines also prune cached list membership.
 
+This is bounded revalidation, not push synchronization. A Saved editor label alone
+does not prove that no other client has edited the note. The proposed
+[freshness and draft-recovery design](../design/production-reliability.md#s3-bounded-draft-safe-external-edit-freshness)
+requires timed external-write tests and preserves dirty/uncertain drafts; it does
+not replace the current memory-only privacy contract before implementation.
+
 Public sharing readers never use the authenticated workspace cache. Owner sharing
 dialogs also read their permission/link state afresh on each open or conflict;
 capability URLs stay out of workspace snapshots and cross-tab messages. Share
