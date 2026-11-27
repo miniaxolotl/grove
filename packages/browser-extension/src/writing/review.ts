@@ -57,12 +57,14 @@ export const reviewStyle = `
 .issue-detail{padding:4px 0 8px}
 .issue-explanation{font-size:13px;line-height:20px;margin:8px 0;color:var(--quiet)}
 .issue-choices{display:grid;gap:4px}
-.issue-suggestions summary{cursor:pointer;list-style:none;min-height:32px;padding:6px 0;font-size:12px;text-decoration:underline;text-underline-offset:3px}.issue-suggestions[open]{display:grid;gap:4px}
+.review[data-detail=true] .issue-kind{display:none}
+.review[data-detail=true] .issue-row{padding:0;margin:0}.review[data-detail=true] .issue-detail{padding:0}.review[data-detail=true] .issue-label{min-height:0;padding:0 0 8px}
 .review .replacement{background:light-dark(#edf0ec,#343c36);min-height:36px;padding:8px 10px;font-weight:500;white-space:pre-wrap}
 .issue-actions{display:flex;gap:8px;align-items:start;flex-wrap:wrap;margin-top:8px}
 .issue-actions details{position:relative}.issue-actions summary,.review-more summary{list-style:none;cursor:pointer;min-height:32px;padding:6px 8px}
 .issue-actions details[open],.review-more[open]{padding-bottom:4px}
 .issue-actions details button,.review-more button{display:block;width:100%}
+.issue-options[open]{flex-basis:100%}.issue-options[open]>summary{padding-inline:0}.issue-options .replacement{margin:4px 0}.issue-options>button:not(.replacement){text-align:start}.issue-options .issue-explanation{margin:4px 8px 8px}
 .review-footer{display:flex;align-items:center;gap:8px;justify-content:space-between;border-top:1px solid var(--edge);margin-top:8px;padding-top:8px;flex:none;font-size:12px}
 .review-toggle{display:flex;gap:8px;align-items:center;min-height:32px;cursor:pointer}
 .review-toggle input{appearance:none;border:1px solid var(--quiet);border-radius:12px;background:var(--paper);width:28px;height:18px;flex:none;margin:0;position:relative;cursor:pointer}.review-toggle input::before{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--quiet)}.review-toggle input:checked{background:var(--ink);border-color:var(--ink)}.review-toggle input:checked::before{left:12px;background:var(--paper)}
@@ -83,6 +85,9 @@ export class WritingReview {
   private toggle = document.createElement("input");
   private feedback = document.createElement("p");
   private empty = document.createElement("p");
+  private footerMore = document.createElement("details");
+  private summaryText = "";
+  private overviewScroll = 0;
   private state: ReviewState | null = null;
   private filter = "all";
   private selected: string | undefined;
@@ -142,7 +147,7 @@ export class WritingReview {
     footer.className = "review-footer";
     footer.append(label);
     if (options.settings || options.sidebar) {
-      const more = document.createElement("details");
+      const more = this.footerMore;
       more.className = "review-more";
       const summary = document.createElement("summary");
       summary.textContent = "More";
@@ -192,6 +197,7 @@ export class WritingReview {
   set(state: ReviewState | null) {
     if (state?.editorId !== this.state?.editorId) {
       this.selected = undefined;
+      this.overviewScroll = 0;
       this.filter = "all";
       this.rows.clear();
       this.body.replaceChildren();
@@ -203,7 +209,7 @@ export class WritingReview {
     const spelling =
       state?.issues.filter((issue) => issue.rule === "spelling").length ?? 0;
     const grammar = (state?.issues.length ?? 0) - spelling;
-    this.summary.textContent = !state
+    this.summaryText = !state
       ? "Select a supported field on the page to review its writing."
       : state.phase === "ready"
         ? `${spelling} spelling, ${grammar} grammar${!state.spelling ? "; spelling off" : ""}${!state.grammar ? "; grammar off" : ""}${!state.complete ? ". Checked part of this field; more text is unchecked." : ""}`
@@ -228,9 +234,12 @@ export class WritingReview {
     this.renderRows();
   }
   select(issueId?: string) {
+    if (issueId && !this.selected) this.overviewScroll = this.body.scrollTop;
+    if (issueId) this.filter = "all";
     this.selected = issueId;
     this.signature = "";
     this.renderRows();
+    this.body.scrollTop = issueId ? 0 : this.overviewScroll;
   }
   private renderRows() {
     for (const button of this.filters.querySelectorAll<HTMLButtonElement>(
@@ -241,6 +250,31 @@ export class WritingReview {
         String(button.dataset.filter === this.filter),
       );
     const state = this.state;
+    const selected =
+      state?.phase === "ready"
+        ? state.issues.find((issue) => issue.id === this.selected)
+        : undefined;
+    this.element.dataset.detail = String(!!selected);
+    this.title.textContent = selected
+      ? issueCategory(selected) === "spelling"
+        ? "Spelling"
+        : "Grammar"
+      : state
+        ? reviewSummary(state)
+        : "Choose a text field";
+    this.filters.hidden =
+      !!selected || !state || state.phase !== "ready" || !state.issues.length;
+    this.footerMore.hidden = !!selected;
+    this.summary.textContent = selected
+      ? [
+          !state!.complete ? "Partly checked. More text is unchecked." : "",
+          !state!.spelling ? "Spelling off." : "",
+          !state!.grammar ? "Grammar off." : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : this.summaryText;
+    this.summary.hidden = !this.summary.textContent;
     const issues =
       state?.phase === "ready"
         ? state.issues.filter(
@@ -283,6 +317,7 @@ export class WritingReview {
       }
       const at = this.body.children.item(issueIndex);
       if (at !== row) this.body.insertBefore(row, at);
+      row.hidden = !!selected && selected.id !== issue.id;
       const current = JSON.stringify([issue, this.selected === issue.id]);
       if (row.dataset.render === current) continue;
       row.dataset.render = current;
@@ -290,8 +325,7 @@ export class WritingReview {
       const label = this.button(
         `${issue.original} — ${issueCategory(issue) === "spelling" ? "Spelling" : "Grammar"}`,
         () => {
-          this.selected = issue.id;
-          this.renderRows();
+          this.select(issue.id);
           this.options.reveal?.(issue);
           row!
             .querySelector<HTMLButtonElement>(".replacement")
@@ -338,14 +372,33 @@ export class WritingReview {
         button.dataset.actionKey = `replace:${issue.id}:${replacement}`;
         choices.append(button);
       }
-      if (issue.replacements.length > 1) {
-        const alternatives = document.createElement("details"),
+      const explanation = document.createElement("p");
+      explanation.className = "issue-explanation";
+      explanation.textContent = englishMessages[issue.message];
+      const actions = document.createElement("div");
+      actions.className = "issue-actions";
+      actions.append(
+        this.button("Ignore", () => this.run("ignore", issue.id)),
+        this.button("All issues", () => {
+          this.select();
+          row!
+            .querySelector<HTMLButtonElement>(".issue-label")
+            ?.focus({ preventScroll: true });
+        }),
+      );
+      if (
+        issue.replacements.length > 1 ||
+        issue.rule === "spelling" ||
+        this.options.sidebar ||
+        this.options.settings
+      ) {
+        const more = document.createElement("details"),
           summary = document.createElement("summary");
-        alternatives.className = "issue-suggestions";
-        summary.textContent = "Other suggestions";
-        alternatives.append(summary);
+        more.className = "issue-options";
+        summary.textContent = "Options";
+        more.append(summary);
         for (const replacement of issue.replacements.slice(1))
-          alternatives.append(
+          more.append(
             this.button(
               state?.canApply
                 ? replacement || "Remove"
@@ -354,34 +407,21 @@ export class WritingReview {
               "replacement",
             ),
           );
-        choices.append(alternatives);
-      }
-      const explanation = document.createElement("p");
-      explanation.className = "issue-explanation";
-      explanation.textContent = englishMessages[issue.message];
-      const actions = document.createElement("div");
-      actions.className = "issue-actions";
-      actions.append(
-        this.button("All issues", () => {
-          this.selected = undefined;
-          this.renderRows();
-          label.focus({ preventScroll: true });
-        }),
-        this.button("Ignore", () => this.run("ignore", issue.id)),
-      );
-      if (issue.rule === "spelling") {
-        const more = document.createElement("details"),
-          summary = document.createElement("summary");
-        summary.textContent = "More";
-        more.append(summary);
-        more.append(
-          this.button("Add to dictionary", () => this.run("word", issue.id)),
-        );
+        if (issue.rule === "spelling")
+          more.append(
+            this.button("Add to dictionary", () => this.run("word", issue.id)),
+          );
+        if (this.options.sidebar)
+          more.append(this.button("Open in sidebar", this.options.sidebar));
+        if (this.options.settings)
+          more.append(this.button("Writing settings", this.options.settings));
         actions.append(more);
       }
       if (!issue.replacements.length)
         choices.textContent = "No alternative found.";
-      detail.append(choices, explanation, actions);
+      detail.append(choices);
+      if (issue.rule !== "spelling") detail.append(explanation);
+      detail.append(actions);
       row.append(detail);
     }
     if (!issues.length) {

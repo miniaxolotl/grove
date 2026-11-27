@@ -8,6 +8,7 @@ export type EditorSnapshot = {
   text: string;
   complete: boolean;
   range: (from: number, to: number) => Range | null;
+  rects?: () => DOMRect[];
 };
 export class WritingAdapter {
   constructor(readonly element: HTMLElement) {}
@@ -29,9 +30,16 @@ export class WritingAdapter {
       complete = true;
     const points: Point[] = [];
     const skipped: HTMLElement[] = [];
+    const rendered: Range[] = [];
     const append = (value: string, node: Node, offset = 0, literal = false) => {
       const bounded = value.slice(0, PROOFING_CONTENT_MAX + 1 - text.length);
       if (bounded.length < value.length) complete = false;
+      if (literal && bounded.length) {
+        const range = document.createRange();
+        range.setStart(node, 0);
+        range.setEnd(node, bounded.length);
+        rendered.push(range);
+      }
       for (let index = 0; index < bounded.length; index++)
         points[text.length + index] = {
           node,
@@ -101,6 +109,7 @@ export class WritingAdapter {
     return {
       text,
       complete,
+      rects: () => rendered.flatMap((range) => [...range.getClientRects()]),
       range: (from, to) => {
         if (!points[from] || !points[to] || from < 0 || to > text.length)
           return null;

@@ -93,10 +93,10 @@ shows the save destination and page details.
 Spelling and basic grammar run locally by default in eligible prose fields across normal
 website tabs, even while signed out, and they keep working after the anonymous
 grace period ends (see below). Notes uses the same checker. Open an underline
-or press **Alt+Enter** in the editor, then choose a correction or **Ignore**. **More**
-contains **Add to dictionary**; the footer holds **Checking in this field**.
-**All issues** collapses one issue
-back into the list without rechecking.
+or press **Alt+Enter** in the editor, then choose a correction or **Ignore**.
+**Options** contains alternative fixes, **Add to dictionary** and secondary links;
+the footer holds **Checking in this field**. **All issues** returns to the review
+list without rechecking.
 Choosing a correction copies it and replaces only that range with native Undo,
 without changing an already-submitted save. Clipboard failure leaves the edit intact
 and reports that copying was unavailable. Applying a correction updates only
@@ -152,11 +152,14 @@ rules, bounds, source/Undo, permission and excluded-field checks.
 
 ### The margin mark and review
 
-A small corner-shaped mark shows the current field's issue count at its right edge
-(bottom-right for multiline editors). It uses clear trailing space where available;
-otherwise it moves into a safe adjacent gutter instead of covering text, the caret,
-scrollbars or host controls. When neither placement is safe, use **Alt+Enter** or
-Writing in the sidebar. Grove never resizes or pads the host editor to fit its UI.
+A small right-angle mark shows the current field's issue count **inside** its right
+edge (bottom-right for multiline editors). The count is inset from the scrollbar
+and resize handle. It occupies only clear space, never an exterior gutter or typed
+text/the caret. When the field is too small, full or obscured to prove that space
+is free, the mark hides; use **Alt+Enter** or Writing in the sidebar. A paused field
+also hides the mark when its last verified placement is no longer current; opening
+the review retains the On control without reading paused text for positioning.
+Grove never resizes or pads the host editor to fit its UI.
 
 Typing reduces the indicator to its number and category mark. It stays compact
 through short pauses and hover/focus, so its hit area never expands across text.
@@ -168,10 +171,15 @@ stay neutral. Stale counts clear when text changes. **99+** is a display cap; op
 the overview shows the known count. A **+** on a partial count is not a whole-field
 total. Coverage and disabled categories are explained in the review.
 
-Click the count to open a compact issue list. Category filters precede the scrolling
-list; the field On/Off control stays below it. Select an issue to reveal its
-replacement, short explanation and **Ignore / More** actions in place. Unaffected
-rows and controls stay mounted. Escape closes the topmost disclosure or review and
+Click the count to open the issue list, with category filters above and the field
+On/Off control below. Selecting a correction switches to a compact context menu:
+one affected passage, one suggested fix, **Ignore**, **All issues** and a single
+**Options** disclosure. Counts, filters and other issues stay out of that view.
+Grammar keeps its useful explanation; spelling omits the generic “possible spelling
+mistake” text. Options holds alternatives, dictionary and sidebar/settings links
+without nested submenus. Partial-check and disabled-category warnings remain visible.
+All issues restores the list and its scroll position; unaffected rows stay mounted.
+Escape closes the topmost disclosure or review and
 returns focus without scrolling the editor. The dropdown is an ordinary nonmodal
 review surface, not a replacement for browser right-click/paste/Undo menus.
 
@@ -181,7 +189,8 @@ Reload ends the field pause. Global Grove Off, browser-wide writing settings,
 domain exceptions, author opt-outs and browser grants still win; this control cannot
 override them. Other fields and Notes remain independent.
 
-**More → Open in sidebar** explicitly opens Writing; **Writing settings** opens
+**More** in the overview or **Options** in a correction includes **Open in sidebar**,
+which explicitly opens Writing; **Writing settings** opens
 Settings. If the native browser declines to open its panel, the in-page review
 remains usable. The sidebar shares the same current-field issues and actions;
 changing the active tab or field fences old corrections. Only bounded issue context

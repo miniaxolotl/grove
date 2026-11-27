@@ -26,12 +26,14 @@ const style = `${reviewStyle}
 .mirror{position:fixed;pointer-events:none;overflow:hidden;color:transparent;z-index:2147483645}.text{white-space:pre-wrap;overflow-wrap:break-word;color:transparent}
 mark{color:transparent;background:transparent;text-decoration:underline wavy light-dark(#b42318,#ffb4ab);text-underline-offset:3px}mark.grammar{text-decoration-style:dotted;text-decoration-color:light-dark(#9a4d00,#ffd08a)}
 .card{position:fixed;z-index:2147483647;width:min(320px,calc(100vw - 24px));max-height:min(420px,calc(100dvh - 24px));padding:12px;border:1px solid light-dark(#dce2dc,#465446);border-radius:6px;background:light-dark(#fff,#222624);color:light-dark(#212722,#edf2e8);box-shadow:0 4px 12px #0001;overflow:hidden;display:flex;flex-direction:column}
-.badge{--mark:light-dark(#535c55,#b5c3b4);position:fixed;z-index:2147483646;display:flex;gap:6px;align-items:center;justify-content:center;min-width:32px;min-height:32px;padding:4px 8px;border:0;border-radius:0;background:light-dark(#fff,#222624);color:light-dark(#212722,#edf2e8);font:13px/20px system-ui,sans-serif;cursor:pointer;font-variant-numeric:tabular-nums}
-.badge::after{content:'';position:absolute;bottom:3px;right:3px;width:12px;border-bottom:2px solid var(--mark)}
-.proof-edge{position:absolute;right:3px;bottom:3px;display:flex;flex-direction:column;height:18px;width:2px;background:var(--mark)}.proof-edge span{flex:1}
+.badge{--mark:light-dark(#535c55,#b5c3b4);position:fixed;z-index:2147483646;display:flex;gap:6px;align-items:center;justify-content:center;min-width:32px;min-height:32px;padding:4px 8px 6px 6px;border:0;border-radius:0;background:light-dark(#fff,#222624);color:light-dark(#212722,#edf2e8);font:12px/20px system-ui,sans-serif;cursor:pointer;font-variant-numeric:tabular-nums}
+.badge-count{font-weight:600;min-width:1ch;text-align:center}.badge-label{font-weight:400}
+.badge::after{content:'';position:absolute;bottom:4px;right:3px;width:10px;border-bottom:2px solid var(--mark)}
+.proof-edge{position:absolute;right:3px;bottom:4px;display:flex;flex-direction:column;height:14px;width:2px;background:var(--mark)}.proof-edge span{flex:1}
 .badge[data-kind=spelling]{--mark:light-dark(#b42318,#ffb4ab)}.badge[data-kind=grammar]{--mark:light-dark(#9a4d00,#ffd08a)}.badge[data-kind=clean]{--mark:light-dark(#24633b,#b6d5ad)}
 .badge[data-kind=mixed] .proof-edge span:first-child{background:light-dark(#b42318,#ffb4ab)}.badge[data-kind=mixed] .proof-edge span:last-child{background:light-dark(#9a4d00,#ffd08a)}
-.badge.compact .badge-label{display:none}.badge:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.badge[data-kind=mixed]::after{border-bottom-color:light-dark(#9a4d00,#ffd08a)}
+.badge.compact .badge-label{display:none}.badge:focus-visible{outline:2px solid currentColor;outline-offset:-2px}
 @media(pointer:coarse){.badge{min-width:44px;min-height:44px}}
 @media(forced-colors:active){mark{color:transparent;text-decoration-color:Mark}.badge{border:1px solid ButtonText}.proof-edge{background:ButtonText}.card{border-color:CanvasText}}
 `;
@@ -68,6 +70,7 @@ export class WritingController {
   private tools: WritingToolsController | undefined;
   private highlights = `grove-writing-${this.editorId}`;
   private highlightSheet: CSSStyleSheet | undefined;
+  private placement: string | undefined;
   private returnTo: HTMLElement;
   constructor(
     private editor: HTMLElement,
@@ -248,6 +251,7 @@ export class WritingController {
       passive: true,
     });
     this.observer = new MutationObserver(() => {
+      if (!this.allowed()) this.placement = undefined;
       if (!this.eligible()) this.invalidate();
       else if (
         this.allowed() &&
@@ -285,6 +289,7 @@ export class WritingController {
     });
     this.resize = new ResizeObserver(() => this.schedulePosition());
     this.resize.observe(editor);
+    this.resize.observe(this.card);
     // New local adapters do not silently expand the consented AI selection surface.
     if (options.tools && editor instanceof HTMLTextAreaElement)
       this.tools = new WritingToolsController(
@@ -404,6 +409,7 @@ export class WritingController {
     this.emit();
   }
   private changed() {
+    this.placement = undefined;
     if (
       this.allowed() &&
       (this.options.settings().spelling || this.options.settings().grammar)
@@ -584,56 +590,146 @@ export class WritingController {
       this.text.style[key] = computed[key];
     this.text.style.whiteSpace =
       this.editor instanceof HTMLInputElement ? "pre" : "pre-wrap";
-    this.text.style.transform = `translate(${-this.editor.scrollLeft}px, ${-this.editor.scrollTop}px)`;
+    const inputOffset =
+      this.editor instanceof HTMLInputElement
+        ? Math.max(
+            0,
+            (this.editor.clientHeight -
+              this.text.getBoundingClientRect().height) /
+              2,
+          )
+        : 0;
+    this.text.style.transform = `translate(${-this.editor.scrollLeft}px, ${inputOffset - this.editor.scrollTop}px)`;
     if (this.options.indicator && this.state()) {
       this.badge.hidden = false;
       const width = this.badge.getBoundingClientRect().width,
         height = this.badge.getBoundingClientRect().height;
-      let left = rect.right - width - 8,
-        top = rect.bottom - height - 8;
-      // The native content area is never padded/resized to make room. Prefer proven
-      // empty bottom space; otherwise use a safe exterior right/below gutter.
-      const contentBottom =
-        this.adapter.control && this.allowed()
-          ? this.text.getBoundingClientRect().bottom
-          : rect.bottom;
-      if (top < contentBottom || this.editor instanceof HTMLInputElement) {
-        if (rect.right + width + 8 <= innerWidth) {
-          left = rect.right + 6;
-          top =
-            this.editor instanceof HTMLInputElement
-              ? rect.top + (rect.height - height) / 2
-              : rect.bottom - height;
+      const content = {
+        left: rect.left + this.editor.clientLeft,
+        top: rect.top + this.editor.clientTop,
+        right: rect.left + this.editor.clientLeft + this.editor.clientWidth,
+        bottom: rect.top + this.editor.clientTop + this.editor.clientHeight,
+      };
+      const resizeInset =
+        this.editor instanceof HTMLTextAreaElement && computed.resize !== "none"
+          ? 18
+          : 6;
+      const left = content.right - width - resizeInset;
+      const top =
+        this.editor instanceof HTMLInputElement
+          ? content.top + (this.editor.clientHeight - height) / 2
+          : content.bottom - height - 6;
+      const key = [
+        rect.x,
+        rect.y,
+        rect.width,
+        rect.height,
+        this.editor.clientWidth,
+        this.editor.clientHeight,
+        this.editor.scrollTop,
+        this.editor.scrollLeft,
+        computed.font,
+        computed.padding,
+        computed.direction,
+        width,
+        height,
+      ].join(":");
+      // Pausing never reads field text just to draw UI. Reuse only a placement
+      // already verified for this geometry; edits/DOM changes clear that proof.
+      let safe = this.placement === key;
+      if (
+        this.allowed() &&
+        (this.options.settings().spelling || this.options.settings().grammar)
+      ) {
+        const control = this.adapter.control;
+        const projection = control ? undefined : this.adapter.read();
+        const range = document.createRange();
+        range.selectNodeContents(this.text);
+        const occupied = control
+          ? [...range.getClientRects()]
+          : (projection?.rects?.() ?? []);
+        if (control) {
+          const cursor = control.selectionEnd ?? 0;
+          const walker = document.createTreeWalker(
+            this.text,
+            NodeFilter.SHOW_TEXT,
+          );
+          let offset = cursor,
+            node: Node | null;
+          while ((node = walker.nextNode())) {
+            const length = node.nodeValue?.length ?? 0;
+            if (offset <= length) {
+              range.setStart(node, offset);
+              range.collapse(true);
+              occupied.push(...range.getClientRects());
+              break;
+            }
+            offset -= length;
+          }
         } else {
-          left = rect.right - width;
-          top = rect.bottom + 6;
+          const selection = document.getSelection();
+          if (
+            selection?.rangeCount &&
+            this.editor.contains(selection.anchorNode)
+          )
+            occupied.push(...selection.getRangeAt(0).getClientRects());
         }
+        const known = control
+          ? control.value.length <= PROOFING_CONTENT_MAX ||
+            (!(control instanceof HTMLInputElement) &&
+              this.text.getBoundingClientRect().bottom >= content.bottom)
+          : projection?.complete ||
+            occupied.some((box) => box.bottom >= content.bottom);
+        safe =
+          !!known &&
+          !occupied.some(
+            (box) =>
+              box.height > 0 &&
+              left < box.right + 3 &&
+              left + width > box.left - 3 &&
+              top < box.bottom + 3 &&
+              top + height > box.top - 3,
+          );
       }
-      const occluder = document.elementFromPoint(
-        Math.max(0, Math.min(innerWidth - 1, left + width / 2)),
-        Math.max(0, Math.min(innerHeight - 1, top + height / 2)),
-      );
-      const inside =
-        left >= rect.left &&
-        left + width <= rect.right &&
-        top >= rect.top &&
-        top + height <= rect.bottom;
-      const safe = inside
-        ? occluder === this.editor || occluder === this.host
-        : !occluder ||
-          occluder === document.body ||
-          occluder === document.documentElement ||
-          occluder === this.editor.parentElement ||
-          occluder === this.host;
-      this.badge.hidden =
-        !safe ||
-        left < 0 ||
-        top < 0 ||
-        left + width > innerWidth ||
-        top + height > innerHeight ||
-        rect.bottom <= 0 ||
-        rect.top >= innerHeight;
-      this.badge.style.right = `${Math.max(0, innerWidth - left - width)}px`;
+      const hit = (x: number, y: number) => {
+        let node = document.elementFromPoint(x, y);
+        while (node?.shadowRoot) {
+          const child = node.shadowRoot.elementFromPoint(x, y);
+          if (!child || child === node) break;
+          node = child;
+        }
+        return (
+          !!node &&
+          (node === this.editor ||
+            this.editor.contains(node) ||
+            this.shadow.contains(node))
+        );
+      };
+      safe =
+        !!safe &&
+        Math.abs(rect.width - this.editor.offsetWidth) < 2 &&
+        Math.abs(rect.height - this.editor.offsetHeight) < 2 &&
+        left >= rect.left + 2 &&
+        top >= rect.top + 2 &&
+        left + width <= rect.right - 2 &&
+        top + height <= rect.bottom - 2 &&
+        left >= content.left + 2 &&
+        top >= content.top + 2 &&
+        left + width <= content.right - 2 &&
+        top + height <= content.bottom - 2 &&
+        left >= 0 &&
+        top >= 0 &&
+        left + width <= innerWidth &&
+        top + height <= innerHeight &&
+        [
+          [left + 1, top + 1],
+          [left + width - 1, top + 1],
+          [left + 1, top + height - 1],
+          [left + width - 1, top + height - 1],
+        ].every(([x, y]) => hit(x, y));
+      this.badge.hidden = !safe;
+      this.placement = safe ? key : undefined;
+      this.badge.style.left = `${left}px`;
       this.badge.style.top = `${top}px`;
     }
     if (!this.card.hidden) {

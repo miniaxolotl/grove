@@ -62,7 +62,13 @@ a correction, Ignore or Add to dictionary;
 native Undo and the current draft must survive. Settings discloses rule, dictionary
 and site controls without scores, dashboards, upsells or setup. Global Off wins.
 
-The issue list is unboxed and keeps source order. Category colour belongs to the
+The issue list is unboxed and keeps source order. Selecting one issue shows only
+that correction, not the list's counts, filters or other rows. A single Options
+disclosure holds alternative fixes, dictionary and secondary links; All issues
+returns to the retained list/scroll. Keep the useful grammar explanation and
+essential coverage warnings, not generic spelling filler. The indicator stays
+inside the field; hide it when safe free space is unavailable rather than moving
+outside or changing the host editor's padding. Category colour belongs to the
 affected wording and category label, never a coloured left rail. One replacement
 leads; other suggestions and dictionary actions disclose on demand. The field
 On/Off control stays below the scrolling list. Neutral surfaces, ordinary system

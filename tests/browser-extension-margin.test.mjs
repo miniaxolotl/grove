@@ -106,6 +106,32 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
         '.issue-label[data-original="sentnce"][data-category="spelling"]',
       )
       .click();
+    await expect(card.locator(".review-title")).toHaveText("Spelling");
+    await expect(card.locator(".review-filters")).toBeHidden();
+    await expect(card.locator(".review-summary")).toBeHidden();
+    await expect(card.locator(".issue-row:visible")).toHaveCount(1);
+    await expect(card.locator("summary:visible")).toHaveText(["Options"]);
+    await expect(
+      card.getByText("Possible spelling mistake.", { exact: true }),
+    ).toBeHidden();
+    assert.ok(
+      (await card.boundingBox()).height < 320,
+      "one correction is a compact context menu, not the full review panel",
+    );
+    await card.getByRole("button", { name: "All issues", exact: true }).click();
+    await expect(card.locator(".issue-row:visible")).toHaveCount(2);
+    await expect(card.locator(".review-filters")).toBeVisible();
+    await card.locator('.issue-label[data-original="sentnce"]').click();
+    await card.locator("summary").filter({ hasText: "Options" }).click();
+    await expect(
+      card.getByRole("button", { name: "Add to dictionary", exact: true }),
+    ).toBeVisible();
+    await card.press("Escape");
+    await expect(card).toBeVisible();
+    await expect(card.locator(".issue-options")).not.toHaveAttribute(
+      "open",
+      "",
+    );
     await card.getByRole("button", { name: "sentence", exact: true }).click();
     await expect(field).toHaveValue("This is a sentence. This is a apple.");
     await expect(badge.locator(".badge-count")).toHaveText("1");
@@ -129,9 +155,29 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
     await expect(badge).toHaveAttribute("data-kind", "neutral");
     await page.locator("#subject").fill("This is a sentnce.");
     await expect(badge).toHaveAttribute("data-kind", "spelling");
+    const subjectBounds = await page.locator("#subject").boundingBox();
+    const subjectMark = await badge.boundingBox();
+    assert.ok(
+      subjectMark &&
+        subjectMark.x >= subjectBounds.x &&
+        subjectMark.x + subjectMark.width <=
+          subjectBounds.x + subjectBounds.width &&
+        subjectMark.y >= subjectBounds.y &&
+        subjectMark.y + subjectMark.height <=
+          subjectBounds.y + subjectBounds.height,
+      "the input indicator is inside the field, not in an external gutter",
+    );
+    await page.locator("#subject").fill("sentnce ".repeat(80));
+    await expect(badge).toHaveAttribute("aria-label", /issues?\./);
+    await expect(badge).toBeHidden();
+    await page.locator("#subject").press("Alt+Enter");
+    await expect(card).toBeVisible();
+    await card
+      .getByRole("button", { name: "Close writing suggestions" })
+      .click();
     await field.focus();
     await expect(badge).toHaveAttribute("aria-label", /Off here/);
-    await badge.click();
+    await field.press("Alt+Enter");
     await card.getByRole("switch", { name: "Checking in this field" }).check();
     await expect(card).toContainText("1 issue");
     await card
@@ -143,6 +189,19 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
     await field.fill("This is a sentence. ".repeat(400));
     await expect(badge).toHaveAttribute("aria-label", /Partly checked/);
     await expect(badge).toHaveAttribute("data-kind", "neutral");
+    await field.fill(
+      "This is a sentnce. " + "This is a sentence. ".repeat(400),
+    );
+    await expect(badge).toHaveAttribute("aria-label", /1\+ issue/);
+    await field.press("Alt+Enter");
+    await card.locator('.issue-label[data-original="sentnce"]').click();
+    await expect(card.locator(".review-summary")).toBeVisible();
+    await expect(card.locator(".review-summary")).toContainText(
+      "More text is unchecked.",
+    );
+    await card
+      .getByRole("button", { name: "Close writing suggestions" })
+      .click();
     for (const id of ["username", "address"]) {
       await page.locator(`#${id}`).focus();
       await expect(badge).toHaveCount(0);
@@ -203,13 +262,25 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
       .getByRole("heading", { name: "Writing review", exact: true })
       .hover();
     const compactBounds = await badge.boundingBox();
-    await badge.hover();
-    assert.deepEqual(
-      await badge.boundingBox(),
-      compactBounds,
-      "hover never expands the compact hit target across text or host controls",
-    );
-    await badge.click();
+    if (compactBounds) {
+      const editorBounds = await field.boundingBox();
+      assert.ok(
+        compactBounds.x >= editorBounds.x &&
+          compactBounds.x + compactBounds.width <=
+            editorBounds.x + editorBounds.width &&
+          compactBounds.y >= editorBounds.y &&
+          compactBounds.y + compactBounds.height <=
+            editorBounds.y + editorBounds.height,
+        "a full textarea never moves the indicator outside its field",
+      );
+      await badge.hover();
+      assert.deepEqual(
+        await badge.boundingBox(),
+        compactBounds,
+        "hover never expands the compact hit target across text or host controls",
+      );
+    }
+    await field.press("Alt+Enter");
     await expect(card.locator(".issue-row")).toHaveCount(24);
     const geometry = await card.locator(".review-list").evaluate((element) => ({
       client: element.clientHeight,
@@ -290,7 +361,7 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
       [],
     );
     await field.focus();
-    await badge.click();
+    await field.press("Alt+Enter");
     await card.getByRole("switch", { name: "Checking in this field" }).check();
     await card
       .getByRole("button", { name: "Close writing suggestions" })
@@ -298,6 +369,15 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
     await field.fill("This is a sentnce. This is a apple.");
     await expect(badge).toHaveAttribute("data-kind", "mixed");
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(badge).toBeVisible();
+    if (process.env.EXTENSION_SCREENSHOTS)
+      await page.screenshot({
+        path: join(
+          process.env.EXTENSION_SCREENSHOTS,
+          "margin-indicator-390.png",
+        ),
+        clip: await field.boundingBox(),
+      });
     await badge.click();
     await card
       .locator(
@@ -330,6 +410,10 @@ test("installed margin writing keeps counts, pause, prose adapters and review sc
       });
       await page.screenshot({
         path: join(process.env.EXTENSION_SCREENSHOTS, "margin-detail-390.png"),
+      });
+      await page.screenshot({
+        path: join(process.env.EXTENSION_SCREENSHOTS, "margin-menu-390.png"),
+        clip: await card.boundingBox(),
       });
       await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
       await page.addStyleTag({
