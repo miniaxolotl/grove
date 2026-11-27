@@ -227,8 +227,9 @@ these are actual installed UI views, not live-model quality evidence.
 | ![Four explicit sentence tools near the selection](chrome-writing-tools-390.png) | ![Three alternatives with explicit apply, copy and dismiss](chrome-writing-alternatives-390.png) | ![Scrollable alternatives at 320 by 480](chrome-writing-alternatives-light-320.png) | ![Alternatives in dark appearance](chrome-writing-alternatives-dark-390.png) |
 
 Standard views are 390 × 844; the short view is 320 × 480 and scrolls within the
-popover to reach later alternatives/actions. The selection remains visible; the
-popover does not change editor geometry. Both Chromium manifest profiles pass the
+popover to reach later alternatives/actions. When the viewport narrows, the card
+keeps a 12 px horizontal margin from the first resized layout. The selection
+remains visible; the popover does not change editor geometry. Both Chromium manifest profiles pass the
 four-tool/native-Undo, first-use consent, cross-editor consent reuse, copy-without-edit,
 pending-focus, newer-edit cancellation, expired-output, aged-session renewal and
 independent AI-Off journeys. Focused AI review axe checks have zero violations in

@@ -1332,11 +1332,29 @@ for (const target of ["chrome", "edge"])
             fullPage: true,
           });
         if (label === "Shorten") {
+          // Read the first resized layout, before the editor's next anchor measurement.
+          const firstLayout = await dialog.evaluateHandle((card) => ({
+            bounds: new Promise((resolve) => {
+              globalThis.addEventListener(
+                "resize",
+                () => resolve(card.getBoundingClientRect().toJSON()),
+                { once: true },
+              );
+            }),
+          }));
           for (const [width, height, colorScheme] of [
             [320, 480, "light"],
             [390, 844, "dark"],
           ]) {
             await page.setViewportSize({ width, height });
+            if (width === 320) {
+              const bounds = await firstLayout.evaluate(({ bounds }) => bounds);
+              assert.ok(
+                bounds.left >= 12 && bounds.right <= width - 12,
+                `AI review fits the first resized layout: ${JSON.stringify(bounds)}`,
+              );
+              await firstLayout.dispose();
+            }
             await page.emulateMedia({ colorScheme });
             await page.evaluate(
               () =>
