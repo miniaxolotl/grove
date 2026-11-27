@@ -199,6 +199,7 @@ test("production checks candidate schema before publication and again before rol
       publish.indexOf("Upload exact-source diagnostics"),
   );
   assert.ok(
-    deploy.indexOf(command) < deploy.indexOf("Deploy the verified image"),
+    deploy.indexOf(command) <
+      deploy.indexOf("node scripts/release/backend-rollout.mjs deploy"),
   );
 });

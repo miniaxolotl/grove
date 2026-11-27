@@ -138,6 +138,10 @@ providers/dimensions never silently fall back. See [models](models.md).
    for component names, compatibility aliases, runtime configuration and retries.
    Missing `DIGITALOCEAN_ACCESS_TOKEN`/`DIGITALOCEAN_APP_ID` is an error. Verify registry
    integrity, active provider generation, both component digests and readiness.
+   With production `GROVE_LANGUAGETOOL_DEPLOY=true`, proposal/deployment also
+   consume the verified release checker digest and require its private `/ready`
+   service in the active generation. The [checker rollout](development/languagetool-operations.md)
+   keeps paragraph transmission separate and preserves selected capacity.
    After publication/image verification it attaches the admitted source's unsigned
    browser ZIPs and integrity metadata to the existing GitHub release, with direct
    links in its Downloads section. [Release downloads](release-conventions.md#release-downloads)
