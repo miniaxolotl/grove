@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mkdtemp, mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import process from "node:process";
 const require = createRequire(
@@ -12,7 +13,9 @@ const { chromium, expect } = require("@playwright/test");
 const { default: AxeBuilder } = require("@axe-core/playwright");
 
 test("installed margin writing keeps counts, pause, prose adapters and review scoped to the field", async () => {
-  const directory = await mkdtemp("/tmp/opencode/grove-margin-browser-");
+  const directory = await mkdtemp(
+    join(process.env.CI ? tmpdir() : "/tmp/opencode", "grove-margin-browser-"),
+  );
   const extension = resolve("packages/browser-extension/dist/chrome");
   const context = await chromium.launchPersistentContext(directory, {
     channel: "chromium",
