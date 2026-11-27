@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/dashboard/shell";
 import { AuthSetup } from "@/components/auth-setup";
 import { AuthenticationProvider } from "@/components/authentication-provider";
 import "./dashboard.css";
+import "../ui-controls.css";
 import "./exploration.css";
 import "./editor.css";
 import "./controls.css";
