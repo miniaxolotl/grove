@@ -619,7 +619,7 @@ html:has(.grove-app) {
 .ask-console > .ask-composer {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  flex-shrink: 0;
   padding: 8px 10px;
   border-radius: 10px;
 }
@@ -2376,6 +2376,9 @@ html:has(.grove-app) {
     grid-template-rows: auto auto;
     gap: 0 4px;
     padding: 8px 12px;
+  }
+  .note-editor-full.note-editor-drawer .note-editor-bar {
+    padding-block: 3px;
   }
   .note-editor-bar > .note-back {
     grid-column: 1;
