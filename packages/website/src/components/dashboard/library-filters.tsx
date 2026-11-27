@@ -14,7 +14,6 @@ import {
 import { SlidersHorizontal, X } from "lucide-react";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
 import type { Project } from "@/lib/dashboard-api";
-import { notebookPath } from "@/lib/notebooks";
 import { Button } from "./ui/button";
 import { SearchField } from "./ui/search-field";
 import { FilterChip } from "./ui/filter-chip";
@@ -69,6 +68,8 @@ export function LibraryFilterBar({
   projects,
   topics,
   fixedProject,
+  onScopeChange,
+  onSortChange,
   archive = false,
 }: {
   input: RefObject<HTMLInputElement | null>;
@@ -77,6 +78,8 @@ export function LibraryFilterBar({
   projects: Project[];
   topics: string[];
   fixedProject?: string | null;
+  onScopeChange?: (project: string) => void;
+  onSortChange?: (sort: LibraryFilters["sort"]) => void;
   archive?: boolean;
 }) {
   const [query, setQuery] = useState(value.search);
@@ -156,7 +159,6 @@ export function LibraryFilterBar({
     onChange((current) => ({ ...current, ...patch }));
   const active = [
     value.search,
-    fixedProject === undefined && value.project !== "all",
     value.kind,
     value.tag,
     value.sourceAgent,
@@ -265,7 +267,9 @@ export function LibraryFilterBar({
             label="Sort by"
             value={value.sort}
             onValueChange={(sort) =>
-              update({ sort: sort as LibraryFilters["sort"] })
+              onSortChange
+                ? onSortChange(sort as LibraryFilters["sort"])
+                : update({ sort: sort as LibraryFilters["sort"] })
             }
             options={[
               {
@@ -273,16 +277,22 @@ export function LibraryFilterBar({
                 label: "Automatic",
                 description: "Best match in search, recently edited otherwise",
               },
+              ...(!archive ? [{ value: "custom", label: "Custom order" }] : []),
               { value: "updated_desc", label: "Recently edited" },
               { value: "updated_asc", label: "Least recently edited" },
               { value: "created_desc", label: "Recently created" },
+              { value: "created_asc", label: "Oldest created" },
+              { value: "title_asc", label: "Title A–Z" },
+              { value: "title_desc", label: "Title Z–A" },
             ]}
           />
           {fixedProject === undefined && (
             <NotebookSelect
               label="Notebook"
               value={value.project}
-              onValueChange={(project) => update({ project })}
+              onValueChange={(project) =>
+                onScopeChange ? onScopeChange(project) : update({ project })
+              }
               projects={projects}
               leading={[
                 { value: "all", label: "All notes" },
@@ -419,16 +429,6 @@ export function LibraryFilterBar({
                 }}
               >
                 “{value.search}”
-              </FilterChip>
-            )}
-            {fixedProject === undefined && value.project !== "all" && (
-              <FilterChip
-                label="project"
-                onRemove={() => update({ project: "all" })}
-              >
-                {notebookPath(projects, value.project)
-                  .map((p) => p.name)
-                  .join(" / ") || "Unfiled"}
               </FilterChip>
             )}
             {value.kind && (

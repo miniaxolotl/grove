@@ -17,6 +17,25 @@ export type SearchRow = MemoryModel & {
 };
 export const searchVersion = "title-prefix-trgm-shortfall40-v1";
 
+/** The same authorized title projection used by search and explicit ordering. */
+export function noteTitleSql(
+  trx: Knex.Transaction,
+  providers: Providers,
+  account: AccountPreferences,
+) {
+  const profile = account.titlesTagsEnabled
+    ? providers.generation?.profile
+    : undefined;
+  return trx.raw(
+    `grove_search_title(memories.content, CASE WHEN memories.status='active'
+    AND (memories.expires_at IS NULL OR memories.expires_at>now()) THEN
+    (SELECT e.data->>'title' FROM memory_enrichments e
+      WHERE e.account_id=memories.account_id AND e.memory_id=memories.id
+      AND e.version=memories.version AND e.kind='organization' AND e.profile=?) END)`,
+    [profile ?? null],
+  );
+}
+
 /** One eligible relation for every lane. Never elevate privileges for search. */
 export function lexicalQuery(
   trx: Knex.Transaction,
@@ -27,20 +46,10 @@ export function lexicalQuery(
   semantic?: { embedder: Embedder; vector: number[] },
 ) {
   const expansion = searchExpansion(query);
-  const profile = account.titlesTagsEnabled
-    ? providers.generation?.profile
-    : undefined;
   const titled = eligible.clone().clearOrder();
   if (!titled.hasSelects()) titled.select("memories.*");
   titled.select(
-    trx.raw(
-      `grove_search_title(memories.content, CASE WHEN memories.status='active'
-      AND (memories.expires_at IS NULL OR memories.expires_at>now()) THEN
-      (SELECT e.data->>'title' FROM memory_enrichments e
-        WHERE e.account_id=memories.account_id AND e.memory_id=memories.id
-        AND e.version=memories.version AND e.kind='organization' AND e.profile=?) END) AS search_title`,
-      [profile ?? null],
-    ),
+    trx.raw("? AS search_title", [noteTitleSql(trx, providers, account)]),
   );
   const q = trx
     .withMaterialized("titled", titled.toKnexQuery())
@@ -179,6 +188,36 @@ export async function lexicalMatches(
 }
 
 export type SearchPosition = { tier: number; score: number; id: string };
+
+/** Keyset position and complete-set fingerprint use one snapshot, including worker
+ * title changes. ASCII case folding + C collation is stable across server locales. */
+export async function orderedPage(
+  trx: Knex.Transaction,
+  query: Knex.QueryBuilder,
+  limit: number,
+  direction: "asc" | "desc",
+  after?: { key: string; id: string },
+  numeric = false,
+) {
+  const key = numeric ? "sort_key::numeric" : 'sort_key COLLATE "C"';
+  const [value] = await trx
+    .withMaterialized("ordered_hits", query.clearOrder())
+    .select(
+      trx.raw(
+        `(SELECT md5(coalesce(string_agg(md5(jsonb_build_array(id,version,sort_key)::text),'' ORDER BY id),'')) FROM ordered_hits) AS fingerprint`,
+      ),
+      trx.raw(
+        `COALESCE((SELECT jsonb_agg(to_jsonb(page)) FROM (SELECT * FROM ordered_hits
+      ${after ? `WHERE (${key},id) ${direction === "asc" ? ">" : "<"} (${numeric ? "?::numeric" : '? COLLATE "C"'},?::uuid)` : ""}
+      ORDER BY ${key} ${direction},id ${direction} LIMIT ?) page),'[]'::jsonb) AS items`,
+        [...(after ? [after.key, after.id] : []), limit + 1],
+      ),
+    );
+  return {
+    fingerprint: value.fingerprint as string,
+    rows: camelRows<MemoryModel & { sortKey: string }>({ rows: value.items }),
+  };
+}
 
 /** Fingerprint and page share one PostgreSQL statement/snapshot. It also detects
  * asynchronous title/vector changes without adding per-row write-side counters. */

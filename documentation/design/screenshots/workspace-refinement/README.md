@@ -1,5 +1,23 @@
 # Workspace refinement
 
+## Contextual approval summary — 27 November 2026
+
+![Permission summary with contextual editors and visible approval actions at 320×640](approval-summary-320.png)
+
+Actual approval form with synthetic HTTP/account data, Chromium at 320×640,
+production CSS build `SWTOYpeDBLJvByhY0ZFwJ`, parent `4e2ac9f` plus the contextual
+approval changes. The summary's **Edit actions** and **Edit notebooks** open/focus
+the existing controls; they never submit approval. The complete-catalog regression
+retains narrowed choices through a notebook-read failure/retry and verifies no
+approval request until confirmation. The compact initial form keeps Connect and
+Cancel fully visible at this size without hiding access consequences.
+The contextual summary actions retain the shared 44px targets.
+
+This is browser-fixture evidence, not an account grant, live Clerk install timing,
+screen-reader or physical-device acceptance. Earlier captures below are unchanged.
+
+## Earlier workspace review
+
 Reviewed browser-fixture captures using production CSS and synthetic notes. Source:
 `e31e438` on `fix/workspace-refinement`, 22 October 2026. Production CSS build
 `bb1JRm4mEIK8YwzqY7LrK`; Node 24.21.0 / pnpm 10.33.0 / Playwright 1.64.1.

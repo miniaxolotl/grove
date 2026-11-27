@@ -10,6 +10,10 @@ it becomes available. Existing saved conversations remain readable.
 
 ## Controls and workflow
 
+The message box and source scope lead the empty conversation. **Try a question**
+reveals optional examples; choosing one only fills the draft and never sends it.
+See the [reviewed question examples](design/screenshots/ask-tools/README.md#draft-only-question-examples--27-november-2026).
+
 Open **Tools** in the message box:
 
 - **Web search** — find current information online.

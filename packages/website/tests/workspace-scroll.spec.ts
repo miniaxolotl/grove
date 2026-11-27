@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { openWorkspaceNavigation } from "./fixtures/workspace-navigation";
 import AxeBuilder from "@axe-core/playwright";
 import { fixture, note, project } from "./fixtures/workspace-fixture";
 
@@ -183,7 +184,7 @@ for (const width of [1440, 390]) {
       await expect(explorer).toBeHidden();
       await expect(page.locator(".notebook-pages")).toHaveCount(0);
       expect(reads).toEqual([]);
-      await page.locator(".notebook-browser-toggle").click();
+      await openWorkspaceNavigation(page);
     } else {
       const body = explorer.locator(".notebook-explorer-body");
       await expect(body).toBeHidden();

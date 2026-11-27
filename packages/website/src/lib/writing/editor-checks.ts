@@ -62,6 +62,23 @@ export function mergeWritingIssues(
   return kept.sort((a, b) => a.from - b.from);
 }
 
+/** Match existing occurrences, never a rule-wide or future-text replacement. */
+export function similarWritingIssues(
+  issues: WritingIssue[],
+  issue: WritingIssue,
+  replacement?: string,
+) {
+  if (!issues.includes(issue)) return [];
+  return issues.filter(
+    (candidate) =>
+      candidate.rule === issue.rule &&
+      candidate.message === issue.message &&
+      candidate.original === issue.original &&
+      (replacement === undefined ||
+        candidate.replacements.includes(replacement)),
+  );
+}
+
 /** Each lifetime owns one editor, note and settings/consent epoch. No prose in shared caches. */
 export class EditorChecks {
   private revision = 0;
@@ -143,7 +160,7 @@ export class EditorChecks {
       update.changes.iterChangedRanges((_a, _b, from, to) => {
         this.changedAt = Math.max(from, to - 1);
       });
-    if (this.changedAt !== null && !this.composing && this.settings.automatic) {
+    if (this.changedAt !== null && !this.composing) {
       // Rechecking one paragraph must not erase feedback in untouched ones.
       // A fence or blank-line edit can change a different block's Markdown
       // interpretation, so verify its new projection as well as its text.
@@ -378,9 +395,48 @@ export class EditorChecks {
       return false;
     return protectMarkdownIssues(this.view.state, [issue]).length === 1;
   }
-  ignore(issue: WritingIssue) {
-    this.ignored.current.push(issue);
+  replacementChanges(
+    issue: WritingIssue,
+    replacement: string,
+    similar = false,
+  ) {
+    const targets = similar
+      ? similarWritingIssues(this.state.issues, issue, replacement)
+      : [issue];
+    // Validate every occurrence against this editor/consent epoch before one
+    // atomic CodeMirror transaction. Never apply a safe subset of a stale batch.
+    if (
+      !targets.length ||
+      targets.some((target) => !this.canApply(target, replacement))
+    )
+      return null;
+    const ordered = [...targets].sort((a, b) => a.from - b.from);
+    if (
+      ordered.some(
+        (target, index) => index > 0 && ordered[index - 1].to > target.from,
+      )
+    )
+      return null;
+    return ordered.map(({ from, to }) => ({ from, to, insert: replacement }));
+  }
+  ignore(issue: WritingIssue, similar = false) {
+    const targets = similar
+      ? similarWritingIssues(this.state.issues, issue)
+      : [issue];
+    if (
+      this.stopped ||
+      this.composing ||
+      !targets.length ||
+      targets.some(
+        (target) =>
+          !this.state.issues.includes(target) ||
+          protectMarkdownIssues(this.view.state, [target]).length !== 1,
+      )
+    )
+      return false;
+    this.ignored.current.push(...targets);
     this.paint();
+    return true;
   }
   stop() {
     this.stopped = true;

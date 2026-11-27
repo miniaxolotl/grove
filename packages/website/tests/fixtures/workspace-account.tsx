@@ -1,18 +1,20 @@
+"use client";
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
 let identity = { userId: "fixture-user", sessionId: "fixture-session" };
 const listeners = new Set<() => void>();
 // Test-only account/session switching, never included in production routes.
-Object.assign(window, {
-  getWorkspaceToken: async (_options?: { skipCache: boolean }) =>
-    identity.sessionId
-      ? `fixture-token:${identity.userId}:${identity.sessionId}`
-      : null,
-  switchWorkspaceAccount(userId: string, sessionId: string) {
-    identity = { userId, sessionId };
-    listeners.forEach((listener) => listener());
-  },
-});
+if (typeof window !== "undefined")
+  Object.assign(window, {
+    getWorkspaceToken: async (_options?: { skipCache: boolean }) =>
+      identity.sessionId
+        ? `fixture-token:${identity.userId}:${identity.sessionId}`
+        : null,
+    switchWorkspaceAccount(userId: string, sessionId: string) {
+      identity = { userId, sessionId };
+      listeners.forEach((listener) => listener());
+    },
+  });
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => {
@@ -20,7 +22,11 @@ const subscribe = (listener: () => void) => {
   };
 };
 export function useAuth() {
-  return useSyncExternalStore(subscribe, () => identity);
+  return useSyncExternalStore(
+    subscribe,
+    () => identity,
+    () => identity,
+  );
 }
 export function useSession() {
   useAuth();
@@ -60,7 +66,8 @@ const clerk = {
     return identity.sessionId
       ? {
           id: identity.sessionId,
-          status: 'active', expireAt: new Date(Date.now() + 60_000),
+          status: "active",
+          expireAt: new Date(Date.now() + 60_000),
           getToken: (options?: { skipCache: boolean }) =>
             (
               window as unknown as {

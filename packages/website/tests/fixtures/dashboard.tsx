@@ -89,7 +89,7 @@ function DashboardFixture() {
       ) : path === "/app/notes/new" || path.startsWith("/app/memories/") ? (
         <NoteDocument>{content}</NoteDocument>
       ) : (
-        cloneElement(content, { key: location })
+        cloneElement(content, { key: path })
       )}
     </DashboardShell>
   );

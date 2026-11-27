@@ -1,5 +1,38 @@
 import type { Project } from "./dashboard-api";
 
+export const notebookDisplaySortOptions = [
+  { value: "custom", label: "Saved order" },
+  { value: "title_asc", label: "Name A–Z" },
+  { value: "title_desc", label: "Name Z–A" },
+  { value: "created_desc", label: "Newest created" },
+  { value: "created_asc", label: "Oldest created" },
+] as const;
+export type NotebookDisplaySort =
+  (typeof notebookDisplaySortOptions)[number]["value"];
+export function notebookDisplayOrder(sort: NotebookDisplaySort) {
+  if (sort === "custom") return notebookOrder;
+  return (a: Project, b: Project) => {
+    if (sort.startsWith("title_"))
+      return (
+        (sort === "title_asc" ? 1 : -1) * a.name.localeCompare(b.name) ||
+        a.id.localeCompare(b.id)
+      );
+    const left = a.createdAt ? Date.parse(a.createdAt) : NaN;
+    const right = b.createdAt ? Date.parse(b.createdAt) : NaN;
+    // Missing legacy dates stay last in both directions, never borrow a child's date.
+    if (!Number.isFinite(left) || !Number.isFinite(right))
+      return Number.isFinite(left)
+        ? -1
+        : Number.isFinite(right)
+          ? 1
+          : a.id.localeCompare(b.id);
+    return (
+      (sort === "created_asc" ? 1 : -1) * (left - right) ||
+      a.id.localeCompare(b.id)
+    );
+  };
+}
+
 /** One stable sibling order across the manager, explorer and sub-notebooks. */
 export function notebookOrder(a: Project, b: Project) {
   return (

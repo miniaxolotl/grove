@@ -5,13 +5,12 @@ Official listings are available on the
 [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
 and [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
 Each store approves versions independently; a public listing does not mean the
-latest submitted update is live. Unsigned local ZIPs are separate downloads from
-the [install page](https://grovenote.app/install#browser-extension) or source builds.
-Install lists all three official items and marks a recognized desktop browser. The
-current Chrome control still links to manual setup despite the public item. In
-**Settings → Connections**, choose **Add to Firefox**, **Add to Edge**, or the
-**Chrome setup guide** for manual installation. Local packages are
-also available for Firefox and Edge. The
+latest submitted update is live. Install and **Settings → Connections** link directly
+to each store with **Add to Chrome / Firefox / Edge**, marking a recognized desktop
+browser without hiding the other choices. Local packages for all three browsers
+are under **Advanced: install a local package** on the
+[install page](https://grovenote.app/install#browser-extension), with unsigned
+downloads and source-build instructions kept separate from store installation. The
 [design](design/browser-extension.md) retains the release requirements and deferred scope.
 
 ## Install and connect
@@ -163,7 +162,8 @@ reject cached selection-only consent before context can leave the browser. Only 
 surrounding sentences/paragraphs are reference, not output.
 
 Grove requests three distinct alternatives and accepts two or three after validation.
-The editor remains unchanged until a choice is made. Click an alternative to replace only the
+The editor remains unchanged until a choice is made. Each alternative is labelled
+**Replace with …** so the edit is explicit. Choose it to replace only the
 current selection and copy it in the same click, with native Undo. **Copy** alone
 does not edit; **Close** dismisses the card. Clipboard failure never rolls back a
 successful replacement or reports copy success. Editing, disabling AI
@@ -219,8 +219,9 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   cannot replace newer results, including after pause or sign-out. **Show more**
   uses the server cursor for the same query; unchanged rows stay mounted. Failures
   retain previous results, label them stale and offer **Retry search**. Results
-  show bounded, noninteractive Markdown previews, omitting raw HTML. Each has one **Note actions**
-  menu with **Open**, **Copy** and **Share**; there are no selection checkboxes or
+  show bounded, noninteractive Markdown previews, omitting raw HTML. Each has a
+  visible **Open** action and one **Note actions** menu with **Copy** and **Share**;
+  there are no selection checkboxes or
   bulk actions. Arrow keys, Escape and outside clicks work without moving the list.
 - **Read and copy:** opening a result rechecks access and renders its Markdown/GFM
   document: headings, lists, checklists, tables, quotes, code and safe links.

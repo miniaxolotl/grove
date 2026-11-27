@@ -52,8 +52,11 @@ single installed agent or offers a terminal choice. Use `connect opencode`,
 The command selects Cloud automatically, reuses valid credentials, and opens
 account creation or sign-in if needed. The same browser continues to a contextual
 approval page. New connections propose all permission and scope checkboxes selected:
-read/save/delete, Personal and all current/future notebooks. Review and uncheck
-unwanted access under **Customize access** before approving. Existing connections
+read/save/delete, Unfiled and all current/future notebooks. Use **Edit actions** or
+**Edit notebooks** beside the permission summary to open and focus the matching
+controls in **Customize access**. Notebook choices use the complete owner catalog,
+not just the first legacy page. Editing never grants access; review and confirm
+explicitly. Existing connections
 preserve their saved choices. Approval can also create/link the current project.
 
 Leave the terminal open. It waits up to ten minutes for approval, checks the effective

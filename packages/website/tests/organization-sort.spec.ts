@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { fixture, note, project } from "./fixtures/workspace-fixture";
 import { chooseOption } from "./fixtures/select";
+import { openWorkspaceNavigation } from "./fixtures/workspace-navigation";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 for (const width of [1440, 390, 320]) {
@@ -40,10 +41,7 @@ for (const width of [1440, 390, 320]) {
         })),
       );
       await page.goto(`${base}/app`);
-      if (width < 600)
-        await page
-          .getByRole("button", { name: "Notebooks", exact: true })
-          .tap();
+      if (width < 600) await openWorkspaceNavigation(page);
       const entry = page
         .locator(".notebook-explorer")
         .getByRole("button", { name: "Organize", exact: true });
@@ -53,7 +51,9 @@ for (const width of [1440, 390, 320]) {
         // A disclosed notebook list gets the same space as the navigation above
         // it, rather than competing with Settings and Commands for a column.
         const tree = page.getByRole("region", { name: "Your notebooks" });
-        const nav = page.locator(".app-sidebar-heading");
+        const nav = page.locator(
+          ".workspace-mobile-navigation .workspace-navigation-body",
+        );
         expect((await tree.boundingBox())!.width).toBe(
           (await nav.boundingBox())!.width,
         );

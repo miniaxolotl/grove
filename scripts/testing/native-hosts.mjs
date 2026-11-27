@@ -30,7 +30,8 @@ assert(
   "This qualification runner currently supports Linux x64 only",
 );
 const root = resolve(import.meta.dirname, "../..");
-const base = process.env.CI ? tmpdir() : "/tmp/opencode";
+const base =
+  process.env.TMPDIR || (process.env.CI ? tmpdir() : "/tmp/opencode");
 await mkdir(base, { recursive: true });
 // Spaces exercise native manifest substitution and shell-hook quoting.
 const directory = await mkdtemp(join(base, "grove agents-"));

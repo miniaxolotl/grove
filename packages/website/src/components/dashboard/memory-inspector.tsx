@@ -15,6 +15,7 @@ import { useToast } from "./toasts";
 import { useWorkspaceCache } from "./workspace-cache";
 import { AssistanceAction } from "./assistance-action";
 import { DocumentSkeleton } from "./workspace-opening";
+import { useReturnLocation } from "./workspace-location";
 
 export function MemoryInspector({
   id,
@@ -41,6 +42,7 @@ export function MemoryInspector({
   journal?: boolean;
 }) {
   const router = useRouter();
+  const returnToOrigin = useReturnLocation();
   const toast = useToast();
   const cache = useWorkspaceCache();
   const api = cache.api;
@@ -213,6 +215,7 @@ export function MemoryInspector({
             }}
             close={
               close ??
+              returnToOrigin ??
               (() =>
                 router.push(
                   (current?.projectId ?? creation?.projectId)

@@ -77,9 +77,13 @@ of at most 64 UTF-16 units each; the full accepted query still reaches strict
 parsing when expansion is disabled.
 
 In **Filters → Sort by**, **Automatic** shows recently edited notes when
-browsing and the best matches when searching. Choose a date order to keep it
+browsing and the best matches when searching. Choose created/edited oldest/newest
+or **Title A–Z / Z–A** to keep that order
 when entering or clearing a query or filter. Sorting applies to the full
 matching library or notebook before paging; subsequent pages use the same order.
+Title order uses the same visible title as search: ASCII letters are folded to
+lowercase, then PostgreSQL's bytewise `C` collation and note ID break ties. This is
+deterministic Unicode ordering, not locale-specific alphabetization or accent folding.
 
 ## Evidence and passages
 
@@ -101,7 +105,11 @@ authoritative source body.
 ## Pagination, privacy and operation
 
 `listSchema.sort` accepts `relevance`; query searches without a sort also use it.
-Existing explicit date-sort paths remain compatible. Signed relevance cursors
+Omitted sorts and legacy defaults are unchanged. Explicit title/date sorts use
+versioned signed cursors with the complete eligible set and a microsecond-safe key;
+old explicit-sort cursors require a restart rather than being reused with new rules.
+Changed eligible rows or titles return `stale_search`, not a silently shifted page.
+Signed relevance cursors
 bind account/grant, filters, provider/title configuration, parser version, search
 mode and rank position. A complete matched-set fingerprint and page are computed
 in **one SQL statement**. Notes created after the first-page ceiling are excluded

@@ -23,7 +23,7 @@ import {
   type UploadedFile,
 } from "@lib/shared/files";
 import { useWorkspaceCache } from "./workspace-cache";
-import { errorMessage } from "@/lib/dashboard-api";
+import { DashboardApiError, errorMessage } from "@/lib/dashboard-api";
 import { workspaceKeys } from "@/lib/workspace-cache";
 import {
   FilesStorageSummary,
@@ -34,6 +34,7 @@ import { useNotebooks } from "./notebooks-provider";
 import { NotebookBreadcrumbs } from "./notebook-breadcrumbs";
 import { memoryExcerpt } from "@/lib/memory-display";
 import "./files.css";
+import { ReturnLink, useWorkspaceView } from "./workspace-location";
 
 const viewLabels: Record<FileSearch["view"], string> = {
   all: "All files",
@@ -61,7 +62,10 @@ function Failure({ error, retry }: { error: unknown; retry: () => void }) {
 function FilePlaces({ file }: { file: UploadedFile }) {
   const { projects } = useNotebooks();
   const cache = useWorkspaceCache(),
-    [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
+    [cursors, setCursors] = useWorkspaceView<(string | undefined)[]>(
+      `file:${file.source}:${file.id}:locations`,
+      [undefined],
+    );
   const query = useQuery({
     ...cache.resource<FileLocations>("/files/locations", {
       source: file.source,
@@ -71,7 +75,10 @@ function FilePlaces({ file }: { file: UploadedFile }) {
     staleTime: 0,
     refetchInterval: 30000,
   });
-  if (query.error)
+  const denied =
+    query.error instanceof DashboardApiError &&
+    [401, 403, 404].includes(query.error.status);
+  if (query.error && (!query.data || denied))
     return (
       <>
         <Failure error={query.error} retry={() => void query.refetch()} />
@@ -88,6 +95,22 @@ function FilePlaces({ file }: { file: UploadedFile }) {
   if (!query.data) return <p role="status">Loading locations…</p>;
   return (
     <div className="file-places">
+      <div className="file-locations-feedback" role="status">
+        {query.error ? (
+          <>
+            <span>
+              Couldn’t refresh locations. Showing the last loaded locations.
+            </span>{" "}
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => void query.refetch()}
+            >
+              Retry locations
+            </button>
+          </>
+        ) : null}
+      </div>
       <ul aria-label={`Locations for ${file.filename}`}>
         {query.data.items.map((location) => (
           <li key={location.key}>
@@ -101,10 +124,10 @@ function FilePlaces({ file }: { file: UploadedFile }) {
             <div>
               {location.memoryId ? (
                 <>
-                  <Link href={`/app/memories/${location.memoryId}`}>
+                  <ReturnLink href={`/app/memories/${location.memoryId}`}>
                     {memoryExcerpt({ content: location.title }, 110) ||
                       "Untitled note"}
-                  </Link>
+                  </ReturnLink>
                   <p>
                     {!location.projectId ? "Unfiled" : ""}
                     {location.archived ? " · Archived note" : ""}
@@ -128,9 +151,9 @@ function FilePlaces({ file }: { file: UploadedFile }) {
                 </>
               ) : location.conversationId ? (
                 <>
-                  <Link href={`/app/ask?chat=${location.conversationId}`}>
+                  <ReturnLink href={`/app/ask?chat=${location.conversationId}`}>
                     {location.title}
-                  </Link>
+                  </ReturnLink>
                   <p>Ask Grove chat · Separate from your notebooks</p>
                 </>
               ) : (
@@ -189,7 +212,10 @@ function FilePlaces({ file }: { file: UploadedFile }) {
   );
 }
 function FileRow({ file }: { file: UploadedFile }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useWorkspaceView(
+    `file:${file.source}:${file.id}:open`,
+    false,
+  );
   const Icon =
     file.kind === "image"
       ? ImageIcon
@@ -198,7 +224,10 @@ function FileRow({ file }: { file: UploadedFile }) {
         : FileText;
   return (
     <li className="file-row">
-      <details onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <details
+        open={open}
+        onToggle={(event) => setOpen(event.currentTarget.open)}
+      >
         <summary>
           <Icon size={19} aria-hidden="true" />
           <span className="file-name">
@@ -263,8 +292,14 @@ function FileRow({ file }: { file: UploadedFile }) {
 }
 function FilesView({ initial }: { initial: FileSearch }) {
   const cache = useWorkspaceCache(),
-    [queryText, setQueryText] = useState(initial.query),
-    [filters, setFilters] = useState(initial);
+    [queryText, setQueryText] = useWorkspaceView(
+      `files:${initial.memoryId ?? initial.conversationId ?? initial.projectId ?? "all"}:query`,
+      initial.query,
+    ),
+    [filters, setFilters] = useWorkspaceView(
+      `files:${initial.memoryId ?? initial.conversationId ?? initial.projectId ?? "all"}:filters`,
+      initial,
+    );
   const notebooks = useNotebooks();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const change = (patch: Partial<FileSearch>) => {
@@ -286,7 +321,10 @@ function FilesView({ initial }: { initial: FileSearch }) {
     Number(!!filters.kind) +
     Number(filters.view !== "all") +
     Number(!!filters.projectId);
-  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
+  const [cursors, setCursors] = useWorkspaceView<(string | undefined)[]>(
+    `files:${initial.memoryId ?? initial.conversationId ?? initial.projectId ?? "all"}:cursors`,
+    [undefined],
+  );
   const storage = useQuery({
     ...cache.resource<FileStorage>("/files/storage"),
     staleTime: 0,
@@ -305,7 +343,10 @@ function FilesView({ initial }: { initial: FileSearch }) {
   const notebookName =
     notebooks.projects.find((p) => p.id === filters.projectId)?.name ??
     "Selected notebook";
-  const usage = storage.error ? undefined : storage.data;
+  const denied = (error: unknown) =>
+    error instanceof DashboardApiError &&
+    [401, 403, 404].includes(error.status);
+  const usage = denied(storage.error) ? undefined : storage.data;
   return (
     <div className="settings-content files-panel">
       <div className="files-heading">
@@ -316,22 +357,34 @@ function FilesView({ initial }: { initial: FileSearch }) {
             used.
           </p>
         </div>
-        <button
-          type="button"
-          className="text-button"
-          disabled={files.isFetching || storage.isFetching}
-          onClick={() => {
-            void files.refetch();
-            void storage.refetch();
-            void cache.client.invalidateQueries({
-              queryKey: workspaceKeys.resource("/files/locations").slice(0, -1),
-            });
-          }}
-        >
-          Refresh files
-        </button>
+        <div className="files-refresh-controls">
+          <button
+            type="button"
+            className="text-button"
+            disabled={files.isFetching || storage.isFetching}
+            onClick={() => {
+              void files.refetch();
+              void storage.refetch();
+              void cache.client.invalidateQueries({
+                queryKey: workspaceKeys
+                  .resource("/files/locations")
+                  .slice(0, -1),
+              });
+            }}
+          >
+            Refresh files
+          </button>
+          <span className="files-refresh-status" role="status">
+            {(files.error || storage.error) &&
+            !denied(files.error) &&
+            !denied(storage.error) &&
+            (files.data || storage.data)
+              ? "Couldn’t refresh. Showing the last loaded data."
+              : ""}
+          </span>
+        </div>
       </div>
-      {storage.error ? (
+      {storage.error && !usage ? (
         <Failure error={storage.error} retry={() => void storage.refetch()} />
       ) : usage ? (
         <FilesStorageSummary usage={usage} />
@@ -541,7 +594,7 @@ function FilesView({ initial }: { initial: FileSearch }) {
             </button>
           </div>
         ) : null}
-        {files.error ? (
+        {files.error && (!files.data || denied(files.error)) ? (
           <>
             <Failure error={files.error} retry={() => void files.refetch()} />
             {cursors.length > 1 ? (

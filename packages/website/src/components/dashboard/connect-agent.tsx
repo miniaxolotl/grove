@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import {
@@ -9,14 +9,10 @@ import {
   type ConnectAttempt,
   type ConnectApproval,
 } from "@lib/shared/contracts";
-import {
-  api,
-  DashboardApiError,
-  errorMessage,
-  type Project,
-} from "@/lib/dashboard-api";
+import { api, DashboardApiError, errorMessage } from "@/lib/dashboard-api";
 import { CodeBlock } from "@/components/code-block";
 import { LoadError } from "./load-error";
+import { useNotebooks } from "./notebooks-provider";
 
 export function ConnectAgent({ id }: { id: string }) {
   const [attempt, setAttempt] = useState<ConnectAttempt | null>(null);
@@ -216,22 +212,22 @@ function ApprovalForm({
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectsError, setProjectsError] = useState("");
-  const [projectsLoading, setProjectsLoading] = useState(true);
-  const [projectRevision, setProjectRevision] = useState(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    api<Project[]>("/projects", undefined, undefined, controller.signal)
-      .then(setProjects)
-      .catch((e) => {
-        if (!controller.signal.aborted) setProjectsError(errorMessage(e));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setProjectsLoading(false);
-      });
-    return () => controller.abort();
-  }, [projectRevision]);
+  const {
+    projects,
+    error: projectsError,
+    loading: projectsLoading,
+    reload,
+  } = useNotebooks();
+  const customization = useRef<HTMLDetailsElement>(null);
+  const actions = useRef<HTMLFieldSetElement>(null);
+  const notebooks = useRef<HTMLInputElement>(null);
+  function editAccess(area: "actions" | "notebooks") {
+    if (customization.current) customization.current.open = true;
+    (area === "actions"
+      ? actions.current?.querySelector("input")
+      : notebooks.current
+    )?.focus();
+  }
   async function submit(action: "approve" | "cancel") {
     setBusy(true);
     setError("");
@@ -249,9 +245,9 @@ function ApprovalForm({
     }
   }
   const labels = {
-    "memory:read": "Read memories",
-    "memory:write": "Save and update memories",
-    "memory:delete": "Delete memories",
+    "memory:read": "Read notes",
+    "memory:write": "Save and update notes",
+    "memory:delete": "Delete notes",
   };
   return (
     <form
@@ -262,14 +258,14 @@ function ApprovalForm({
       }}
     >
       <fieldset className="space-y-3">
-        <legend className="mb-3 text-xs font-medium">Memory access</legend>
+        <legend className="mb-3 text-xs font-medium">Note access</legend>
         <label className="check">
           <input
             type="checkbox"
             checked={grant.personal}
             onChange={(e) => setGrant({ ...grant, personal: e.target.checked })}
           />
-          Personal memories
+          Unfiled notes
         </label>
         {attempt.project && (
           <div>
@@ -282,7 +278,7 @@ function ApprovalForm({
                   setGrant({ ...grant, currentProject: e.target.checked })
                 }
               />
-              This project: {attempt.project.name}
+              This notebook: {attempt.project.name}
             </label>
             <p className="mt-2 break-all text-xs text-muted">
               {attempt.project.identity}
@@ -291,27 +287,44 @@ function ApprovalForm({
         )}
         {!attempt.project && (
           <p className="text-xs leading-6 text-muted">
-            No Git project was detected. Review Personal and notebook access
+            No Git project was detected. Review Unfiled and notebook access
             below before approving.
           </p>
         )}
       </fieldset>
       <div
-        className="rounded-lg bg-sage/50 px-4 py-3 text-sm leading-6"
+        className="connect-permission-summary rounded-lg bg-sage/50 px-4 py-3"
         aria-label="Permission summary"
+        role="region"
       >
         {grant.capabilities.map((capability) => (
           <p key={capability}>{labels[capability]}</p>
         ))}
-        {grant.allProjects && <p>All current and future projects</p>}
+        {grant.allProjects && <p>All current and future notebooks</p>}
         {grant.projectIds.length > 0 && (
-          <p>{grant.projectIds.length} previously selected project(s)</p>
+          <p>{grant.projectIds.length} selected notebook(s)</p>
         )}
         {grant.expiresAt && (
           <p>Expires {new Date(grant.expiresAt).toLocaleDateString()}</p>
         )}
+        <div className="connect-summary-actions">
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => editAccess("actions")}
+          >
+            Edit actions
+          </button>
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => editAccess("notebooks")}
+          >
+            Edit notebooks
+          </button>
+        </div>
       </div>
-      <details>
+      <details ref={customization}>
         <summary className="cursor-pointer py-3 text-sm font-medium text-leaf">
           Customize access
         </summary>
@@ -325,7 +338,7 @@ function ApprovalForm({
               onChange={(e) => setGrant({ ...grant, name: e.target.value })}
             />
           </label>
-          <fieldset className="space-y-3">
+          <fieldset ref={actions} className="space-y-3">
             <legend className="mb-3 text-xs font-medium">Actions</legend>
             {capabilities.map((capability) => (
               <label className="check" key={capability}>
@@ -348,27 +361,21 @@ function ApprovalForm({
           <label className="check">
             <input
               type="checkbox"
+              ref={notebooks}
               checked={grant.allProjects}
               onChange={(e) =>
                 setGrant({ ...grant, allProjects: e.target.checked })
               }
             />
-            All current and future projects
+            All current and future notebooks
           </label>
           {!grant.allProjects && projectsLoading && (
             <p role="status" className="text-sm text-muted">
-              Loading other projects…
+              Loading other notebooks…
             </p>
           )}
           {projectsError && (
-            <LoadError
-              message={projectsError}
-              retry={() => {
-                setProjectsError("");
-                setProjectsLoading(true);
-                setProjectRevision((n) => n + 1);
-              }}
-            />
+            <LoadError message={projectsError} retry={reload} />
           )}
           {!grant.allProjects &&
             projects

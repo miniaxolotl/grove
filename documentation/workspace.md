@@ -2,8 +2,11 @@
 
 Start in **Notes** to write and browse, or **Ask Grove** to work with your notes.
 The sidebar puts **Notes** and **Ask Grove** first, then **Notebooks** (Unfiled
-and your notebook tree), with **Settings** last. On phones, open **Notebooks**
-beneath Notes and Ask Grove. The Grove logo returns to Notes. Connected agents
+and your notebook tree), with **Settings** last. Phones and narrow windows use one
+compact scope button, **New note** and finder header. Open **Grove navigation**
+from that scope button for Notes, Ask Grove, notebooks, commands and Settings;
+Escape returns focus without moving the underlying list. Desktop keeps its rail
+and Grove logo link to Notes. Connected agents
 share these notes and their approved permissions; technical references stay in
 **Note properties → Agent details**.
 
@@ -67,6 +70,13 @@ owns connection commands and approval.
   kind, topic, source, date, lifetime and sorting. They apply to the entire matching
   library, not just loaded rows. Queries remain in POST bodies. See
   [search](search.md) for relevance, typo/prefix matching and partial evidence.
+- Quick-open note selection has a `?note=<id>` location. Browser Back closes it
+  and Forward reopens it; reload resolves that authorized note again. Note names
+  remain real links to the canonical `/app/memories/<id>` for new-tab navigation.
+  Opened resources name the browser tab from authorized current data.
+- Conversation links use `/app/ask?chat=<id>`. Entry reads the selected chat without
+  submitting a question; missing or denied chats offer a read retry, not a fresh
+  conversation. Unsent finder drafts still use their separate opaque session handle.
 - Scroll to the end of Notes, Archive, a notebook’s list, or the notes in an
   expanded sidebar notebook to load the next page. **Load more notes** is also
   available to screen readers and appears on keyboard focus. If your browser
@@ -86,7 +96,15 @@ owns connection commands and approval.
   hold; tapping or clicking a grip opens Organize for exact placement. The
   [organization guide](notebook-organization.md) owns full move/retry/Undo behavior
   and device qualification limits. Parent access never grants child access.
+- Choose **Custom order** in Filters, then **Arrange notes** beside the list count.
+  All notes, each notebook and Unfiled keep independent saved arrangements. The
+  arrangement dialog is not limited by the library’s search or other refinements.
+  Arrow buttons and the placement menu work without dragging; they never edit note
+  text or spend AI actions. [Ordering and recovery](notebook-organization.md#custom-note-order)
+  describes concurrent changes, retries and exports.
 - Select up to 50 loaded notes for batch move/archive/restore/**Delete**.
+  Delete hides the note and retained history; there is no in-app restore. The
+  single-note and batch confirmations state this consequence before submission.
   Confirmations apply instantly: rows move the moment you confirm while the
   request settles in the background, and only that note's controls lock during
   its own request. A row with a request in flight dims without moving the list.
@@ -127,6 +145,13 @@ explain current evidence, partial coverage and retained Dismiss/Undo decisions.
 ## Share with a link
 
 ### Private section links
+
+Supported note/notebook links have a separate **Preview linked note/notebook**
+button inside the signed-in reader. Open still navigates normally; Preview reads
+only a bounded title/type/excerpt on demand. Literal captions remain yours.
+Title-following links may display an authorized resolved title without changing
+their saved Markdown. Unavailable previews reveal no private metadata; they do
+not create access or public sharing. See [internal links](structured-documents.md#internal-links-and-private-previews).
 
 Copy a heading link from **Note outline** after saving. It grants no access or public
 sharing. Links reopen that section in reading/writing, including reload/Back/Forward.

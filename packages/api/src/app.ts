@@ -50,6 +50,7 @@ import {
   notebookCatalogSchema,
   organizeNotebookSchema,
 } from "@lib/shared/notebook-organization";
+import { organizeNoteSchema } from "@lib/shared/note-organization";
 import { conversationHistorySchema } from "@lib/shared/conversation-history";
 import { searchConversationHistory } from "@lib/memory";
 import { createLifecycleIngress } from "./lifecycle-ingress.ts";
@@ -1617,6 +1618,16 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.post("/v1/memories/:id/organize", async (c) =>
+    c.json({
+      success: true,
+      data: await service.organizeNote(
+        c.get("principal"),
+        uuidSchema.parse(c.req.param("id")),
+        await body(c, organizeNoteSchema),
+      ),
+    }),
+  );
   app.get("/v1/projects/:id/lifecycle", async (c) =>
     c.json({
       success: true,
@@ -1836,6 +1847,27 @@ export function createApp(deps: AppDependencies) {
       ),
     }),
   );
+  app.get("/v1/link-previews/:kind/:id", async (c) => {
+    const query = c.req.queries();
+    if (
+      Object.entries(query).some(
+        ([key, values]) => key !== "revision" || values.length !== 1,
+      )
+    )
+      throw new GroveError(
+        "invalid_request",
+        "Unsupported or repeated preview parameter",
+        400,
+      );
+    return c.json({
+      success: true,
+      data: await service.linkPreview(c.get("principal"), {
+        kind: c.req.param("kind"),
+        id: c.req.param("id"),
+        ...(query.revision ? { revision: query.revision[0] } : {}),
+      }),
+    });
+  });
   app.get("/v1/memories/:id", async (c) =>
     c.json({
       success: true,

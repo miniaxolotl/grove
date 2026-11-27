@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { fixturePath, catalogResponse } from "./fixtures/notebook-catalog";
+import { fixture, note } from "./fixtures/workspace-fixture";
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const id = "00000000-0000-4000-a000-000000000101";
 const storage = {
@@ -24,6 +25,154 @@ const file = {
   expiresAt: null,
   locationCount: 1,
 };
+
+test("Files returns from a note to its scoped lookup, expanded location and focus", async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.route("**/api/grove/admin", (route) =>
+    route.fulfill({ json: { success: true, data: { role: "member" } } }),
+  );
+  await page.route("**/api/grove/files/storage", (route) =>
+    route.fulfill({ json: { success: true, data: storage } }),
+  );
+  await page.route("**/api/grove/files/search", (route) =>
+    route.fulfill({
+      json: { success: true, data: { items: [file], nextCursor: null } },
+    }),
+  );
+  await page.route("**/api/grove/files/locations", (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        data: {
+          items: [
+            {
+              key: `note:${note.id}`,
+              title: "Review preferences",
+              memoryId: note.id,
+              projectId: null,
+              projectName: null,
+              conversationId: null,
+              batchId: null,
+              archived: false,
+              historical: false,
+              downloadPath: null,
+            },
+          ],
+          nextCursor: null,
+        },
+      },
+    }),
+  );
+  await page.goto(`${base}/app/settings/files?memoryId=${note.id}`);
+  const search = page.getByRole("searchbox", {
+    name: "Search files",
+    exact: true,
+  });
+  await search.fill("Reference");
+  await search.press("Enter");
+  await page.getByText("Reference.txt", { exact: true }).click();
+  const destination = page.getByRole("link", {
+    name: "Review preferences",
+    exact: true,
+  });
+  await destination.click();
+  await expect(page).toHaveURL(
+    new RegExp(`/app/memories/${note.id}\\?return=`),
+  );
+  await expect(page).toHaveTitle("Review preferences · Grove");
+  await page
+    .getByRole("button", { name: "Back to notes", exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    `${base}/app/settings/files?memoryId=${note.id}`,
+  );
+  await expect(search).toHaveValue("Reference");
+  await expect(destination).toBeVisible();
+  await expect(destination).toBeFocused();
+});
+
+test("a transient refresh keeps mounted files, expanded locations and visible feedback", async ({
+  page,
+}) => {
+  let failed = false;
+  await page.route("**/api/grove/**", async (route) => {
+    const path = fixturePath(route.request().url()).replace("/api/grove", "");
+    if (
+      failed &&
+      ["/files/search", "/files/storage", "/files/locations"].includes(path)
+    ) {
+      await route.fulfill({
+        status: 503,
+        json: {
+          success: false,
+          error: { code: "unavailable", message: "The refresh failed." },
+        },
+      });
+      return;
+    }
+    const data =
+      path === "/me"
+        ? { accountId: "files-retention" }
+        : path === "/files/storage"
+          ? storage
+          : path === "/files/search"
+            ? { items: [file], nextCursor: null }
+            : path === "/files/locations"
+              ? {
+                  items: [
+                    {
+                      key: `chat:${id}`,
+                      title: "Reference conversation",
+                      memoryId: null,
+                      projectId: null,
+                      projectName: null,
+                      conversationId: id,
+                      batchId: null,
+                      archived: false,
+                      historical: false,
+                      downloadPath: null,
+                    },
+                  ],
+                  nextCursor: null,
+                }
+              : [];
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
+  });
+  await page.goto(`${base}/app/settings/files`);
+  const row = page
+    .getByRole("list", { name: "Uploaded files" })
+    .getByRole("listitem")
+    .first();
+  await page.getByText("Reference.txt", { exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Reference conversation", exact: true }),
+  ).toBeVisible();
+  const element = await row.elementHandle();
+  const before = await row.boundingBox();
+  failed = true;
+  await page
+    .getByRole("button", { name: "Refresh files", exact: true })
+    .click();
+  const receipt = page.getByText(
+    "Couldn’t refresh. Showing the last loaded data.",
+    { exact: true },
+  );
+  await expect(receipt).toBeInViewport();
+  expect((await receipt.boundingBox())!.height).toBeGreaterThan(10);
+  expect(await row.evaluate((node, old) => node === old, element)).toBe(true);
+  expect((await row.boundingBox())!.y).toEqual(before!.y);
+  await expect(row.locator("details")).toHaveAttribute("open", "");
+  await expect(
+    page.getByRole("link", { name: "Reference conversation", exact: true }),
+  ).toBeVisible();
+});
 for (const width of [320, 1440]) {
   test(`open files from Settings, filter and retry without losing the selection at ${width}px`, async ({
     page,

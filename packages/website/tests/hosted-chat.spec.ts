@@ -444,6 +444,7 @@ test("new API keys select every permission and scope while existing connections 
     }),
   );
   await page.goto(`${base}/app/settings/connections`);
+  await page.getByText("Add a connection", { exact: true }).click();
   await page
     .getByRole("button", { name: "Create API key", exact: true })
     .click();

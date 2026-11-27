@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Brief, Enrichment } from "./models.ts";
 import { noteContentDescription } from "./note-writing.ts";
 import { NOTE_CONTENT_MAX, RECALL_CONTENT_MAX } from "./limits.ts";
+import { noteSorts } from "./search.ts";
 
 export const capabilities = [
   "memory:read",
@@ -111,9 +112,7 @@ export const listSchema = z
     tag: z.string().trim().min(1).max(40).optional(),
     sourceAgent: sourceSchema.shape.agent.removeDefault().optional(),
     updatedAfter: z.iso.datetime().optional(),
-    sort: z
-      .enum(["updated_desc", "updated_asc", "created_desc", "relevance"])
-      .optional(),
+    sort: z.enum(noteSorts).optional(),
     lifetime: z.enum(["permanent", "ephemeral"]).optional(),
     status: z.enum(["active", "archived", "expired", "all"]).default("active"),
     query: z.string().trim().max(1000).optional(),
@@ -176,6 +175,8 @@ export type Notebook = {
   status?: "active" | "archived";
   /** Owning-session display order. Scoped agent responses omit positions. */
   position?: number;
+  /** Actual notebook creation date; older servers may omit it. */
+  createdAt?: string;
 };
 export const projectSchema = z
   .object({
@@ -290,6 +291,7 @@ export type RetrievalDiagnostic = {
 };
 export type Page<T> = {
   retrieval?: RetrievalDiagnostic;
+  orderState?: string;
   usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
   visit?: {

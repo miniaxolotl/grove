@@ -16,6 +16,7 @@ import {
 import { DashboardApiError } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import type { WorkspaceCache } from "@/lib/workspace-cache";
+import { useUnsavedChanges } from "./unsaved-changes";
 
 export type NoteValues = {
   content: string;
@@ -335,6 +336,16 @@ class NoteDraftStore extends Map<string, NoteDraft> {
     // an explicit restore. Erased checkpoints/late writers are never replayed.
     this.blocked.delete(key);
   }
+  // Separate from unsaved drafts: clean notes can still have useful Undo history.
+  // JSON contains source text and stays only in this authenticated session owner.
+  readonly editors = new Map<
+    string,
+    {
+      source: string;
+      json: Record<string, unknown>;
+      scroll: number;
+    }
+  >();
   private revision = 0;
   private listeners = new Set<() => void>();
   private holds = new Map<string, number>();
@@ -440,15 +451,8 @@ export function NoteDraftsProvider({
       drafts.stop();
     };
   }, [drafts, cache, account]);
-  useEffect(() => {
-    const protectDrafts = (event: BeforeUnloadEvent) => {
-      if (!drafts.size) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", protectDrafts);
-    return () => window.removeEventListener("beforeunload", protectDrafts);
-  }, [drafts]);
+  useSyncExternalStore(drafts.subscribe, drafts.snapshot, zero);
+  useUnsavedChanges(drafts.size > 0);
   return <Drafts.Provider value={drafts}>{children}</Drafts.Provider>;
 }
 

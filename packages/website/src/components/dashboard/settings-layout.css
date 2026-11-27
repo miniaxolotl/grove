@@ -3,6 +3,12 @@
   flex-wrap: wrap;
   gap: 4px;
 }
+.settings-page {
+  scroll-padding-block: 8px;
+}
+.settings-page :is(a, button, input, select, textarea, summary) {
+  scroll-margin-block: 8px;
+}
 .settings-section-picker {
   display: none;
 }

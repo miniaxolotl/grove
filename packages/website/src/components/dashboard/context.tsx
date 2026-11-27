@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   CalendarDays,
@@ -30,6 +31,7 @@ import { NotebookActions } from "./notebook-actions";
 import { ImportNotesPanel } from "./import-notes-button";
 import { AssistanceAction } from "./assistance-action";
 import type { NotebookVisit } from "@lib/shared/assistance";
+import { useResourceTitle, useWorkspaceView } from "./workspace-location";
 const ConnectionPanel = deferredFeature(
   async () => ({
     default: (await import("./connection-panel")).ConnectionPanel,
@@ -68,7 +70,10 @@ export function MemoryContext({
 }: {
   projectId?: string | null;
 }) {
-  const [view, setView] = useState(projectId ? "memories" : "context");
+  const [view, setView] = useWorkspaceView(
+    `notebook:${projectId ?? "personal"}:view`,
+    projectId ? "memories" : "context",
+  );
   const { projects, loading, error, reload } = useNotebooks();
   const [create, setCreate] = useState<Memory["kind"] | null>(null);
   const [prompt, setPrompt] = useState<ContextPrompt | null>(null);
@@ -82,6 +87,14 @@ export function MemoryContext({
   const [importing, setImporting] = useState(false);
   const toast = useToast();
   const project = projects.find((p) => p.id === projectId);
+  const params = useSearchParams();
+  // The selected authorized note, not its containing notebook, owns this URL's
+  // title while quick-open is visible (parent effects run after child effects).
+  useResourceTitle(
+    params.has("note")
+      ? undefined
+      : (project?.name ?? (projectId ? undefined : "About you")),
+  );
   // Keep an uncertain lifecycle request mounted with its original retry identity
   // even if directory revalidation already observes the committed archive/delete.
   if (!loading && projectId && !project && !notebookAction)

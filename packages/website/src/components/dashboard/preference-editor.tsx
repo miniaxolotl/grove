@@ -14,6 +14,7 @@ import type { SpeechVoice } from "@lib/shared/speech-voices";
 import { errorMessage } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
 import { useToast } from "./toasts";
+import { useUnsavedChanges } from "./unsaved-changes";
 
 type Settings = SettingsUpdate & {
   aiAvailability?: AiAvailability;
@@ -37,6 +38,7 @@ function useEditor() {
   const value = draft?.value ?? loaded;
   const dirty =
     !!draft && settingsKeys.some((key) => draft.value[key] !== draft.base[key]);
+  useUnsavedChanges(dirty || busy);
 
   return {
     value,
@@ -112,7 +114,7 @@ function useEditor() {
 
 const Context = createContext<ReturnType<typeof useEditor> | null>(null);
 
-/** The settings layout retains drafts and in-flight saves while switching tabs. */
+/** Owned by the authenticated workspace, including navigation outside Settings. */
 export function PreferenceEditor({ children }: { children: ReactNode }) {
   const editor = useEditor();
   return <Context.Provider value={editor}>{children}</Context.Provider>;

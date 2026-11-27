@@ -7,7 +7,6 @@ export default async function MemoriesPage({
   const { notebook, sort } = await searchParams;
   return (
     <MemoryLibrary
-      key={`${notebook ?? "all"}:${sort ?? ""}`}
       initialProject={notebook}
       initialSort={sort === "created_desc" ? "created_desc" : "updated_desc"}
     />

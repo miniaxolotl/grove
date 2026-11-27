@@ -61,6 +61,14 @@ import {
   type NotebookCatalog,
 } from "@lib/shared/notebook-organization";
 import {
+  organizeNoteSchema,
+  type OrganizeNote,
+} from "@lib/shared/note-organization";
+import { organizeNote, noteOrderState, noteRank } from "./note-organization.ts";
+import type { GroveLinkPreview } from "@lib/shared/internal-links";
+import { linkPreviewRequestSchema } from "@lib/shared/internal-link-contract";
+import { noteTitle, plainExcerpt } from "@lib/shared/search";
+import {
   organizeNotebook,
   notebookFields,
   orderConflict,
@@ -108,6 +116,8 @@ import { semanticMatches } from "./search.ts";
 import {
   lexicalMatches,
   lexicalQuery,
+  noteTitleSql,
+  orderedPage,
   relevancePage,
   searchVersion,
   type SearchRow,
@@ -1268,6 +1278,72 @@ export class MemoryService {
       return this.present(trx, row);
     });
   }
+  async linkPreview(
+    principal: Principal,
+    request: unknown,
+  ): Promise<GroveLinkPreview> {
+    if (principal.type !== "session") throw forbidden();
+    const input = linkPreviewRequestSchema.parse(request);
+    const bounded = (text: string, maximum: number) => {
+      if (text.length <= maximum) return text;
+      const prefix = text
+        .slice(0, maximum - 1)
+        .replace(/[\uD800-\uDBFF]$/, "")
+        .trimEnd();
+      return `${prefix}…`;
+    };
+    return this.access(principal, "memory:read", async ({ trx, grant }) => {
+      if (input.kind === "notebook") {
+        const notebook = await trx("projects")
+          .where({ id: input.id, status: "active" })
+          .whereNull("deletedAt")
+          .first("id", "name", "version");
+        if (!notebook) throw missing();
+        return {
+          kind: "notebook",
+          id: notebook.id,
+          title: bounded(notebook.name, 90),
+          excerpt: null,
+          version: notebook.version,
+          expiresAt: null,
+        };
+      }
+      const note = await this.query(trx, grant)
+        .findById(input.id)
+        .where({ status: "active" })
+        .where((q) =>
+          q.whereNull("expiresAt").orWhere("expiresAt", ">", trx.fn.now()),
+        );
+      if (!note) throw missing();
+      if (input.revision !== undefined) {
+        const saved = await trx("memory_revisions")
+          .where({ memoryId: input.id, version: input.revision })
+          .first("content", "version");
+        if (!saved) throw missing();
+        return {
+          kind: "note",
+          id: note.id,
+          title: bounded(noteTitle(saved.content) || "Untitled note", 90),
+          excerpt: bounded(plainExcerpt(saved.content, 180), 180),
+          version: saved.version,
+          expiresAt: note.expiresAt?.toISOString() ?? null,
+        };
+      }
+      const current = await this.present(trx, note);
+      return {
+        kind: "note",
+        id: current.id,
+        title: bounded(
+          noteTitle(current.content, current.enrichment?.title) ||
+            "Untitled note",
+          90,
+        ),
+        excerpt: bounded(plainExcerpt(current.content, 180), 180),
+        version: current.version,
+        expiresAt: current.expiresAt,
+      };
+    });
+  }
   async listNoteMedia(
     principal: Principal,
     memoryId: string,
@@ -1532,6 +1608,7 @@ export class MemoryService {
     ceiling: string;
     updatedAt?: string;
     state?: string;
+    order?: { fingerprint: string; key: string };
     search?: {
       fingerprint: string;
       position: SearchPosition;
@@ -1557,6 +1634,12 @@ export class MemoryService {
         !Number.isFinite(Date.parse(decoded.ceiling)) ||
         (decoded.updatedAt !== undefined &&
           !Number.isFinite(Date.parse(decoded.updatedAt)))
+      )
+        throw new Error();
+      if (
+        decoded.order &&
+        (typeof decoded.order.fingerprint !== "string" ||
+          typeof decoded.order.key !== "string")
       )
         throw new Error();
       if (
@@ -1696,6 +1779,8 @@ export class MemoryService {
     input: MemoryList,
     lexicalOnly?: import("@lib/shared/contracts").RetrievalReason,
   ): Promise<Page<Memory>> {
+    if (input.sort === "custom" && principal.type !== "session")
+      throw forbidden();
     const embedder = lexicalOnly ? undefined : this.embedder;
     let vector: number[] | undefined;
     let retrieval:
@@ -1724,7 +1809,8 @@ export class MemoryService {
       ));
     return this.access(
       principal,
-      principal.type === "session" && input.projectId && !input.cursor
+      input.sort === "custom" ||
+        (principal.type === "session" && input.projectId && !input.cursor)
         ? "admin"
         : "memory:read",
       async ({ trx, grant, account }) => {
@@ -1756,11 +1842,23 @@ export class MemoryService {
         const { cursor, limit, ...filters } = input;
         const relevance =
           !!input.query && (!input.sort || input.sort === "relevance");
+        const explicitSort = !!input.sort && input.sort !== "relevance";
+        const direction =
+          input.sort === "custom" || input.sort?.endsWith("_asc")
+            ? "asc"
+            : "desc";
+        const orderState =
+          input.sort === "custom"
+            ? await noteOrderState(trx, this.cursorSecret, input.projectId)
+            : undefined;
         const binding = digest(
           stable({
             account: principal.accountId,
             connection: principal.connectionId,
             filters,
+            ...(explicitSort
+              ? { orderingVersion: "full-set-c-ascii-fold-v1" }
+              : {}),
             ...(relevance
               ? {
                   searchVersion,
@@ -1782,6 +1880,12 @@ export class MemoryService {
         const page = cursor
           ? this.decodeCursor(cursor, binding)
           : { after: "", ceiling: new Date().toISOString() };
+        if (cursor && orderState && page.state !== orderState)
+          throw new GroveError(
+            "stale_search",
+            "The note order changed. Refresh these results.",
+            409,
+          );
         const vectorHash = vector ? digest(JSON.stringify(vector)) : null;
         if (relevance && page.search && page.search.vectorHash !== vectorHash)
           throw new GroveError(
@@ -1790,45 +1894,31 @@ export class MemoryService {
             409,
           );
         const q = this.query(trx, grant).where("createdAt", "<=", page.ceiling);
-        let datePosition:
-          | {
-              column: string;
-              direction: "asc" | "desc";
-              time: string;
-              id: string;
-            }
-          | undefined;
-        if (input.sort && !relevance) {
-          const direction = input.sort === "updated_asc" ? "asc" : "desc";
-          const column =
-            input.sort === "created_desc" ? "created_at" : "updated_at";
+        if (explicitSort) {
+          const column = input.sort!.startsWith("created_")
+            ? "created_at"
+            : "updated_at";
           q.select(
             "memories.*",
-            trx.raw(
-              `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "sortTime"`,
-            ),
+            input.sort === "custom"
+              ? trx.raw("(?)::text AS sort_key", [
+                  noteRank(trx, input.projectId),
+                ])
+              : input.sort!.startsWith("title_")
+                ? trx.raw(
+                    `translate(?, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') COLLATE "C" AS sort_key`,
+                    [noteTitleSql(trx, this.providers, account)],
+                  )
+                : trx.raw(
+                    `to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS sort_key`,
+                  ),
           );
-          q.orderBy(column, direction).orderBy("id", direction);
-          if (page.after) {
-            if (!page.updatedAt)
-              throw new GroveError(
-                "invalid_cursor",
-                "Cursor is missing its sort position",
-                400,
-              );
-            if (input.query)
-              datePosition = {
-                column,
-                direction,
-                time: page.updatedAt,
-                id: page.after,
-              };
-            else
-              q.whereRaw(
-                `(${column}, id) ${direction === "desc" ? "<" : ">"} (?::timestamptz, ?::uuid)`,
-                [page.updatedAt, page.after],
-              );
-          }
+          if (page.after && !page.order)
+            throw new GroveError(
+              "invalid_cursor",
+              "Cursor is missing its sort position",
+              400,
+            );
         } else if (!relevance) {
           q.orderBy("id");
           if (page.after) q.where("id", ">", page.after);
@@ -1868,6 +1958,25 @@ export class MemoryService {
           q.where({ status: "active" }).where("expiresAt", "<=", trx.fn.now());
         let rows: MemoryModel[];
         let fingerprint: string | undefined;
+        let orderFingerprint: string | undefined;
+        const readOrdered = async (query: Knex.QueryBuilder) => {
+          const result = await orderedPage(
+            trx,
+            query,
+            limit,
+            direction,
+            page.order ? { key: page.order.key, id: page.after } : undefined,
+            input.sort === "custom",
+          );
+          if (cursor && page.order?.fingerprint !== result.fingerprint)
+            throw new GroveError(
+              "stale_search",
+              "The note order changed. Refresh these results.",
+              409,
+            );
+          orderFingerprint = result.fingerprint;
+          return result.rows;
+        };
         if (input.query) {
           await trx.raw(
             "SELECT set_config('pg_trgm.word_similarity_threshold',?,true)",
@@ -1901,24 +2010,14 @@ export class MemoryService {
             rows = pageResult.rows;
             fingerprint = pageResult.fingerprint;
           } else {
-            if (datePosition)
-              ranked.whereRaw(
-                `(??,id) ${datePosition.direction === "desc" ? "<" : ">"} (?::timestamptz,?::uuid)`,
-                [datePosition.column, datePosition.time, datePosition.id],
-              );
-            if (input.sort)
-              ranked.orderBy(
-                input.sort === "created_desc" ? "created_at" : "updated_at",
-                input.sort === "updated_asc" ? "asc" : "desc",
-              );
-            rows = await ranked
-              .orderBy(
-                "id",
-                input.sort && input.sort !== "updated_asc" ? "desc" : "asc",
-              )
-              .limit(limit + 1);
+            rows = explicitSort
+              ? await readOrdered(ranked)
+              : await ranked.orderBy("id").limit(limit + 1);
           }
-        } else rows = await q.limit(limit + 1);
+        } else
+          rows = explicitSort
+            ? await readOrdered(q.toKnexQuery())
+            : await q.limit(limit + 1);
         const items = await this.presentMany(
           trx,
           rows.slice(0, limit),
@@ -1926,6 +2025,7 @@ export class MemoryService {
         );
         return {
           items,
+          ...(orderState ? { orderState } : {}),
           ...(input.query
             ? {
                 matches: await searchEvidence(
@@ -1948,6 +2048,7 @@ export class MemoryService {
               ? this.encodeCursor({
                   binding,
                   ceiling: page.ceiling,
+                  ...(orderState ? { state: orderState } : {}),
                   after: items.at(-1)!.id,
                   ...(relevance
                     ? {
@@ -1965,13 +2066,16 @@ export class MemoryService {
                         },
                       }
                     : {}),
-                  ...(input.sort && !relevance
+                  ...(explicitSort
                     ? {
-                        updatedAt: (
-                          rows[items.length - 1] as MemoryModel & {
-                            sortTime: string;
-                          }
-                        ).sortTime,
+                        order: {
+                          fingerprint: orderFingerprint,
+                          key: (
+                            rows[items.length - 1] as MemoryModel & {
+                              sortKey: string;
+                            }
+                          ).sortKey,
+                        },
                       }
                     : {}),
                 })
@@ -2647,15 +2751,21 @@ export class MemoryService {
       const offset = cursor ? Number(cursor.after) : 0;
       if (!Number.isSafeInteger(offset) || offset < 0)
         throw new GroveError("invalid_cursor", "Invalid notebook cursor");
-      const rows: Notebook[] = await trx("projects")
-        .select(notebookFields)
-        .where({ status: input.status })
-        .orderByRaw("parent_id NULLS FIRST")
-        .orderBy("position")
-        .orderBy("id")
-        .offset(offset)
-        .limit(input.limit + 1);
-      const items = rows.slice(0, input.limit);
+      const rows: (Omit<Notebook, "createdAt"> & { createdAt: Date })[] =
+        await trx("projects")
+          .select([...notebookFields, "createdAt"])
+          .where({ status: input.status })
+          .orderByRaw("parent_id NULLS FIRST")
+          .orderBy("position")
+          .orderBy("id")
+          .offset(offset)
+          .limit(input.limit + 1);
+      const items = rows
+        .slice(0, input.limit)
+        .map(({ createdAt, ...notebook }) => ({
+          ...notebook,
+          createdAt: createdAt.toISOString(),
+        }));
       return {
         items,
         state,
@@ -2670,6 +2780,19 @@ export class MemoryService {
             : null,
       };
     });
+  }
+  async organizeNote(principal: Principal, id: string, request: OrganizeNote) {
+    if (principal.type !== "session") throw forbidden();
+    const input = organizeNoteSchema.parse(request);
+    return this.access(principal, "memory:write", ({ trx, account }) =>
+      this.operation(
+        trx,
+        account.id,
+        input.operationId,
+        { action: "note:organize", id, ...input },
+        () => organizeNote(trx, this.cursorSecret, account.id, id, input),
+      ),
+    );
   }
   async organizeProject(
     principal: Principal,

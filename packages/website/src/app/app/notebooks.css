@@ -192,11 +192,11 @@
     min-height: 44px;
   }
   .notebook-tree-actions .app-icon {
-    width: 36px;
+    width: 44px;
   }
   .notebook-disclosure.app-icon {
-    flex-basis: 30px;
-    width: 30px;
+    flex-basis: 44px;
+    width: 44px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
