@@ -178,58 +178,8 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
-.app-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 36px;
-  width: 36px;
-  border-radius: 5px;
+.app-button > svg {
   flex-shrink: 0;
-}
-.app-button > svg,
-.app-icon > svg {
-  flex-shrink: 0;
-}
-.app-icon:hover:not(:disabled) {
-  background: var(--color-sage);
-}
-.app-icon:disabled {
-  opacity: 0.45;
-}
-.app-search {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 12px;
-  border: 1px solid var(--color-line);
-  background: #fff;
-  border-radius: 7px;
-}
-.app-search > svg,
-.app-search > button {
-  flex-shrink: 0;
-}
-.app-search > button {
-  font-size: 13px;
-}
-.app-search input {
-  width: 100%;
-  min-width: 0;
-  outline: none;
-  background: transparent;
-  height: 36px;
-  font-size: 13px;
-}
-.app-search input::placeholder {
-  color: var(--color-muted);
-  opacity: 1;
-}
-.app-search:focus-within {
-  outline: 2px solid var(--color-leaf);
-  outline-offset: 2px;
 }
 .app-form input,
 .app-form select,
@@ -289,31 +239,6 @@
   font-size: 13px;
   line-height: 1.7;
   margin: 14px 0;
-}
-.app-dialog {
-  width: min(650px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
-  margin: auto;
-  padding: 16px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  color: var(--color-forest);
-  background: var(--color-paper);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  box-shadow: 0 16px 48px #15251b26;
-}
-.app-dialog::backdrop {
-  background: #15251b42;
-}
-.app-dialog > .dialog-heading {
-  margin-bottom: 16px;
-}
-.app-dialog > .dialog-heading h2 {
-  font-size: 18px;
-  line-height: 1.4;
-  font-weight: 600;
-  letter-spacing: -0.02em;
 }
 .grove-app :focus-visible,
 .app-dialog :focus-visible {
@@ -395,7 +320,7 @@
   align-items: center;
   gap: 7px;
   color: #5d6962;
-  font-size: 10px;
+  font-size: 11px;
 }
 .app-footer {
   display: flex;
@@ -407,7 +332,7 @@
   padding: 8px 0;
   border-top: 1px solid var(--color-line);
   color: #5d6962;
-  font-size: 10px;
+  font-size: 11px;
 }
 .app-footer nav {
   display: flex;
@@ -1882,12 +1807,15 @@
   .app-footer {
     margin-inline: 16px;
   }
+  .app-footer nav {
+    gap: 0 8px;
+  }
   .app-topbar {
     padding-inline: 16px;
     gap: 12px;
   }
   .app-private-label {
-    font-size: 9px;
+    font-size: 11px;
   }
   .app-breadcrumb {
     gap: 8px;

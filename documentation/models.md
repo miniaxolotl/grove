@@ -180,6 +180,20 @@ Reindex and restore reconciliation honor these independent preferences.
 
 ## Organization, summaries and recall
 
+The indexing worker splits notes into passages of at most 2,000 UTF-16 units. It
+groups short paragraphs, keeps paragraph boundaries where possible and splits long
+paragraphs at whitespace before falling back to a Unicode-safe cut. Each embedding
+request contains one passage. On edits or retries, the worker reuses vectors for
+identical passage text under the same embedding profile and chunking rules. An edit
+that changes a boundary can also change a neighboring passage.
+
+Hybrid recall ranks a note by its closest passage and can return that excerpt with
+`contentRange` (start, exclusive end and total length). Read the full note before
+editing. Relationship processing still uses one representative vector per note.
+Existing indexes remain searchable until a note is edited or reindexed. Migrations
+049 and 050 must run before deploying the updated workers and API; applying them
+does not submit existing notes to an embedding provider.
+
 - `remember` accepts `autoKind: true`. Explicit kinds are kept by default. Handoff
   kind and stable task ID remain explicit. `retentionDays` is independent of kind;
   handoffs default to 30 days, other notes to permanent, with a 60-day restore window.
@@ -218,8 +232,11 @@ Reindex and restore reconciliation honor these independent preferences.
   Background changes are coalesced with a five-second delay.
 - No-query recall can include cached, validated briefs within 60% of its character
   budget, leaving room for source memories. Hooks format these as generated reference
-  data. Generation never runs synchronously on recall; query embedding has an 850 ms
-  provider deadline within the existing 1.5-second automatic-hook budget.
+  data. Generation never runs synchronously on recall. Interactive query embedding
+  has a 2500ms provider deadline, bounded further by caller cancellation/deadlines;
+  worker deadlines are unchanged. Automatic hooks retain their 1.5-second overall
+  budget and ordinary query-free recall path. Query-provider degradation is
+  [reported separately from configuration](search.md).
 - **Retry processing** and brief regeneration respect the relevant preference and
   are version/scope checked. Failed jobs stop after five
   attempts; exhausted daily budgets defer until the next database day (UTC in the

@@ -16,3 +16,4 @@ worktrees/
 test-results/
 playwright-report/
 *.tsbuildinfo
+website-image-env.json

@@ -136,49 +136,6 @@ export function Connections({ origin }: { origin: string }) {
       <p className="settings-section-description">
         Choose which notes each connection can read, save or delete.
       </p>
-      <section
-        className="connection-methods mb-6"
-        aria-label="Add a connection"
-      >
-        <div className="connection-method">
-          <Puzzle size={18} aria-hidden="true" />
-          <div>
-            <h3>Browser extension</h3>
-            <p>Save and find notes in your desktop browser.</p>
-            <div className="mt-3">
-              <ExtensionStoreLinks settings />
-            </div>
-          </div>
-        </div>
-        <div className="connection-method">
-          <Plug size={18} aria-hidden="true" />
-          <div>
-            <h3>Agent or chat app</h3>
-            <p>Use your notes in ChatGPT, Claude or a coding agent.</p>
-          </div>
-          <Button
-            variant="secondary"
-            aria-haspopup="dialog"
-            onClick={() => setAgentOpen(true)}
-          >
-            Connect an agent
-          </Button>
-        </div>
-        <div className="connection-method">
-          <KeyRound size={18} aria-hidden="true" />
-          <div>
-            <h3>API key</h3>
-            <p>Give a script its own access to your notes.</p>
-          </div>
-          <Button
-            variant="secondary"
-            aria-haspopup="dialog"
-            onClick={() => setSelected("new")}
-          >
-            Create API key
-          </Button>
-        </div>
-      </section>
       {agentOpen && (
         <Dialog title="Connect an agent" close={() => setAgentOpen(false)}>
           <AgentSetup origin={origin || undefined} />
@@ -233,6 +190,52 @@ export function Connections({ origin }: { origin: string }) {
           )}
         </>
       )}
+      <details
+        className="settings-options connection-add-options"
+        open={!items.length && !loading}
+      >
+        <summary>Add a connection</summary>
+        <section className="connection-methods" aria-label="Add a connection">
+          <div className="connection-method">
+            <Puzzle size={18} aria-hidden="true" />
+            <div>
+              <h3>Browser extension</h3>
+              <p>Save and find notes in your desktop browser.</p>
+              <div className="mt-3">
+                <ExtensionStoreLinks settings />
+              </div>
+            </div>
+          </div>
+          <div className="connection-method">
+            <Plug size={18} aria-hidden="true" />
+            <div>
+              <h3>Agent or chat app</h3>
+              <p>Use your notes in ChatGPT, Claude or a coding agent.</p>
+            </div>
+            <Button
+              variant="secondary"
+              aria-haspopup="dialog"
+              onClick={() => setAgentOpen(true)}
+            >
+              Connect an agent
+            </Button>
+          </div>
+          <div className="connection-method">
+            <KeyRound size={18} aria-hidden="true" />
+            <div>
+              <h3>API key</h3>
+              <p>Give a script its own access to your notes.</p>
+            </div>
+            <Button
+              variant="secondary"
+              aria-haspopup="dialog"
+              onClick={() => setSelected("new")}
+            >
+              Create API key
+            </Button>
+          </div>
+        </section>
+      </details>
       {revokeTarget && (
         <Dialog
           title="Revoke connection?"

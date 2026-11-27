@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { noteTitle } from "@lib/shared/search";
 import {
   organizeNotebookSchema,
   type NotebookCatalog,
@@ -208,7 +209,8 @@ export async function fixture(
           },
         },
       });
-    if (path === "/proofing/consent") return route.fulfill({json:{enabled:false, automatic:false}});
+    if (path === "/proofing/consent")
+      return route.fulfill({ json: { enabled: false, automatic: false } });
     else if (path === "/me") data = { plan: null };
     else if (path === "/relationships/search") {
       const input = connectionQuerySchema.parse(body);
@@ -473,11 +475,26 @@ export async function fixture(
       if (input.sort)
         matching.sort(
           (a, b) =>
-            ((input.sort === "created_desc"
-              ? a.createdAt.localeCompare(b.createdAt)
-              : a.updatedAt.localeCompare(b.updatedAt)) ||
+            ((input.sort?.startsWith("title_")
+              ? Buffer.compare(
+                  Buffer.from(
+                    noteTitle(a.content, a.enrichment?.title).replace(
+                      /[A-Z]/g,
+                      (letter) => letter.toLowerCase(),
+                    ),
+                  ),
+                  Buffer.from(
+                    noteTitle(b.content, b.enrichment?.title).replace(
+                      /[A-Z]/g,
+                      (letter) => letter.toLowerCase(),
+                    ),
+                  ),
+                )
+              : input.sort?.startsWith("created_")
+                ? a.createdAt.localeCompare(b.createdAt)
+                : a.updatedAt.localeCompare(b.updatedAt)) ||
               a.id.localeCompare(b.id)) *
-            (input.sort === "updated_asc" ? 1 : -1),
+            (input.sort?.endsWith("_asc") ? 1 : -1),
         );
       // Small pages make scope changes and pagination observable in the browser.
       const offset = Number(input.cursor || 0);

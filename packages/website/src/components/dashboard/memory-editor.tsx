@@ -1,4 +1,5 @@
 "use client";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import {
   useEffect,
   useEffectEvent,
@@ -7,6 +8,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type ComponentProps,
 } from "react";
 import {
   ArrowLeft,
@@ -34,7 +36,13 @@ import { ActionMenu } from "./ui/action-menu";
 import { InspectorDialog } from "./ui/inspector-dialog";
 import { isActiveSurface } from "@/lib/workspace-keyboard";
 import { RevisionCompare } from "./revision-compare";
-import { useNoteDrafts, useDraftHeld, type NoteValues } from "./note-drafts";
+import {
+  useNoteDrafts,
+  useNoteDraftRevision,
+  useDraftsInitializing,
+  useDraftHeld,
+  type NoteValues,
+} from "./note-drafts";
 import { NoteDeleteDialog } from "./note-delete-dialog";
 import { CommandMenuButton } from "./workspace-commands";
 import { useNoteExport } from "./note-export";
@@ -53,6 +61,54 @@ import {
 } from "@/lib/workspace-shortcuts";
 
 const saveOwners = new WeakMap<Promise<Memory>, object>();
+
+function DraftCheckpointStatus({
+  draftKey,
+  onExport,
+}: {
+  draftKey?: string;
+  onExport: () => void;
+}) {
+  const drafts = useNoteDrafts();
+  useNoteDraftRevision();
+  const id = useId();
+  if (!drafts?.enabled) return null;
+  const message = drafts.recoveryError
+    ? "Device copy unavailable"
+    : draftKey && drafts.checkpoints.has(draftKey)
+      ? `Device copy ${new Date(drafts.checkpoints.get(draftKey)!).toLocaleTimeString()}`
+      : "No device copy yet";
+  return (
+    <>
+      <button
+        type="button"
+        className="text-button note-device-trigger"
+        popoverTarget={id}
+        aria-label={
+          drafts.recoveryError
+            ? "Device issue: draft recovery status"
+            : "Device draft recovery status"
+        }
+        title={message}
+      >
+        {drafts.recoveryError ? "Device issue" : "Device"}
+      </button>
+      <span popover="auto" id={id} className="note-device-popover">
+        <strong>{message}</strong>
+        <span>
+          {drafts.recoveryError
+            ? "Keep this tab open. Export your unsaved text before closing."
+            : "Device copy only. Recent edits may be missing."}
+        </span>
+        {drafts.recoveryError && (
+          <button type="button" className="text-button" onClick={onExport}>
+            Export unsaved text…
+          </button>
+        )}
+      </span>
+    </>
+  );
+}
 
 function PropertiesPanel({
   overlay,
@@ -75,7 +131,18 @@ function PropertiesPanel({
     : fields;
 }
 
-export function MemoryEditor({
+export function MemoryEditor(props: ComponentProps<typeof ReadyMemoryEditor>) {
+  const initializing = useDraftsInitializing();
+  return initializing ? (
+    <p role="status" className="settings-loading">
+      Checking device draft recovery…
+    </p>
+  ) : (
+    <ReadyMemoryEditor {...props} />
+  );
+}
+
+function ReadyMemoryEditor({
   memory,
   projects,
   projectId: defaultProject = null,
@@ -87,6 +154,7 @@ export function MemoryEditor({
   fullPage = false,
   draftKey,
   initialPreview = false,
+  freshness,
   workspace = false,
   toolbar,
   details,
@@ -109,6 +177,7 @@ export function MemoryEditor({
   fullPage?: boolean;
   draftKey?: string;
   initialPreview?: boolean;
+  freshness?: { checking: boolean; error: boolean; retry: () => void };
   workspace?: boolean;
   toolbar?: (state: {
     locked: boolean;
@@ -127,6 +196,9 @@ export function MemoryEditor({
 }) {
   const drafts = useNoteDrafts();
   const noteExport = useNoteExport();
+  useLayoutEffect(() => {
+    if (draftKey) drafts?.begin(draftKey);
+  }, [drafts, draftKey]);
   const root = useRef<HTMLFormElement>(null);
   const notebookId = useId();
   const retentionHelp = useId();
@@ -180,6 +252,7 @@ export function MemoryEditor({
   const [mediaBusy, setMediaBusy] = useState(false);
   const busy = !!saving;
   const [error, setError] = useState(draft?.error ?? "");
+  const [unconfirmed, setUnconfirmed] = useState(!!draft?.pending);
   const [expanded, setExpanded] = useState(false);
   const [focused, setFocused] = useState(false);
   const focusOrigin = useRef<HTMLElement | null>(null);
@@ -286,6 +359,7 @@ export function MemoryEditor({
         submitted: submitted.current,
         error,
         dailyConflictId,
+        dailyDate,
       });
     else drafts.delete(key);
   }, [
@@ -302,6 +376,7 @@ export function MemoryEditor({
     saving,
     error,
     dailyConflictId,
+    dailyDate,
   ]);
   const settleSave = useEffectEvent(
     async (
@@ -312,6 +387,7 @@ export function MemoryEditor({
       try {
         if (result.status === "rejected") throw result.reason;
         const saved = result.value;
+        if (active()) setUnconfirmed(false);
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (draftKey && retained?.saving !== request) return;
         const values = active()
@@ -380,6 +456,11 @@ export function MemoryEditor({
           if (stillDirty) drafts.set(`note:${saved.id}`, next);
           else drafts.delete(`note:${saved.id}`);
           if (!base) drafts.delete(draftKey);
+          // Do not leave a durable uncertain-create checkpoint behind while
+          // announcing Saved/routing away. A failed cleanup remains visible in
+          // recovery status, but does not turn a confirmed server save into failure.
+          await drafts.checkpoint(`note:${saved.id}`).catch(() => {});
+          if (!base) await drafts.checkpoint(draftKey).catch(() => {});
         }
         if (!active()) return;
         setBase(saved);
@@ -392,7 +473,13 @@ export function MemoryEditor({
       } catch (e) {
         const retained = draftKey ? drafts?.get(draftKey) : undefined;
         if (retained?.saving === request) retained.error = errorMessage(e);
-        if (active()) setError(errorMessage(e));
+        if (active()) {
+          setError(errorMessage(e));
+          setUnconfirmed(
+            !!pending.current &&
+              (!(e instanceof DashboardApiError) || e.status >= 500),
+          );
+        }
         if (
           e instanceof DashboardApiError &&
           e.code === "daily_note_exists" &&
@@ -470,7 +557,7 @@ export function MemoryEditor({
     busy ||
     !!latest ||
     !content.trim() ||
-    content.length > 6000 ||
+    content.length > NOTE_CONTENT_MAX ||
     !dirty;
   useEffect(() => {
     onLockChange?.(mediaBusy || busy || dirty || !!latest);
@@ -523,27 +610,33 @@ export function MemoryEditor({
       };
       submitted.current = { content, kind, retention, autoKind, projectId };
     }
-    const request = api<Memory>(
-      !base && dailyDate ? `/memories/daily/${dailyDate}` : "/memories",
-      {
-        ...input,
-        operationId: pending.current.operationId,
-      },
-    );
+    const operationId = pending.current.operationId;
+    const targetDate = draft?.dailyDate ?? dailyDate;
+    const retained = {
+      content,
+      kind,
+      retention,
+      autoKind,
+      projectId,
+      base,
+      task: task.current,
+      pending: pending.current,
+      submitted: submitted.current,
+      dailyDate: targetDate,
+    };
+    if (draftKey) drafts?.set(draftKey, retained);
+    const request = (async () => {
+      // With device recovery enabled, confirm the exact retry identity on disk
+      // before dispatch. Acceptance is not a server save.
+      if (draftKey && drafts)
+        await drafts.checkpoint(base ? `note:${base.id}` : draftKey, retained);
+      return api<Memory>(
+        !base && targetDate ? `/memories/daily/${targetDate}` : "/memories",
+        { ...input, operationId },
+      );
+    })();
     setSaving(request);
-    if (draftKey)
-      drafts?.set(draftKey, {
-        content,
-        kind,
-        retention,
-        autoKind,
-        projectId,
-        base,
-        task: task.current,
-        pending: pending.current,
-        saving: request,
-        submitted: submitted.current,
-      });
+    if (draftKey) drafts?.set(draftKey, { ...retained, saving: request });
   }
   const autosave = useEffectEvent(() => persist(true));
   const openExport = () =>
@@ -616,7 +709,7 @@ export function MemoryEditor({
               ? "Review the newer version first"
               : !content.trim()
                 ? "Write something first"
-                : content.length > 6000
+                : content.length > NOTE_CONTENT_MAX
                   ? "Over the save limit"
                   : !dirty
                     ? "All changes saved"
@@ -635,33 +728,50 @@ export function MemoryEditor({
     root,
     noteTitle,
   );
-  const saveStatus = busy
-    ? "Saving…"
-    : dailyConflictId
-      ? "Daily note already saved"
-      : dirty
-        ? error
-          ? "Not saved · retry"
-          : content.length > 6000
-            ? "Over save limit"
-            : !content.trim()
-              ? "Empty draft"
-              : autoSave
-                ? "Waiting to save…"
-                : "Unsaved changes"
-        : base
-          ? `Saved${base.status === "archived" ? " · Archived" : ""}`
-          : "Start a note";
+  const saveStatus = latest
+    ? "Newer version · review"
+    : busy
+      ? "Saving…"
+      : dailyConflictId
+        ? "Daily note already saved"
+        : dirty
+          ? error
+            ? unconfirmed
+              ? "Not confirmed"
+              : "Not saved"
+            : content.length > NOTE_CONTENT_MAX
+              ? "Over save limit"
+              : !content.trim()
+                ? "Empty draft"
+                : autoSave
+                  ? "Waiting to save…"
+                  : "Unsaved changes"
+          : base
+            ? freshness?.error
+              ? "Refresh failed"
+              : freshness?.checking
+                ? "Checking…"
+                : `Saved${base.status === "archived" ? " · Archived" : ""}`
+            : "Start a note";
   const saveButton = (
     <Button
       type="submit"
       disabled={saveDisabled}
       className="note-save-button"
-      aria-label={busy ? "Saving note" : "Save note"}
+      aria-label={
+        busy ? "Saving note" : error && unconfirmed ? "Retry save" : "Save note"
+      }
       title={busy ? "Saving…" : `Save note (${shortcutHint(shortcuts.save)})`}
     >
       <Save size={16} aria-hidden="true" />
-      <span>{busy ? "Saving…" : "Save note"}</span>
+      {error && unconfirmed && (
+        <span className="note-retry-short" aria-hidden="true">
+          Retry
+        </span>
+      )}
+      <span>
+        {busy ? "Saving…" : error && unconfirmed ? "Retry save" : "Save note"}
+      </span>
     </Button>
   );
   const secondary = (
@@ -749,19 +859,44 @@ export function MemoryEditor({
                 <NotebookBreadcrumbs projects={projects} id={projectId} />
                 <h1>{noteTitle}</h1>
               </div>
-              <span
-                className="note-save-status"
-                role="status"
-                title={autoSave ? "Saves automatically" : undefined}
-              >
-                <Check
-                  size={13}
-                  aria-hidden="true"
-                  style={{
-                    visibility: !busy && !dirty && base ? "visible" : "hidden",
-                  }}
+              <span className="note-save-feedback">
+                <span
+                  className="note-save-status"
+                  role="status"
+                  title={autoSave ? "Saves automatically" : undefined}
+                >
+                  <Check
+                    size={13}
+                    aria-hidden="true"
+                    style={{
+                      visibility:
+                        !busy &&
+                        !dirty &&
+                        base &&
+                        !latest &&
+                        !freshness?.error &&
+                        !freshness?.checking
+                          ? "visible"
+                          : "hidden",
+                    }}
+                  />
+                  <span title={saveStatus}>{saveStatus}</span>
+                </span>
+                {freshness?.error && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={freshness.retry}
+                    disabled={freshness.checking}
+                    aria-label="Retry refreshing note"
+                  >
+                    Retry
+                  </button>
+                )}
+                <DraftCheckpointStatus
+                  draftKey={base ? `note:${base.id}` : draftKey}
+                  onExport={openExport}
                 />
-                <span title={saveStatus}>{saveStatus}</span>
               </span>
               {toolbar ? (
                 toolbar({
@@ -802,7 +937,11 @@ export function MemoryEditor({
                 {focused ? <Minimize2 size={17} /> : <Focus size={17} />}
                 {focused && <span>Exit focus</span>}
               </button>
-              {saveButton}
+              {autoSave && base && !dirty && !busy && !error ? (
+                <span className="note-save-button" aria-hidden="true" />
+              ) : (
+                saveButton
+              )}
               {workspace && !fullPage && !expanded && (
                 <button
                   type="button"
@@ -892,6 +1031,7 @@ export function MemoryEditor({
           {guidance && <p className="editor-guidance">{guidance}</p>}
           <div className="note-editor-workspace">
             <MarkdownEditor
+              sessionKey={base ? `note:${base.id}` : draftKey}
               speechReady={
                 !!base &&
                 !dirty &&
@@ -1061,7 +1201,7 @@ export function MemoryEditor({
           </div>
           {error && (
             <p role="alert" className="app-error note-save-error">
-              {error}
+              {unconfirmed ? "Save not confirmed. Try again." : error}
               {dailyConflictId && (
                 <>
                   {" "}

@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import {
   DndContext,
@@ -261,6 +262,7 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
   const path = usePathname();
   const origin = useRef<{ path: string; source: Element | null } | null>(null);
   const [active, setActive] = useState<WorkspaceDragItem | null>(null);
+  const [dragHost, setDragHost] = useState<HTMLElement | null>(null);
   const [keyboard, setKeyboard] = useState(false);
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
@@ -540,6 +542,13 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
           pickingUp.current = true;
           pickupFeedback(activatorEvent);
           if (!working.current) {
+            // Native mobile navigation is a modal top layer. Keep its drag tray
+            // in that same layer so hit testing cannot land on the backdrop.
+            setDragHost(
+              activatorEvent.target instanceof Element
+                ? activatorEvent.target.closest<HTMLElement>("dialog[open]")
+                : null,
+            );
             origin.current = {
               path,
               source:
@@ -580,64 +589,66 @@ export function WorkspaceDrag({ children }: { children: ReactNode }) {
         }}
       >
         {children}
-        {active && (
-          <div className="workspace-drop-surface">
-            <div className="mobile-drop-tray" aria-label="Move destination">
-              <span>Move to</span>
-              <div className="mobile-drop-destinations">
-                <NotebookDropTarget
-                  projectId={null}
-                  name={active.kind === "notebook" ? "Top level" : "Unfiled"}
-                  root={active.kind === "notebook"}
-                />
-                {notebookOptions(notebooks.projects).map((option) => (
-                  <NotebookDropTarget
-                    key={option.value}
-                    projectId={option.value}
-                    name={option.label}
-                  />
-                ))}
-              </div>
-            </div>
-            <CancelDropTarget />
-          </div>
-        )}
-        <DragOverlay
-          dropAnimation={dropAnimation}
-          modifiers={[previewOffset]}
-          transition="none"
-          style={{
-            width: "max-content",
-            height: "auto",
-            pointerEvents: "none",
-            ...(keyboard ? {} : { top: 0, left: 0 }),
-          }}
-        >
+        <DragLayer host={dragHost}>
           {active && (
-            <div
-              className="memory-drag-preview"
-              aria-hidden="true"
-              // Keyboard uses the focused grip and highlighted row, not a chip
-              // over the destination. Keep the geometry dnd-kit measures.
-              data-keyboard={keyboard || undefined}
-            >
-              {active.kind === "notebook" ? (
-                <FolderInput size={16} />
-              ) : active.items.length > 1 ? (
-                <Files size={16} />
-              ) : (
-                <FileText size={16} />
-              )}
-              <strong>
-                {active.kind === "notebook"
-                  ? active.project.name
-                  : active.items.length > 1
-                    ? `${active.items.length} notes`
-                    : memoryTitle(active.items[0])}
-              </strong>
+            <div className="workspace-drop-surface">
+              <div className="mobile-drop-tray" aria-label="Move destination">
+                <span>Move to</span>
+                <div className="mobile-drop-destinations">
+                  <NotebookDropTarget
+                    projectId={null}
+                    name={active.kind === "notebook" ? "Top level" : "Unfiled"}
+                    root={active.kind === "notebook"}
+                  />
+                  {notebookOptions(notebooks.projects).map((option) => (
+                    <NotebookDropTarget
+                      key={option.value}
+                      projectId={option.value}
+                      name={option.label}
+                    />
+                  ))}
+                </div>
+              </div>
+              <CancelDropTarget />
             </div>
           )}
-        </DragOverlay>
+          <DragOverlay
+            dropAnimation={dropAnimation}
+            modifiers={[previewOffset]}
+            transition="none"
+            style={{
+              width: "max-content",
+              height: "auto",
+              pointerEvents: "none",
+              ...(keyboard ? {} : { top: 0, left: 0 }),
+            }}
+          >
+            {active && (
+              <div
+                className="memory-drag-preview"
+                aria-hidden="true"
+                // Keyboard uses the focused grip and highlighted row, not a chip
+                // over the destination. Keep the geometry dnd-kit measures.
+                data-keyboard={keyboard || undefined}
+              >
+                {active.kind === "notebook" ? (
+                  <FolderInput size={16} />
+                ) : active.items.length > 1 ? (
+                  <Files size={16} />
+                ) : (
+                  <FileText size={16} />
+                )}
+                <strong>
+                  {active.kind === "notebook"
+                    ? active.project.name
+                    : active.items.length > 1
+                      ? `${active.items.length} notes`
+                      : memoryTitle(active.items[0])}
+                </strong>
+              </div>
+            )}
+          </DragOverlay>
+        </DragLayer>
       </DndContext>
       {(notice || busy) && (
         <WorkspaceNotice>
@@ -707,6 +718,16 @@ export function useNotebookDrop(
     disabled: invalid,
   });
   return { ...drop, invalid, dragging: !!active };
+}
+
+function DragLayer({
+  host,
+  children,
+}: {
+  host: HTMLElement | null;
+  children: ReactNode;
+}) {
+  return host ? createPortal(children, host) : children;
 }
 
 function CancelDropTarget() {

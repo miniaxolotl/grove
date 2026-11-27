@@ -4,6 +4,7 @@ import { test, expect, type Page } from "@playwright/test";
 import type { Memory } from "@lib/shared/contracts";
 import { applySourceEdits } from "@lib/shared/document-edits";
 import { openNoteAction } from "./fixtures/note-action";
+import { openWorkspaceNavigation } from "./fixtures/workspace-navigation";
 
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const sample: Memory = {
@@ -111,9 +112,7 @@ test("memory editor reports persistence failures and retains the draft", async (
     .getByLabel("What should stay with you?")
     .fill("Keep this draft on failure.");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "temporarily unavailable",
-  );
+  await expect(page.getByRole("alert")).toContainText("Save not confirmed");
   await expect(page.getByLabel("What should stay with you?")).toHaveText(
     "Keep this draft on failure.",
   );
@@ -133,7 +132,7 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
     page.getByRole("status").filter({ hasText: "Saved" }),
   ).toContainText("Saved");
   await page.getByRole("button", { name: "Back to notes" }).click();
-  await page.getByRole("button", { name: /^I prefer concise/ }).click();
+  await page.getByRole("link", { name: /^I prefer concise/ }).click();
   await page.getByRole("button", { name: "Write", exact: true }).click();
   await page
     .getByLabel("What should stay with you?")
@@ -151,11 +150,11 @@ test("save, correct, inspect revisions, archive, restore and delete through the 
     page.getByRole("heading", { name: "No notes yet" }),
   ).toBeVisible();
   await page.goto(`${base}/app/archive`);
-  await page.getByRole("button", { name: /^I prefer examples/ }).click();
+  await page.getByRole("link", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page.getByRole("button", { name: "Restore", exact: true }).click();
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: /^I prefer examples/ }).click();
+  await page.getByRole("link", { name: /^I prefer examples/ }).click();
   await page.getByRole("button", { name: "Note actions", exact: true }).click();
   await page
     .getByRole("group", { name: "Note actions", exact: true })
@@ -191,7 +190,7 @@ test("a filtered empty library can return to all memories without losing the que
     page.getByRole("textbox", { name: "Search notes" }),
   ).toBeFocused();
   await expect(
-    page.getByRole("button", { name: /^I prefer concise/ }),
+    page.getByRole("link", { name: /^I prefer concise/ }),
   ).toBeVisible();
 });
 
@@ -230,7 +229,7 @@ for (const path of [
     await expect(page.getByRole("alert")).toHaveCount(0);
     if (path === "/app")
       await expect(
-        page.getByRole("button", { name: /^I prefer concise/ }),
+        page.getByRole("link", { name: /^I prefer concise/ }),
       ).toBeVisible();
     else if (path === "/app/settings/models")
       await expect(
@@ -282,6 +281,7 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     for (const width of [320, 1440]) {
       await page.setViewportSize({ width, height: 900 });
+      await openWorkspaceNavigation(page);
       if (path !== "/app/archive") {
         await expect(
           page.locator('.app-sidebar a[aria-current="page"]:visible'),
@@ -303,10 +303,11 @@ test("dashboard navigation, narrow layouts and dialogs meet accessibility checks
           nodes: v.nodes.map((n) => n.target),
         })),
       ).toEqual([]);
+      if (width < 1024) await page.keyboard.press("Escape");
     }
   }
   await page.goto(`${base}/app`);
-  await page.getByRole("button", { name: /^I prefer concise/ }).click();
+  await page.getByRole("link", { name: /^I prefer concise/ }).click();
   await expect(
     page.getByRole("button", { name: "Close dialog" }),
   ).toBeFocused();

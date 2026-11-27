@@ -14,7 +14,7 @@ import { calls, key, startFixture, stopChild } from "./host-fixture.mjs";
 const exec = promisify(execFile);
 const root = resolve(import.meta.dirname, "../..");
 // Keep consumer artifacts outside the source checkout and its discovery rules.
-const base = "/tmp/opencode";
+const base = process.env.TMPDIR || "/tmp/opencode";
 await mkdir(base, { recursive: true });
 const directory = await mkdtemp(join(base, "opencode-"));
 const binary = process.env.OPENCODE_TEST_BIN;

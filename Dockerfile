@@ -36,7 +36,7 @@ ARG GROVE_API_SENTRY_DSN
 RUN node scripts/build.mjs api
 RUN pnpm --filter @miniaxolotl/grove-server deploy --prod --legacy /prod
 
-FROM node:24-bookworm-slim AS production
+FROM node:24-bookworm-slim AS api
 LABEL org.opencontainers.image.source="https://github.com/miniaxolotl/grove" \
       org.opencontainers.image.title="Grove private memory API" \
       org.opencontainers.image.licenses="MIT"
@@ -49,3 +49,49 @@ EXPOSE 26080
 HEALTHCHECK --interval=20s --timeout=5s --start-period=120s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || '26080') + '/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 CMD ["node", "dist/server.js"]
+
+FROM build AS mcp-build
+RUN node scripts/build.mjs mcp
+
+FROM node:24-bookworm-slim AS mcp
+LABEL org.opencontainers.image.source="https://github.com/miniaxolotl/grove" \
+      org.opencontainers.image.title="grove-mcp" \
+      org.opencontainers.image.licenses="MIT"
+WORKDIR /app
+COPY --from=mcp-build --chown=node:node /app/packages/mcp/dist ./dist
+COPY --from=mcp-build --chown=node:node /app/packages/mcp/package.json ./package.json
+USER node
+ENV NODE_ENV=production
+ENTRYPOINT ["node", "dist/cli.js"]
+CMD ["mcp", "--stdio"]
+
+FROM build AS website-build
+# Only public configuration is baked into the browser bundle. Runtime provider
+# credentials never enter Docker's context, build arguments, layers or attestations.
+ARG SITE_URL
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ARG NEXT_PUBLIC_POSTHOG_ENABLED
+ARG NEXT_PUBLIC_POSTHOG_KEY
+ARG NEXT_PUBLIC_SENTRY_ENABLED
+ARG NEXT_PUBLIC_SENTRY_DSN
+ENV GROVE_CONTAINER_BUILD=1 NEXT_TELEMETRY_DISABLED=1 VERCEL_ENV=production
+RUN node -e "require('node:fs').writeFileSync('packages/website/public/release.json', JSON.stringify({repository:'miniaxolotl/grove',version:require('./package.json').version,sourceSha:process.env.RELEASE_SOURCE_SHA || 'development'}))"
+RUN pnpm build:website
+
+FROM node:24-bookworm-slim AS website
+LABEL org.opencontainers.image.source="https://github.com/miniaxolotl/grove" \
+      org.opencontainers.image.title="grove-website" \
+      org.opencontainers.image.licenses="MIT"
+WORKDIR /app
+COPY --from=website-build --chown=node:node /app/packages/website/.next/standalone ./
+COPY --from=website-build --chown=node:node /app/packages/website/.next/static /app/packages/website/.next/static
+COPY --from=website-build --chown=node:node /app/packages/website/public /app/packages/website/public
+USER node
+ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3000
+HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || '3000') + '/release.json').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+CMD ["node", "packages/website/server.js"]
+
+# Keep docker build / existing Compose consumers on the original API runtime.
+FROM api AS production

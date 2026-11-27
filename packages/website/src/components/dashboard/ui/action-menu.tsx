@@ -1,5 +1,6 @@
 "use client";
 import {
+  useCallback,
   useId,
   useLayoutEffect,
   useRef,
@@ -7,6 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { createPortal } from "react-dom";
 import { MoreHorizontal } from "lucide-react";
 import { overlayViewport } from "./overlay-focus";
 
@@ -20,6 +22,9 @@ export function ActionMenu({
   open: controlledOpen,
   onOpenChange,
   closeOnSelect = true,
+  portal = false,
+  className = "",
+  align = "end",
 }: {
   label: string;
   visibleLabel?: string;
@@ -29,20 +34,31 @@ export function ActionMenu({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   closeOnSelect?: boolean;
+  portal?: boolean;
+  className?: string;
+  align?: "start" | "end";
 }) {
   const id = useId();
   const popup = useRef<HTMLDivElement>(null);
   const localAnchor = useRef<HTMLButtonElement>(null);
   const anchor = triggerRef ?? localAnchor;
   const [open, setOpen] = useState(false);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  const attachPortal = useCallback(
+    (node: HTMLSpanElement | null) => {
+      if (portal && node) setHost(node.closest("dialog") ?? document.body);
+    },
+    [portal],
+  );
   useLayoutEffect(() => {
     if (controlledOpen === undefined) return;
-    const element = popup.current!;
+    const element = popup.current;
+    if (!element) return;
     if (controlledOpen && !element.matches(":popover-open")) {
       anchor.current?.focus({ preventScroll: true });
       element.showPopover();
     } else if (!controlledOpen) element.hidePopover();
-  }, [anchor, controlledOpen]);
+  }, [anchor, controlledOpen, host]);
   useLayoutEffect(() => {
     if (!open) return;
     const element = popup.current!;
@@ -67,7 +83,8 @@ export function ActionMenu({
         rect.bottom + 4 + menu.height <= bottom
           ? rect.bottom + 4
           : rect.top - menu.height - 4;
-      element.style.left = `${Math.max(left, Math.min(rect.right - menu.width, right - menu.width))}px`;
+      const x = align === "start" ? rect.left : rect.right - menu.width;
+      element.style.left = `${Math.max(left, Math.min(x, right - menu.width))}px`;
       element.style.top = `${Math.max(top, Math.min(y, bottom - menu.height))}px`;
     }
     place();
@@ -92,80 +109,84 @@ export function ActionMenu({
       viewport?.removeEventListener("resize", place);
       viewport?.removeEventListener("scroll", place);
     };
-  }, [anchor, open]);
+  }, [align, anchor, open]);
   const items = () =>
     [
       ...popup.current!.querySelectorAll<HTMLElement>(
         "button:not(:disabled), a[href]",
       ),
     ].filter((item) => item.getClientRects().length);
+  const panel = (
+    <div
+      ref={popup}
+      id={id}
+      popover="auto"
+      className={`action-menu ${className}`.trim()}
+      role="group"
+      aria-label={label}
+      onToggle={(event) => {
+        const next = event.newState === "open";
+        setOpen(next);
+        onOpenChange?.(next);
+      }}
+      onClickCapture={(event) => {
+        // Close before the action runs so a child dialog remembers its opener.
+        if (
+          closeOnSelect &&
+          (event.target as HTMLElement).closest(
+            "button:not(:disabled), a[href]",
+          )
+        ) {
+          popup.current?.hidePopover();
+          anchor.current?.focus({ preventScroll: true });
+        }
+      }}
+      onKeyDown={(event) => {
+        if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        const choices = items();
+        const current = choices.indexOf(document.activeElement as HTMLElement);
+        const index =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? choices.length - 1
+              : (current +
+                  (event.key === "ArrowDown" ? 1 : -1) +
+                  choices.length) %
+                choices.length;
+        choices[index]?.focus();
+      }}
+    >
+      {children}
+    </div>
+  );
+  const trigger = (
+    <button
+      ref={anchor}
+      type="button"
+      className={visibleLabel ? "app-button secondary" : "app-icon"}
+      aria-label={label}
+      title={label}
+      aria-expanded={open}
+      popoverTarget={id}
+      onKeyDown={(event) => {
+        if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+        event.preventDefault();
+        popup.current?.showPopover();
+        const choices = items();
+        (event.key === "ArrowDown" ? choices[0] : choices.at(-1))?.focus();
+      }}
+    >
+      {visibleLabel ?? icon}
+    </button>
+  );
   return (
     <>
-      <button
-        ref={anchor}
-        type="button"
-        className={visibleLabel ? "app-button secondary" : "app-icon"}
-        aria-label={label}
-        title={label}
-        aria-expanded={open}
-        popoverTarget={id}
-        onKeyDown={(event) => {
-          if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
-          event.preventDefault();
-          popup.current?.showPopover();
-          const choices = items();
-          (event.key === "ArrowDown" ? choices[0] : choices.at(-1))?.focus();
-        }}
-      >
-        {visibleLabel ?? icon}
-      </button>
-      <div
-        ref={popup}
-        id={id}
-        popover="auto"
-        className="action-menu"
-        role="group"
-        aria-label={label}
-        onToggle={(event) => {
-          const next = event.newState === "open";
-          setOpen(next);
-          onOpenChange?.(next);
-        }}
-        onClickCapture={(event) => {
-          // Close before the action runs so a child dialog remembers its opener.
-          if (
-            closeOnSelect &&
-            (event.target as HTMLElement).closest(
-              "button:not(:disabled), a[href]",
-            )
-          ) {
-            popup.current?.hidePopover();
-            anchor.current?.focus({ preventScroll: true });
-          }
-        }}
-        onKeyDown={(event) => {
-          if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
-            return;
-          event.preventDefault();
-          event.stopPropagation();
-          const choices = items();
-          const current = choices.indexOf(
-            document.activeElement as HTMLElement,
-          );
-          const index =
-            event.key === "Home"
-              ? 0
-              : event.key === "End"
-                ? choices.length - 1
-                : (current +
-                    (event.key === "ArrowDown" ? 1 : -1) +
-                    choices.length) %
-                  choices.length;
-          choices[index]?.focus();
-        }}
-      >
-        {children}
-      </div>
+      {portal ? <span ref={attachPortal}>{trigger}</span> : trigger}
+      {portal ? host && createPortal(panel, host) : panel}
     </>
   );
 }

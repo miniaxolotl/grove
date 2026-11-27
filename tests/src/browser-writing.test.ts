@@ -7,6 +7,61 @@ const modulePath = new URL(
   import.meta.url,
 ).href;
 
+test("expanded prose eligibility admits writing purposes without weakening sensitive exclusions", async () => {
+  const { eligibleEditor } = await import(modulePath);
+  const expanded = { proseFields: true };
+  for (const metadata of [
+    { tag: "input", type: "text", label: "Article title" },
+    { tag: "input", type: "text", label: "Subject" },
+    { tag: "input", type: "text", label: "Email subject" },
+    { tag: "input", label: "Message" },
+    { tag: "textarea", rows: 1, multiline: false, label: "Comment" },
+    { tag: "div", editable: true, label: "Message" },
+  ])
+    assert.equal(
+      eligibleEditor({ visible: true, ...metadata }, expanded),
+      true,
+      JSON.stringify(metadata),
+    );
+  for (const metadata of [
+    { tag: "input", type: "text" },
+    { tag: "input", type: "email", label: "Message" },
+    { tag: "input", type: "search", label: "Message" },
+    { tag: "input", type: "text", inputmode: "numeric", label: "Message" },
+    { tag: "input", type: "password", label: "Message" },
+    { tag: "input", label: "Job title" },
+    { tag: "input", label: "API token" },
+    { tag: "input", type: "text", label: "Email address" },
+    { tag: "input", type: "text", label: "Message", name: "email" },
+    { tag: "textarea", label: "Billing address" },
+    { tag: "div", editable: true, label: "Username" },
+    {
+      tag: "div",
+      editable: true,
+      autocomplete: "one-time-code",
+      label: "Message",
+    },
+    { tag: "div", editable: true, labelComplete: false },
+    { tag: "body", editable: true, label: "Message" },
+    { tag: "textarea", spellcheck: false, label: "Message" },
+  ])
+    assert.equal(
+      eligibleEditor({ visible: true, ...metadata }, expanded),
+      false,
+      JSON.stringify(metadata),
+    );
+  assert.equal(
+    eligibleEditor({
+      tag: "input",
+      type: "text",
+      visible: true,
+      label: "Subject",
+    }),
+    false,
+    "legacy callers keep their support boundary",
+  );
+});
+
 test("long-form eligibility is metadata-only and global Off wins site restrictions", async () => {
   const core = await import(modulePath).catch(() => ({}));
   assert.equal(

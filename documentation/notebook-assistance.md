@@ -27,7 +27,10 @@ automatic note/notebook connections can stay off.
   Duplicate/conflict suggestions use the same [substantive criteria](relationships.md)
   as connections: shared templates/ratings or different subjects are insufficient.
   Generation supplies a concrete, both-sided evidence bridge; weak overlap abstains
-  without proposing a merge. Cleanup policy changes invalidate old ready previews,
+  without proposing a merge. Cleanup skips pairs containing a note longer than
+  6,000 characters: a replacement requires both complete originals. Other notebook
+  assistance and relationship requests use at most 6,000 characters per source.
+  Cleanup policy changes invalidate old ready previews,
   without changing action/filing/digest profiles or granting automatic write access.
 
 All mutations check the source versions again. A changed source requires a refreshed

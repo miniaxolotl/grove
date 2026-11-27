@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { InfiniteQueryObserver } from "@tanstack/react-query";
+import { InfiniteQueryObserver, QueryObserver } from "@tanstack/react-query";
+import type { GroveLinkPreview } from "@lib/shared/internal-links";
 import type { Memory, MemoryList } from "@lib/shared/contracts";
 import { WorkspaceCache, workspaceKeys } from "../src/lib/workspace-cache";
 import { DashboardApiError, type api } from "../src/lib/dashboard-api";
@@ -30,6 +31,192 @@ function cacheWith(
   return cache;
 }
 test.afterEach(() => caches.splice(0).forEach((cache) => cache.dispose()));
+
+const preview: GroveLinkPreview = {
+  kind: "note",
+  id: note.id,
+  title: "Private linked title",
+  excerpt: "A bounded excerpt",
+  version: 1,
+  expiresAt: null,
+};
+const previewTarget = { kind: "note" as const, id: note.id };
+
+test("link previews are on-demand, deduplicated and cancelled when their last reader closes", async () => {
+  const held = Promise.withResolvers<GroveLinkPreview>();
+  let calls = 0,
+    signal: AbortSignal | undefined;
+  const cache = cacheWith(async (_path, _body, _method, requestSignal) => {
+    calls++;
+    signal = requestSignal;
+    return held.promise;
+  });
+  const options = cache.linkPreview(previewTarget);
+  expect(calls).toBe(0);
+  const first = new QueryObserver(cache.client, options);
+  const second = new QueryObserver(cache.client, options);
+  const stopFirst = first.subscribe(() => {});
+  const stopSecond = second.subscribe(() => {});
+  expect(calls).toBe(1);
+  stopFirst();
+  expect(signal?.aborted).toBe(false);
+  stopSecond();
+  expect(signal?.aborted).toBe(true);
+  held.resolve(preview);
+  await expect
+    .poll(() => cache.client.getQueryData(options.queryKey))
+    .toBeUndefined();
+});
+
+test("note edits clear both current and exact-revision preview metadata without fetching closed previews", async () => {
+  const paths: string[] = [];
+  const cache = cacheWith(async (path) => {
+    paths.push(path);
+    return path === "/memories" ? { ...note, version: 2 } : preview;
+  });
+  const current = cache.linkPreview(previewTarget);
+  const revision = cache.linkPreview({ ...previewTarget, revision: 1 });
+  await cache.client.fetchQuery(current);
+  await cache.client.fetchQuery(revision);
+  expect(paths).toEqual([
+    `/link-previews/note/${note.id}`,
+    `/link-previews/note/${note.id}?revision=1`,
+  ]);
+  await cache.api("/memories", { id: note.id });
+  expect(cache.client.getQueryData(current.queryKey)).toBeNull();
+  expect(cache.client.getQueryData(revision.queryKey)).toBeNull();
+  expect(paths).toHaveLength(3);
+});
+
+test("deletion cancels held previews and prevents late metadata from returning", async () => {
+  const held = Promise.withResolvers<GroveLinkPreview>();
+  const cache = cacheWith(async (path) =>
+    path === "/memories/delete"
+      ? { results: [{ id: note.id, outcome: "deleted" }] }
+      : held.promise,
+  );
+  const options = cache.linkPreview(previewTarget);
+  const read = cache.client.fetchQuery(options).catch(() => null);
+  await cache.api("/memories/delete", {
+    items: [{ id: note.id, expectedVersion: 1 }],
+  });
+  held.resolve(preview);
+  await read;
+  expect(cache.client.getQueryData(options.queryKey)).toBeNull();
+  expect(await cache.client.fetchQuery(options)).toBeNull();
+});
+
+test("preview access denial clears sibling revision metadata but does not delete an archived note", async () => {
+  let denied = false;
+  const cache = cacheWith(async () => {
+    if (denied) throw new DashboardApiError("not_found", "Unavailable", 404);
+    return preview;
+  });
+  cache.client.setQueryData(workspaceKeys.note(note.id), {
+    ...note,
+    status: "archived",
+  });
+  const current = cache.linkPreview(previewTarget);
+  const revision = cache.linkPreview({ ...previewTarget, revision: 1 });
+  await cache.client.fetchQuery(current);
+  await cache.client.fetchQuery(revision);
+  denied = true;
+  await cache.client.fetchQuery({ ...current, staleTime: 0 }).catch(() => null);
+  expect(cache.client.getQueryData(current.queryKey)).toBeNull();
+  expect(cache.client.getQueryData(revision.queryKey)).toBeNull();
+  expect(cache.client.getQueryData(workspaceKeys.note(note.id))).toEqual({
+    ...note,
+    status: "archived",
+  });
+});
+
+test("notebook mutations clear notebook previews, while unrelated note edits preserve them", async () => {
+  const id = "00000000-0000-4000-a000-000000000010";
+  const cache = cacheWith(async (path) =>
+    path.startsWith("/link-previews/")
+      ? { ...preview, id, kind: "notebook", excerpt: null }
+      : path === "/memories"
+        ? note
+        : { id, name: "Renamed", version: 2 },
+  );
+  const options = cache.linkPreview({ kind: "notebook", id });
+  await cache.client.fetchQuery(options);
+  await cache.api("/memories", { id: note.id });
+  expect(cache.client.getQueryData(options.queryKey)?.title).toBe(
+    preview.title,
+  );
+  await cache.api(`/projects/${id}`, { name: "Renamed" }, "PATCH");
+  expect(cache.client.getQueryData(options.queryKey)).toBeNull();
+});
+
+test("preview expiry clears metadata without a cached note detail and rejects an already expired response", async () => {
+  const cache = cacheWith(async () => ({
+    ...preview,
+    expiresAt: new Date(Date.now() + 150).toISOString(),
+  }));
+  const options = cache.linkPreview(previewTarget);
+  await cache.client.fetchQuery(options);
+  expect(cache.client.getQueryData(options.queryKey)?.title).toBe(
+    preview.title,
+  );
+  await expect
+    .poll(() => cache.client.getQueryData(options.queryKey))
+    .toBeNull();
+  const expired = cacheWith(async () => ({
+    ...preview,
+    expiresAt: new Date(Date.now() - 1).toISOString(),
+  }));
+  expect(
+    await expired.client.fetchQuery(expired.linkPreview(previewTarget)),
+  ).toBeNull();
+});
+
+test("session teardown fences held preview reads and a new cache cannot reuse their metadata", async () => {
+  const held = Promise.withResolvers<GroveLinkPreview>();
+  const cache = cacheWith(async () => held.promise);
+  const options = cache.linkPreview(previewTarget);
+  const read = cache.client.fetchQuery(options).catch(() => null);
+  cache.dispose();
+  held.resolve(preview);
+  await read;
+  expect(cache.client.getQueryCache().getAll()).toHaveLength(0);
+  const replacement = cacheWith(async () => null);
+  expect(replacement.client.getQueryData(options.queryKey)).toBeUndefined();
+});
+
+test("note arrangement refreshes only its custom scope and export status, not source snapshots", async () => {
+  const cache = cacheWith(async (path) =>
+    path.endsWith("/organize")
+      ? { id: note.id, state: "b".repeat(64), undo: {} }
+      : { items: [note], nextCursor: null, orderState: "a".repeat(64) },
+  );
+  const all = cache.notes({ sort: "custom" });
+  const unfiled = cache.notes({ sort: "custom", projectId: null });
+  const titled = cache.notes({ sort: "title_asc" });
+  for (const options of [all, unfiled, titled])
+    await cache.client.fetchInfiniteQuery(options);
+  cache.client.setQueryData(workspaceKeys.resource("/tasks"), { items: [] });
+  cache.client.setQueryData(workspaceKeys.note(note.id), note);
+  await cache.api(`/memories/${note.id}/organize`, {
+    expectedState: "a".repeat(64),
+    expectedVersion: note.version,
+    operationId: "77770000-0000-4000-a000-000000000001",
+  });
+  expect(cache.client.getQueryState(all.queryKey)?.isInvalidated).toBe(true);
+  expect(cache.client.getQueryState(unfiled.queryKey)?.isInvalidated).toBe(
+    false,
+  );
+  expect(cache.client.getQueryState(titled.queryKey)?.isInvalidated).toBe(
+    false,
+  );
+  expect(
+    cache.client.getQueryState(workspaceKeys.resource("/tasks"))?.isInvalidated,
+  ).toBe(true);
+  expect(
+    cache.client.getQueryState(workspaceKeys.note(note.id))?.isInvalidated,
+  ).toBe(false);
+  expect(cache.client.getQueryData(workspaceKeys.note(note.id))).toEqual(note);
+});
 
 test("tool defaults reconcile authoritative choices and fence a held stale read", async () => {
   const original = { exa: true, tavily: false, organize: true };
@@ -493,12 +680,15 @@ test("deleted notes cannot return through a held list response or a later stale 
 test("content versions never roll back, while equal-version worker enrichment can refresh", async () => {
   let current = { ...note, version: 3 };
   const cache = cacheWith(async () => current);
+  const erased: unknown[] = [];
+  cache.observePrivacy((change) => erased.push(change));
   await cache.client.fetchQuery(cache.note(note.id));
-  current = { ...note, version: 2 };
+  current = { ...note, version: 2, status: "archived" };
   await cache.api("/memories", { id: note.id });
   expect(
     cache.client.getQueryData<Memory>(workspaceKeys.note(note.id))?.version,
   ).toBe(3);
+  expect(erased).toEqual([]);
   current = { ...note, version: 3, indexing: "failed" };
   await cache.client.fetchQuery({ ...cache.note(note.id), staleTime: 0 });
   expect(
@@ -587,6 +777,8 @@ test("expiry removes active-list membership at the deadline and purge hides the 
     items: [expiring],
     nextCursor: null,
   }));
+  const erased: unknown[] = [];
+  cache.observePrivacy((change) => erased.push(change));
   const list = cache.notes();
   await cache.client.fetchInfiniteQuery(list);
   expect(cache.client.getQueryData(list.queryKey)?.pages[0].items).toHaveLength(
@@ -595,6 +787,7 @@ test("expiry removes active-list membership at the deadline and purge hides the 
   await expect
     .poll(() => cache.client.getQueryData(list.queryKey)?.pages[0].items)
     .toEqual([]);
+  expect(erased).toContainEqual({ ids: [note.id] });
   await expect
     .poll(() => cache.client.getQueryData(workspaceKeys.note(note.id)))
     .toBeNull();

@@ -50,8 +50,8 @@ Primary source touchpoints:
   `revision-compare.tsx`, history, Ask and assistance under
   `packages/website/src/components/dashboard/`; shared API/cache modules.
 
-The current source and schema impose a 6,000-character body limit. Keep it unless
-a separate capacity decision changes every relevant contract. Structured storage
+The initial source and schema imposed a 6,000-character body limit. The current
+[note capacity](../structured-documents.md#limits-rollout-and-verification) is 250,000. Structured storage
 does not implicitly authorize larger notes, new formatting or a new editor.
 
 ## Non-negotiable invariants

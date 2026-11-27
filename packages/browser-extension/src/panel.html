@@ -87,7 +87,7 @@
               ><textarea
                 id="note"
                 rows="7"
-                maxlength="6000"
+                maxlength="250000"
                 placeholder="Write or paste a note…"
                 aria-describedby="note-help"
               ></textarea>
@@ -100,7 +100,7 @@
                 >
                   Check writing</button
                 ><span id="writing-hint" role="status"></span
-                ><span id="length">0 / 6,000</span>
+                ><span id="length">0 / 250,000</span>
               </div>
             </div>
             <details id="note-details">
@@ -155,6 +155,22 @@
           <button id="results-more" hidden>Show more</button>
         </section>
       </div>
+      <section
+        id="writing-view"
+        data-view="writing"
+        hidden
+        aria-labelledby="writing-title"
+      >
+        <div class="title-row">
+          <h1 id="writing-title">Writing</h1>
+          <button id="writing-view-settings" type="button" class="quiet">
+            Writing settings
+          </button>
+        </div>
+        <p id="writing-scope" class="muted small">This field (English)</p>
+        <div id="writing-site-review"></div>
+        <p id="writing-site-status" class="feedback small" role="status"></p>
+      </section>
       <section
         id="settings-view"
         data-view="settings"
@@ -272,8 +288,8 @@
         >
           <h2 id="connection-settings-title">Account</h2>
           <p id="connection-help" class="muted small">
-            Local checks work without an account. When Grove is on, open Home to
-            sign in or create an account.
+            Local checks work without an account. When Grove is on, open Notes
+            to sign in or create an account.
           </p>
           <div id="connection-settings" hidden>
             <p id="connection-state" class="muted"></p>
@@ -318,7 +334,8 @@
       </div>
     </main>
     <nav id="navigation" aria-label="Grove" hidden>
-      <button data-nav="capture" aria-current="page">Notes</button
+      <button data-nav="writing">Writing</button
+      ><button data-nav="capture" aria-current="page">Notes</button
       ><button data-nav="search">Search</button
       ><button data-nav="settings">Settings</button>
     </nav>

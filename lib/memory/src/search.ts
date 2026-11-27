@@ -13,12 +13,17 @@ export function semanticMatches(
   limit: number,
 ) {
   const scored = eligible
+    .clone()
+    .clearSelect()
+    .distinctOn("memories.id")
     .select(
       "memories.id",
       trx.raw(
-        "CASE WHEN e.profile = ? THEN e.embedding <=> ?::vector END AS distance",
+        "CASE WHEN e.profile = ? THEN coalesce(c.embedding,e.embedding) <=> ?::vector END AS distance",
         [embedder.profile, JSON.stringify(vector)],
       ),
+      "c.sourceFrom as semanticFrom",
+      "c.sourceTo as semanticTo",
     )
     .join("memory_embeddings as e", (join) =>
       join
@@ -26,11 +31,21 @@ export function semanticMatches(
         .on("e.memoryId", "memories.id")
         .on("e.version", "memories.version"),
     )
+    .leftJoin("memory_embedding_chunks as c", (join) =>
+      join
+        .on("c.accountId", "e.accountId")
+        .on("c.memoryId", "e.memoryId")
+        .on("c.version", "e.version")
+        .on("c.profile", "e.profile"),
+    )
     .where("e.profile", embedder.profile)
+    .orderBy("memories.id")
+    .orderBy("distance")
+    .orderBy("c.ordinal")
     .toKnexQuery();
   const ranked = trx
     .withMaterialized("scored", scored)
-    .select("id", "distance")
+    .select("id", "distance", "semanticFrom", "semanticTo")
     .from("scored")
     .where("distance", "<", embedder.distanceThreshold ?? 0.45)
     .orderBy("distance")
@@ -38,6 +53,7 @@ export function semanticMatches(
     .limit(limit);
   return MemoryModel.query(trx)
     .select("memories.*")
+    .select("ranked.semanticFrom", "ranked.semanticTo")
     .join(ranked.as("ranked"), "ranked.id", "memories.id")
     .orderBy("ranked.distance")
     .orderBy("memories.id");

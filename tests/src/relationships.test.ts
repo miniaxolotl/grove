@@ -367,11 +367,22 @@ test("asynchronous scans coalesce opposite pairs, retain dismissals, and never c
   let calls = 0;
   f.worker.providers.generation!.generate = async (...args) => {
     calls++;
+    assert(
+      args[2].every(
+        (source) =>
+          source.content.length <= 6000 &&
+          !source.content.includes("Unsent appendix"),
+      ),
+    );
     return groundedGenerator()(...args);
   };
   const a = await f.service.remember(
     f.principal,
-    input("October Kyoto trip: book lodging."),
+    input(
+      "October Kyoto trip: book lodging. " +
+        "Kyoto itinerary. ".repeat(420) +
+        "Unsent appendix",
+    ),
   );
   const b = await f.service.remember(
     f.principal,

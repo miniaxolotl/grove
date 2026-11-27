@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { NOTE_CONTENT_MAX } from "../limits.ts";
 
 export const documentLimits = {
-  characters: 6000,
+  characters: NOTE_CONTENT_MAX,
   blocks: 256,
   operations: 50,
-  insertedCharacters: 6000,
+  insertedCharacters: NOTE_CONTENT_MAX,
   diffCells: 262144,
 } as const;
 

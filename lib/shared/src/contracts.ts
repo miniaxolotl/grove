@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { Brief, Enrichment } from "./models.ts";
 import { noteContentDescription } from "./note-writing.ts";
-import { NOTE_CONTENT_MAX } from "./limits.ts";
+import { NOTE_CONTENT_MAX, RECALL_CONTENT_MAX } from "./limits.ts";
+import { noteSorts } from "./search.ts";
 
 export const capabilities = [
   "memory:read",
@@ -111,9 +112,7 @@ export const listSchema = z
     tag: z.string().trim().min(1).max(40).optional(),
     sourceAgent: sourceSchema.shape.agent.removeDefault().optional(),
     updatedAfter: z.iso.datetime().optional(),
-    sort: z
-      .enum(["updated_desc", "updated_asc", "created_desc", "relevance"])
-      .optional(),
+    sort: z.enum(noteSorts).optional(),
     lifetime: z.enum(["permanent", "ephemeral"]).optional(),
     status: z.enum(["active", "archived", "expired", "all"]).default("active"),
     query: z.string().trim().max(1000).optional(),
@@ -134,7 +133,12 @@ export const recallSchema = z
     includePersonal: z.boolean().default(true),
     taskId: z.string().max(128).optional(),
     limit: z.number().int().min(1).max(12).default(8),
-    maxCharacters: z.number().int().min(256).max(NOTE_CONTENT_MAX).default(NOTE_CONTENT_MAX),
+    maxCharacters: z
+      .number()
+      .int()
+      .min(256)
+      .max(RECALL_CONTENT_MAX)
+      .default(RECALL_CONTENT_MAX),
   })
   .strict();
 export const versionSchema = z
@@ -171,6 +175,8 @@ export type Notebook = {
   status?: "active" | "archived";
   /** Owning-session display order. Scoped agent responses omit positions. */
   position?: number;
+  /** Actual notebook creation date; older servers may omit it. */
+  createdAt?: string;
 };
 export const projectSchema = z
   .object({
@@ -261,7 +267,31 @@ export type Principal = {
   issuedAt?: number;
   capabilities: Capability[];
 };
+export const retrievalReasons = [
+  "not_configured",
+  "provider_timeout",
+  "provider_authentication",
+  "provider_rate_limited",
+  "provider_unavailable",
+  "provider_invalid_response",
+  "provider_cooling_down",
+  "inference_budget",
+  "embedding_profile_mismatch",
+  "cache_capacity",
+  "cache_lease_lost",
+  "query_unavailable",
+  "recall_limit",
+  "pinned_lexical",
+] as const;
+export type RetrievalReason = (typeof retrievalReasons)[number];
+export type RetrievalDiagnostic = {
+  requested: "hybrid" | "lexical";
+  executed: "hybrid" | "lexical";
+  reason?: RetrievalReason;
+};
 export type Page<T> = {
+  retrieval?: RetrievalDiagnostic;
+  orderState?: string;
   usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
   visit?: {
@@ -275,9 +305,13 @@ export type Page<T> = {
   searchMode?: "hybrid" | "lexical";
 };
 export type RecallResult = {
+  retrieval?: RetrievalDiagnostic;
   usage?: import("./billing.ts").ActionUsageReceipt;
   matches?: import("./search.ts").SearchMatches;
-  items: Memory[];
+  /** A bounded excerpt is not a complete body; read the note before editing. */
+  items: (Memory & {
+    contentRange?: { from: number; to: number; total: number };
+  })[];
   mode: "hybrid" | "lexical" | "profile";
   contentVersion: number;
   briefs?: Brief[];

@@ -1,4 +1,3 @@
-import { version as proofingReleaseVersion } from "./release/proofing-release.mjs";
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
 import console from "node:console";
@@ -326,7 +325,7 @@ export function updateImageSpec(
         health_check: {
           http_path: "/ready",
           port: 8081,
-          initial_delay_seconds: 60,
+          initial_delay_seconds: 180,
           timeout_seconds: 5,
           period_seconds: 10,
           failure_threshold: 6,
@@ -474,7 +473,8 @@ async function main() {
         !values.create &&
         (values.wait || values.propose) &&
         process.env.GITHUB_ACTIONS === "true" &&
-        process.env.RELEASE_TAG === `v${proofingReleaseVersion}`,
+        // Historical checker bootstrap only; ordinary releases preserve topology.
+        process.env.RELEASE_TAG === "v1.11.28",
       "Invalid coordinated checker rollout",
     );
     assertCurrentRef(workflowContext());

@@ -1,7 +1,34 @@
 import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { deployWebsite, preflightWebsite } from "./website.mjs";
+import * as website from "./website.mjs";
+
+test("website image build receives only validated public production configuration", () => {
+  assert.equal(typeof website.websiteImageEnvironment, "function");
+  const key = `pk_live_${Buffer.from("clerk.example.test$").toString("base64")}`;
+  const config = website.websiteImageEnvironment({
+    SITE_URL: "https://grovenote.app",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: key,
+    CLERK_SECRET_KEY: "never-copy",
+    SENTRY_AUTH_TOKEN: "never-copy",
+    GROVE_API_URL: "https://private.example.test",
+  });
+  assert.deepEqual(config, {
+    SITE_URL: "https://grovenote.app",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: key,
+  });
+  assert.throws(() =>
+    website.websiteImageEnvironment({ SITE_URL: "https://grovenote.app" }),
+  );
+  assert.throws(() =>
+    website.websiteImageEnvironment({
+      SITE_URL: "http://wrong.example.test",
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: key,
+    }),
+  );
+});
 
 const env = {
   VERCEL_TOKEN: "fixture",
@@ -149,26 +176,14 @@ test("website publishes only after build and current-ref checks, then verifies e
   );
 });
 
-test("website-only delivery requires exact scope and live backend verification before deployment", () => {
+test("website delivery follows the successful backend and uses the exact release source", () => {
   const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
-  assert.match(
-    workflow,
-    /website:\n\s+needs: \[candidate, website-scope, publish, deploy\]/,
-  );
+  assert.match(workflow, /website:\n\s+needs: \[candidate, deploy\]/);
   const website = workflow.split("\n  website:\n")[1];
   assert.doesNotMatch(website, /always\(\)|continue-on-error/);
   assert.match(website, /ref: \$\{\{ needs.candidate.outputs.sha \}\}/);
-  assert.match(
-    website,
-    /verify-website-baselines\.mjs[\s\S]*database-preflight\.mjs[\s\S]*health\/ready[\s\S]*website\.mjs deploy/,
-  );
+  assert.match(website, /health\/ready[\s\S]*website\.mjs deploy/);
   assert.doesNotMatch(website, /NPM_TOKEN|DOCKERHUB_TOKEN|publish\.mjs/);
-  // The alias may have moved before the previous run failed its homepage
-  // check. A retry must verify the live site before it accepts the receipt.
-  assert.match(
-    website,
-    /if: steps\.receipts\.outputs\.alreadyDelivered == 'true'\s+run: \|\s+node scripts\/release\/website\.mjs preflight\s+test "\$\(curl [^\n]+https:\/\/grovenote\.app\/\)" = 200[\s\S]*upload-artifact/,
-  );
   assert.ok(
     workflow.indexOf("node scripts/release/website.mjs preflight") <
       workflow.indexOf("name: Publish all coordinated npm artifacts"),

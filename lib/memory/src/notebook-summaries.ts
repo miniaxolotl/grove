@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { modelNoteExcerpt, modelNoteLimit } from "./note-chunks.ts";
 import { MemoryModel, tenant, type Knex } from "@lib/database";
 import {
   InferenceError,
@@ -284,7 +285,10 @@ export async function runNotebookSummary(
           .limit(9);
         if (
           rows.length > 8 ||
-          rows.reduce((n, row) => n + row.content.length, 0) > 24000
+          rows.reduce(
+            (n, row) => n + Math.min(row.content.length, modelNoteLimit),
+            0,
+          ) > 24000
         ) {
           if (frame.path.length >= 128)
             throw new InferenceError("summary_source_too_large", false);
@@ -303,7 +307,7 @@ export async function runNotebookSummary(
         sources = rows.map(({ id, version, content, kind }) => ({
           id,
           version,
-          content,
+          content: modelNoteExcerpt(content),
           kind,
         }));
         examined = rows.length;

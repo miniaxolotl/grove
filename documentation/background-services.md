@@ -66,11 +66,36 @@ worker's sender. Disable click and open tracking and preserve existing inbound
 mail routing. Keep `SITE_URL` pointed at the website; it is independent of the
 mail domain. Drain or reconcile pending sends before changing From or templates.
 
+### Letter design and content
+
+Welcome, connection approval/revocation, export-ready and deletion-request letters
+share one renderer, with HTML and plain-text versions. They use the web app’s
+system-interface type, green ink/action, neutral paper, restrained spacing and one
+primary action. Compact headings replace full subjects inside the message;
+subjects themselves remain unchanged. The renderer uses inline styles and
+presentation tables, without images, remote fonts, tracking pixels or decorative
+card framing. A wrapping fallback address remains available below the action.
+
+Security letters remain generic and link to authorized connection settings.
+Export notices retain the absolute UTC deadline and sign-in/task landing page,
+not a direct file URL. A deletion receipt confirms the request and ended access,
+not completed cleanup; support remains public after access ends. Do not shorten
+these distinctions away when editing copy. Clerk authentication mail and
+payment-provider mail are separate, provider-managed templates.
+
 To inspect the five [sample letters](design/screenshots/transactional-email/README.md)
 without contacting Resend, run `node scripts/testing/email-previews.mjs render /tmp/grove-email-preview`.
 For an authorized test inbox, use `node scripts/testing/email-previews.mjs send REVIEW_ADDRESS`
 with a domain-scoped `RESEND_API_KEY`. Samples are labelled **Preview** and contain
 synthetic data. Provider acceptance is not proof of inbox delivery.
+
+Run `pnpm exec tsx --test tests/src/email-template.test.ts` for layout/content,
+HTML/plain-text destination/deadline, preview-label, URL-origin and escaping
+regressions. Review normal and preview letters at narrow and desktop widths,
+with images unavailable, long fallback links and keyboard access. Browser previews
+do not establish Gmail, Outlook, Apple Mail, forced-dark-mode or inbox delivery
+acceptance. Preserve retry fingerprint fencing and the pending-send reconciliation
+requirement above when rolling out a renderer change.
 
 ## Rollout and checks
 

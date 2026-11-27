@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOTE_CONTENT_MAX } from "./limits.ts";
 import { summaryEvidenceSchema } from "@lib/shared/summaries";
 
 export const documentImportLimits = {
@@ -26,7 +27,7 @@ export const importBatchCreateSchema = importPrepareSchema.extend({
 export const importDraftEditSchema = z
   .object({
     expectedVersion: z.number().int().positive(),
-    content: z.string().trim().min(1).max(6000).optional(),
+    content: z.string().trim().min(1).max(NOTE_CONTENT_MAX).optional(),
     included: z.boolean().optional(),
     destination: importDestinationSchema.optional(),
   })

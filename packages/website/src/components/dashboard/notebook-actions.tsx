@@ -56,7 +56,7 @@ export function NotebookActions({
       </button>
       <button
         type="button"
-        className="danger action-group-start"
+        className="action-danger action-group-start"
         onClick={() => onAction({ mode: "delete", project })}
       >
         <Trash2 size={15} /> Delete notebook…

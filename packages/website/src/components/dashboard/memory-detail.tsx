@@ -12,7 +12,8 @@ import {
 import type { Memory } from "@lib/shared/contracts";
 import { errorMessage, type Project } from "@/lib/dashboard-api";
 import { useWorkspaceCache } from "./workspace-cache";
-import { dateLabel, isInactive } from "@/lib/memory-display";
+import { dateLabel, isInactive, memoryTitle } from "@/lib/memory-display";
+import { useResourceTitle } from "./workspace-location";
 import { isActiveSurface, isTyping } from "@/lib/workspace-keyboard";
 import { Markdown } from "./markdown";
 import { MemoryEditor } from "./memory-editor";
@@ -40,6 +41,7 @@ export function MemoryDetail({
   fullPage = false,
   initialPreview = true,
   initialDelete = false,
+  freshness,
   onDeleted,
   close,
 }: {
@@ -60,10 +62,12 @@ export function MemoryDetail({
   fullPage?: boolean;
   initialPreview?: boolean;
   initialDelete?: boolean;
+  freshness?: { checking: boolean; error: boolean; retry: () => void };
   onDeleted: () => void;
   close: () => void;
 }) {
   const cache = useWorkspaceCache();
+  useResourceTitle(memory ? memoryTitle(memory) : "New note");
   const api = cache.api;
   const root = useRef<HTMLElement>(null);
   const toast = useToast();
@@ -212,6 +216,7 @@ export function MemoryDetail({
       <MemoryEditor
         key={editorRevision}
         memory={memory}
+        freshness={freshness}
         projectId={creation?.projectId}
         initialContent={creation?.initialContent}
         dailyDate={creation?.dailyDate}
@@ -475,7 +480,15 @@ export function MemoryDetail({
         >
           {historyError && (
             <p role="alert" className="app-error">
-              {historyError}
+              {historyError}{" "}
+              <button
+                type="button"
+                className="text-button"
+                disabled={historyQuery.isFetching}
+                onClick={() => void historyQuery.refetch()}
+              >
+                Retry history
+              </button>
             </p>
           )}
           {!history && !historyError && <p role="status">Loading history…</p>}

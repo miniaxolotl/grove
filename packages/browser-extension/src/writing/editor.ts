@@ -1,7 +1,7 @@
 import { eligibleEditor, type EditorMetadata } from "./core.ts";
 
 /** Read bounded static label nodes only, never a descendant editor's contents. */
-function editorLabel(element: HTMLElement, textarea: boolean) {
+function editorLabel(element: HTMLElement, control: boolean) {
   const parts: string[] = [];
   let nodes = 128,
     characters = 512,
@@ -46,13 +46,15 @@ function editorLabel(element: HTMLElement, textarea: boolean) {
     if (ids.length > 8) complete = false;
     else
       for (const id of ids) {
-        const label = element.ownerDocument.getElementById(id);
+        const label = (
+          element.getRootNode() as Document | ShadowRoot
+        ).getElementById(id);
         if (label) visit(label);
         else complete = false;
       }
   }
-  if (textarea) {
-    const labels = (element as HTMLTextAreaElement).labels;
+  if (control) {
+    const labels = (element as HTMLTextAreaElement | HTMLInputElement).labels;
     if ((labels?.length ?? 0) > 8) complete = false;
     else for (const label of labels ?? []) visit(label);
   }
@@ -62,8 +64,24 @@ function editorLabel(element: HTMLElement, textarea: boolean) {
 export function editorMetadata(element: HTMLElement): EditorMetadata {
   const style = getComputedStyle(element);
   const textarea = element instanceof HTMLTextAreaElement;
+  const input = element instanceof HTMLInputElement;
+  const ancestors: HTMLElement[] = [];
+  for (
+    let node: HTMLElement | null = element;
+    node && ancestors.length < 64;
+  ) {
+    ancestors.push(node);
+    node =
+      node.parentElement ??
+      ((node.getRootNode() as ShadowRoot).host as HTMLElement | undefined) ??
+      null;
+  }
+  const within = (selector: string) =>
+    ancestors.some((node) => node.matches(selector));
   return {
     tag: element.tagName,
+    type: input ? element.type : undefined,
+    inputmode: element.getAttribute("inputmode") ?? "",
     visible:
       element.isConnected &&
       !!element.getClientRects().length &&
@@ -75,23 +93,48 @@ export function editorMetadata(element: HTMLElement): EditorMetadata {
     multiline: element.hasAttribute("aria-multiline")
       ? element.getAttribute("aria-multiline") === "true"
       : undefined,
-    disabled:
-      element.hasAttribute("disabled") ||
-      element.getAttribute("aria-disabled") === "true",
-    readonly:
-      element.hasAttribute("readonly") ||
-      element.getAttribute("aria-readonly") === "true",
-    inert: !!element.closest("[inert], [hidden], [aria-hidden='true']"),
-    spellcheck: element.spellcheck,
+    disabled: within("[disabled], [aria-disabled='true']"),
+    readonly: within("[readonly], [aria-readonly='true']"),
+    inert:
+      within(
+        "[inert], [hidden], [aria-hidden='true'], [data-grove-writing-ui]",
+      ) ||
+      ancestors.length >= 64 ||
+      ancestors.some((node) => {
+        const style = getComputedStyle(node);
+        return (
+          style.visibility === "hidden" ||
+          style.display === "none" ||
+          style.opacity === "0"
+        );
+      }),
+    spellcheck: element.spellcheck && !within("[spellcheck='false']"),
     autocomplete: element.getAttribute("autocomplete") ?? "",
-    ...editorLabel(element, textarea),
+    ...editorLabel(element, textarea || input),
     name: element.getAttribute("name") ?? "",
-    code: !!element.closest(
-      ".monaco-editor, .CodeMirror, .cm-editor, [data-language], [role='search'], pre, code",
+    code: within(
+      ".monaco-editor, .CodeMirror, .cm-editor, [data-language], [role='search'], [role='searchbox'], pre, code",
     ),
   };
 }
 
 export function isWritingEditor(element: HTMLElement) {
-  return eligibleEditor(editorMetadata(element));
+  if (!element.isConnected) return false;
+  return eligibleEditor(editorMetadata(element), { proseFields: true });
+}
+
+/** Resolve only the focused editing root, not arbitrary page text. */
+export function writingEditorFrom(
+  target: EventTarget | null,
+): HTMLElement | null {
+  if (!(target instanceof HTMLElement)) return null;
+  if (
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLInputElement
+  )
+    return target;
+  if (!target.isContentEditable) return null;
+  let root = target;
+  while (root.parentElement?.isContentEditable) root = root.parentElement;
+  return root;
 }

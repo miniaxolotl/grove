@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.11.38](https://github.com/miniaxolotl/grove/compare/v1.11.37...v1.11.38) (2026-11-27)
+
+
+### Features
+
+* **extension:** expand local writing review ([#361](https://github.com/miniaxolotl/grove/issues/361)) ([b48d03a](https://github.com/miniaxolotl/grove/commit/b48d03a5818541b6144ad96a5e98e5098ae2710c))
+* **notes:** support long notes and reuse passage embeddings ([#355](https://github.com/miniaxolotl/grove/issues/355)) ([91f9ae9](https://github.com/miniaxolotl/grove/commit/91f9ae92e9f903b3dcc63081d5bd4779a771ce40))
+* **sharing:** improve shared notebook navigation ([#360](https://github.com/miniaxolotl/grove/issues/360)) ([0185403](https://github.com/miniaxolotl/grove/commit/0185403753e993a3a82852927271b870243c9fae))
+* **workspace:** improve navigation, note organization and writing tools ([#356](https://github.com/miniaxolotl/grove/issues/356)) ([de69345](https://github.com/miniaxolotl/grove/commit/de693452485a163af38cfd522caa7ed1a48ef328))
+
+
+### Bug Fixes
+
+* **containers:** publish runtimes and recover checker startup ([bd6c18e](https://github.com/miniaxolotl/grove/commit/bd6c18e64b7aa9d7a93949c0f02fbd6c2220c1f3))
+* **email:** align transactional letters with the web app ([#349](https://github.com/miniaxolotl/grove/issues/349)) ([81bf958](https://github.com/miniaxolotl/grove/commit/81bf958b5afefb9f8290ff030f7a74588d38fa65))
+* **reliability:** recover drafts and report degraded reads ([#350](https://github.com/miniaxolotl/grove/issues/350)) ([cff0ff5](https://github.com/miniaxolotl/grove/commit/cff0ff5118bfc94e3479b5750de25f3845cc590b))
+
 ## [1.11.37](https://github.com/miniaxolotl/grove/compare/v1.11.36...v1.11.37) (2026-11-26)
 
 

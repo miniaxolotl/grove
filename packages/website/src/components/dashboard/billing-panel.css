@@ -64,6 +64,13 @@
   width: 36px;
   height: 36px;
 }
+.billing-refresh-status {
+  flex-basis: 100%;
+  min-height: 32px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-muted);
+}
 .billing-metrics {
   display: grid;
   gap: 20px;

@@ -6,11 +6,10 @@ import {
   mkdirSync,
   writeFileSync,
   rmSync,
-  existsSync,
 } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname } from "node:path";
 import process from "node:process";
 import {
   validateDecision,
@@ -263,18 +262,16 @@ test("partial delivery/retry accepts baseline or exact admitted digest, never un
     selectedServiceReadback(app("new", digest), baseline, null),
   );
 });
-test("actual workflow carries explicit decisions to guarded publishers and does not publish unselected installers", () => {
-  const scope = readFileSync(".github/workflows/website-impact.yml", "utf8");
+test("ordinary release and publication no longer consume selective decisions", () => {
+  const source = readFileSync(".github/workflows/release.yml", "utf8");
   const deploy = readFileSync(".github/workflows/deploy.yml", "utf8");
   const publisher = readFileSync("scripts/publish.mjs", "utf8");
-  assert.match(scope, /selected-decision\.mjs verify/);
-  assert.match(deploy, /RELEASE_DECISION_HASH:/);
-  assert.match(deploy, /needs\.candidate\.outputs\.service == 'true'/);
-  assert.match(
-    deploy,
-    /if: needs\.candidate\.outputs\.mode == 'coordinated'\n\s+run: node scripts\/publish\.mjs/,
-  );
-  assert.match(publisher, /resolveDecision/);
+  for (const text of [source, deploy, publisher])
+    assert.doesNotMatch(
+      text,
+      /resolveDecision|RELEASE_DECISION_HASH|selected-decision|outputs\.mode/,
+    );
+  assert.match(deploy, /run: node scripts\/publish\.mjs/);
 });
 test("the actual selected deploy entry rechecks scope/hash and reconciles uncertain and completed retries without another write", async () => {
   const f = fixture(),
@@ -335,7 +332,7 @@ test("the actual selected deploy entry rechecks scope/hash and reconciles uncert
   assert.equal(writes, 1);
 });
 
-test("two consecutive real Git declarations and patch stamps preserve installer bytes and the actual npm publisher is a no-op", (t) => {
+test("legacy offline declarations and patch stamps preserve installer bytes", (t) => {
   const cwd = mkdtempSync(join(tmpdir(), "grove-selected-decision-"));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   const git = (...args) =>
@@ -410,54 +407,6 @@ test("two consecutive real Git declarations and patch stamps preserve installer 
     git("tag", `v7.2.${patch}`);
     assert.equal(validateDecision(d, stamp, true, io).hash, result.hash);
     assert.equal(readFileSync(join(cwd, pin), "utf8"), pinBytes);
-    // Actual publisher executes in the fixture Git context. No npm/pnpm, archive
-    // build or registry request may occur for the empty selected publish list.
-    const bin = join(cwd, "bin");
-    mkdirSync(bin, { recursive: true });
-    const evidence = predecessorEvidence(d.predecessor);
-    put(
-      "bin/gh",
-      `#!/bin/sh\ncase "$*" in\n*releases/tags/*) data='${JSON.stringify(evidence.release)}';;\n*) data='${JSON.stringify([...io.pulls(), evidence.sourcePr, evidence.productionPr])}';;\nesac\nprintf 'HTTP/2.0 200 OK\\n\\n%s' "$data"\n`,
-    );
-    put("bin/npm", `#!/bin/sh\ntouch '${cwd}/npm-called'\nexit 1\n`);
-    execFileSync("chmod", ["+x", join(bin, "gh"), join(bin, "npm")]);
-    const env = {
-      ...process.env,
-      PATH: `${bin}:${process.env.PATH}`,
-      RELEASE_SOURCE_SHA: stamp,
-      RELEASE_DECISION_HASH: result.hash,
-    };
-    execFileSync(
-      process.execPath,
-      [resolve("scripts/publish.mjs"), "--dry-run"],
-      { cwd, encoding: "utf8", env },
-    );
-    assert.throws(() =>
-      execFileSync(
-        process.execPath,
-        [resolve("scripts/publish.mjs"), "--dry-run"],
-        {
-          cwd,
-          encoding: "utf8",
-          stdio: "pipe",
-          env: { ...env, RELEASE_DECISION_HASH: "wrong" },
-        },
-      ),
-    );
-    assert.throws(() =>
-      execFileSync(
-        process.execPath,
-        [resolve("scripts/publish.mjs"), "--dry-run"],
-        {
-          cwd,
-          encoding: "utf8",
-          stdio: "pipe",
-          env: { ...env, RELEASE_SOURCE_SHA: predecessor },
-        },
-      ),
-    );
-    assert.equal(existsSync(join(cwd, "npm-called")), false);
-    rmSync(bin, { recursive: true });
     predecessor = stamp;
   }
 });

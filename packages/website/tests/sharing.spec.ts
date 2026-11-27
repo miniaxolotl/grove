@@ -8,6 +8,35 @@ const one = "00000000-0000-4000-a000-000000000011";
 const two = "00000000-0000-4000-a000-000000000012";
 const hidden = "00000000-0000-4000-a000-000000000099";
 
+test("title-following Markdown in a public reader keeps its source fallback and makes no private preview reads", async ({
+  page,
+  request,
+}) => {
+  const shared = newShareToken();
+  const privateReads: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/grove")) privateReads.push(request.url());
+  });
+  await request.post(`${fixture}/_fixture/${shared}`, {
+    data: {
+      content: `# Shared fallback\n\n[Readable source caption](/app/memories/${two} "grove:title:v1")`,
+    },
+  });
+  try {
+    await page.goto(`/s/${shared}`);
+    await expect(
+      page.getByText("Readable source caption", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Preview linked/ }),
+    ).toHaveCount(0);
+    await page.waitForLoadState("networkidle");
+    expect(privateReads).toEqual([]);
+  } finally {
+    await request.post(`${fixture}/_fixture/${shared}`, { data: {} });
+  }
+});
+
 test("configured authentication stays off public readers and marketing pages", async ({
   page,
   context,
@@ -72,7 +101,7 @@ test("public note is readable signed out, safe, responsive and not indexed", asy
   await expect(
     page.getByRole("heading", { name: "A shared idea", level: 1 }),
   ).toBeVisible();
-  await expect(page.getByText("Shared note", { exact: true })).toBeVisible();
+  await expect(page.getByText("Read only", { exact: true })).toBeVisible();
   await expect(page.getByText("Keep the useful details.")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Next steps", level: 2 }),
@@ -184,10 +213,13 @@ test("shared notebook supports bounded navigation and protects outside reference
   await page.getByRole("link", { name: "A shared idea" }).click();
   await expect(page).toHaveURL(new RegExp(`/notes/${one}$`));
   await page
+    .locator(".memory-markdown")
     .getByRole("link", { name: "Another shared note", exact: true })
     .click();
   await expect(page).toHaveURL(new RegExp(`/notes/${two}$`));
-  await page.getByRole("link", { name: "Ideas for autumn" }).click();
+  if (!(await page.locator(".shared-root").isVisible()))
+    await page.locator(".shared-navigation summary").click();
+  await page.locator(".shared-root").click();
   await page.getByRole("link", { name: "More notes" }).click();
   await expect(
     page.getByRole("link", { name: "Another shared note" }),
@@ -195,9 +227,7 @@ test("shared notebook supports bounded navigation and protects outside reference
   await expect(page.getByRole("link", { name: "More notes" })).toHaveCount(0);
   await page.goto(root);
   await page.getByRole("link", { name: "Reading list" }).click();
-  await expect(
-    page.getByText("No notes to read in this notebook yet."),
-  ).toBeVisible();
+  await expect(page.getByText("No notes here.")).toBeVisible();
   const outside = await page.goto(`${root}/notes/${hidden}`);
   expect(outside!.status()).toBe(404);
   await expect(

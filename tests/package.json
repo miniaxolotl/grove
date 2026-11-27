@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Isolated PostgreSQL, authorization, lifecycle and actual MCP transport tests",
   "scripts": {
-    "test": "tsx --test src/*.test.ts"
+    "test": "tsx --test src/*.test.ts && tsx --test --test-concurrency=1 src/scale/*.test.ts"
   },
   "dependencies": {
     "@lib/ai": "workspace:*",

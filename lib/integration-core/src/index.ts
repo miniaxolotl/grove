@@ -177,6 +177,7 @@ export function formatContext(result: RecallResult, budget = 6000) {
       kind: item.kind,
       source: item.source,
       content: item.content,
+      ...(item.contentRange ? { contentRange: item.contentRange } : {}),
     });
     if (context.length + line.length + 1 > budget) continue;
     context += `${line}\n`;

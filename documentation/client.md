@@ -19,6 +19,14 @@ bundled consumers through the coordinated release process and preserve explicit
 self-hosted origins. Reconnect through the supported setup flow when an existing
 grant is bound to the old resource; do not copy old tokens to a new origin.
 
+The old Cloud API can remain reachable while advertising the canonical OAuth
+resource and a different issuer. An older selected origin can therefore fail before
+an authenticated API read; the current generic `unreachable` result does not prove
+a network outage. Use explicit canonical reconnect and review the new client's
+scope, preserving old credentials and other connections. More precise diagnostics
+are proposed in the [connection-recovery design](design/production-reliability.md#s1-safe-canonical-connection-recovery),
+not yet implemented.
+
 Connection names are prefilled and can be edited during setup or later under
 **Settings → Connections → Edit scope**. Choose **Hide** to move an old entry
 into **Hidden connections** in this browser, and **Show again** to restore it.
@@ -44,8 +52,11 @@ single installed agent or offers a terminal choice. Use `connect opencode`,
 The command selects Cloud automatically, reuses valid credentials, and opens
 account creation or sign-in if needed. The same browser continues to a contextual
 approval page. New connections propose all permission and scope checkboxes selected:
-read/save/delete, Personal and all current/future notebooks. Review and uncheck
-unwanted access under **Customize access** before approving. Existing connections
+read/save/delete, Unfiled and all current/future notebooks. Use **Edit actions** or
+**Edit notebooks** beside the permission summary to open and focus the matching
+controls in **Customize access**. Notebook choices use the complete owner catalog,
+not just the first legacy page. Editing never grants access; review and confirm
+explicitly. Existing connections
 preserve their saved choices. Approval can also create/link the current project.
 
 Leave the terminal open. It waits up to ten minutes for approval, checks the effective
@@ -204,6 +215,14 @@ is a local/team marketplace package, not a submitted public-directory plugin.
 `grove uninstall --client codex` calls `codex plugin remove grove@grove`.
 
 ## Other MCP clients
+
+If an expired connection reports `oauth_resource_mismatch` or
+`oauth_issuer_mismatch`, the server is reachable but OAuth discovery no longer
+matches that connection. Run the supported `grove connect <agent>` flow for the
+intended endpoint, complete human sign-in/consent and review the separate note
+access approval. Existing credentials and other agent selections are preserved;
+old tokens are never copied to a new origin. Do not clear credentials or weaken
+resource/issuer checks as a recovery step. See [connection recovery](cloud-onboarding.md#resume-and-errors).
 
 Use remote Streamable HTTP `https://api.grovenote.app/mcp` with OAuth or an API key,
 or configure the local command:

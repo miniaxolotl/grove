@@ -1,4 +1,5 @@
 import type { Memory } from "@lib/shared/contracts";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { unavailableWriting } from "@lib/shared/writing-assistance";
 import type { CaptureDraft } from "./drafts.ts";
 import { formatCaptureDraft } from "./drafts.ts";
@@ -9,6 +10,11 @@ import { userMessage } from "./messages.ts";
 import { copyText } from "./writing/clipboard.ts";
 import { nativeBrowser as host, extensionConfig } from "./webextension.ts";
 import { WritingController } from "./writing/controller.ts";
+import {
+  WritingReview,
+  reviewStyle,
+  type ReviewState,
+} from "./writing/review.ts";
 import {
   effectiveWritingSettings,
   writingRules,
@@ -80,7 +86,7 @@ const writingController = new WritingController(
         ? "Writing checks are unavailable. Try again."
         : result && !result.complete
           ? "Text after 6,000 characters is unchecked."
-          : "Spelling and basic grammar · Alt+Enter";
+          : "Spelling and basic grammar (Alt+Enter)";
       button.hidden =
         !error &&
         !result?.issues.length &&
@@ -95,6 +101,70 @@ const writingController = new WritingController(
     },
   },
 );
+const siteReviewHost = $("writing-site-review");
+const siteReviewShadow = siteReviewHost.attachShadow({ mode: "open" });
+const siteReviewSheet = new CSSStyleSheet();
+siteReviewSheet.replaceSync(reviewStyle + "\n.review{flex:1}");
+siteReviewShadow.adoptedStyleSheets = [siteReviewSheet];
+let siteReviewEpoch = 0;
+const siteReview = new WritingReview({
+  action: (payload) => {
+    const epoch = ++siteReviewEpoch;
+    void rpc<ReviewState | null>("writingReviewAction", payload).then(
+      (result) => {
+        if (epoch === siteReviewEpoch && view === "writing")
+          siteReview.set(result);
+      },
+      () => {
+        if (epoch === siteReviewEpoch)
+          $("writing-site-status").textContent =
+            "This field changed. Select it again to check.";
+      },
+    );
+  },
+  settings: () => show("settings"),
+});
+siteReviewShadow.append(siteReview.element);
+async function refreshSiteReview() {
+  if (view !== "writing" || !windowId) return;
+  const epoch = ++siteReviewEpoch;
+  try {
+    const result = await rpc<ReviewState | null>("writingReviewGet");
+    if (epoch !== siteReviewEpoch || view !== "writing") return;
+    siteReview.set(result);
+    $("writing-scope").textContent = result?.site
+      ? `${result.site} (English)`
+      : "This field (English)";
+    $("writing-site-status").textContent = "";
+  } catch {
+    if (epoch === siteReviewEpoch) {
+      siteReview.set(null);
+      $("writing-site-status").textContent =
+        "This page is unavailable. Select a supported text field to check.";
+    }
+  }
+}
+host.runtime.onMessage.addListener((message, sender) => {
+  if (sender.id !== host.runtime.id || sender.tab) return false;
+  const value = message as { kind?: string; windowId?: number; view?: string };
+  if (value.windowId !== windowId) return false;
+  if (
+    value.kind === "writingReviewNavigate" &&
+    (value.view === "writing" || value.view === "settings")
+  )
+    show(value.view);
+  if (value.kind === "writingReviewChanged") void refreshSiteReview();
+  return false;
+});
+host.tabs.onActivated.addListener((info) => {
+  if (info.windowId === windowId) {
+    siteReview.set(null);
+    void refreshSiteReview();
+  }
+});
+host.tabs.onUpdated.addListener((_id, changes) => {
+  if (changes.url || changes.status === "complete") void refreshSiteReview();
+});
 function paintWriting() {
   const settings = writingPreferences?.settings;
   paintAiSettings();
@@ -363,7 +433,8 @@ function closeDialogs() {
 }
 function notice(message = "") {
   $("notice").textContent = message;
-  $("notice-area").hidden = !message;
+  $("notice-area").hidden =
+    !message || (view === "writing" && !state && /^Sign in/.test(message));
 }
 async function rpc<T>(kind: string, payload?: unknown): Promise<T> {
   const epoch = sessionEpoch;
@@ -432,12 +503,29 @@ function show(next: string) {
     .querySelectorAll<HTMLElement>("[data-view]")
     .forEach((el) => (el.hidden = el.dataset.view !== next));
   $("workspace").hidden =
-    !preferences.enabled || !approved() || next === "settings";
-  $("welcome").hidden = !preferences.enabled || !!state || next === "settings";
+    !preferences.enabled ||
+    !approved() ||
+    next === "settings" ||
+    next === "writing";
+  $("welcome").hidden =
+    !preferences.enabled ||
+    !!state ||
+    next === "settings" ||
+    next === "writing";
   $("approval").hidden =
-    !preferences.enabled || !state || approved() || next === "settings";
+    !preferences.enabled ||
+    !state ||
+    approved() ||
+    next === "settings" ||
+    next === "writing";
   $("paused").hidden = preferences.enabled || next === "settings";
   $("navigation").hidden = false;
+  $("writing-view").hidden = next !== "writing" || !preferences.enabled;
+  $("notice-area").hidden =
+    !$("notice").textContent ||
+    (next === "writing" &&
+      !state &&
+      /^Sign in/.test($("notice").textContent ?? ""));
   document
     .querySelectorAll<HTMLButtonElement>("[data-nav]")
     .forEach((button) => {
@@ -445,8 +533,7 @@ function show(next: string) {
       if (dest === next) button.setAttribute("aria-current", "page");
       else button.removeAttribute("aria-current");
       // The first view hosts sign-in and approval until Notes is available.
-      if (dest === "capture")
-        button.textContent = approved() ? "Notes" : "Home";
+      if (dest === "capture") button.textContent = "Notes";
       button.disabled =
         (dest !== "settings" && !preferences.enabled) ||
         (dest === "search" && !approved());
@@ -454,12 +541,19 @@ function show(next: string) {
   $("recall-results").hidden = !recallView();
   if (recallView()) paintResults();
   if (switched) main.scrollTop = scrollPositions.get(next) ?? 0;
-  writingController.refresh();
+  if (next === "writing") void refreshSiteReview();
+  else {
+    siteReviewEpoch++;
+    siteReview.set(null);
+  }
 }
 function paintPreferences(next: Preferences) {
   const turningOff = preferences.enabled && !next.enabled;
   preferences = next;
   document.documentElement.dataset.theme = next.theme;
+  siteReviewHost.style.colorScheme = getComputedStyle(
+    document.documentElement,
+  ).colorScheme;
   $<HTMLSelectElement>("theme").value = next.theme;
   $("extension-toggle").setAttribute("aria-checked", String(next.enabled));
   $("extension-status").textContent = next.enabled ? "On" : "Off";
@@ -478,6 +572,8 @@ function paintPreferences(next: Preferences) {
   $<HTMLButtonElement>("refresh").disabled = !next.enabled;
   $<HTMLButtonElement>("notebooks-more").disabled = !next.enabled;
   if (turningOff) {
+    siteReviewEpoch++;
+    siteReview.set(null);
     sessionEpoch++;
     cancelSearch();
     if ($<HTMLInputElement>("query").value.trim()) {
@@ -627,14 +723,15 @@ function count() {
   $("new-note").hidden =
     !state?.draft || state.draft.sourceMode === "automatic";
   if (!$<HTMLTextAreaElement>("note").value.trim() && !state?.draft?.source) {
-    $("length").textContent = "0 / 6,000";
+    $("length").textContent = `0 / ${NOTE_CONTENT_MAX.toLocaleString()}`;
     return;
   }
   try {
     $("length").textContent =
-      `${formatCaptureDraft({ ...state?.draft, text: $<HTMLTextAreaElement>("note").value }).length.toLocaleString()} / 6,000`;
+      `${formatCaptureDraft({ ...state?.draft, text: $<HTMLTextAreaElement>("note").value }).length.toLocaleString()} / ${NOTE_CONTENT_MAX.toLocaleString()}`;
   } catch {
-    $("length").textContent = "Over the 6,000 character limit";
+    $("length").textContent =
+      `Over the ${NOTE_CONTENT_MAX.toLocaleString()} character limit`;
   }
 }
 function persist(changes: {
@@ -727,7 +824,7 @@ async function refresh(resumeAutosave = true) {
     row.className = "pending-row";
     row.dataset.operationId = item.operationId;
     const label = document.createElement("span");
-    label.textContent = `Unconfirmed · ${new Date(item.createdAt).toLocaleDateString()}`;
+    label.textContent = `Unconfirmed since ${new Date(item.createdAt).toLocaleDateString()}`;
     const check = document.createElement("button");
     check.textContent = "Check save";
     check.onclick = () => {
@@ -907,7 +1004,7 @@ async function find(more = false, revision = searchRevision) {
         ]),
       ).values(),
     ];
-    current.status = `${current.items.length} ${current.items.length === 1 ? "note" : "notes"}${data.nextCursor ? " · more available" : ""} · checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    current.status = `${current.items.length} ${current.items.length === 1 ? "note" : "notes"}${data.nextCursor ? "; more available" : ""}. Checked at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   } catch {
     if (!active()) return;
     current.status = "Could not refresh. Any previous results below are stale.";
@@ -986,7 +1083,7 @@ function noteRow(note: Memory) {
   };
   feedback.className = "row-feedback";
   feedback.setAttribute("role", "status");
-  actions.append(button, copy, share);
+  actions.append(copy, share);
   const menu = document.createElement("details"),
     trigger = document.createElement("summary"),
     footer = document.createElement("div");
@@ -996,7 +1093,7 @@ function noteRow(note: Memory) {
   trigger.setAttribute("aria-label", "Note actions");
   trigger.setAttribute("aria-haspopup", "menu");
   trigger.setAttribute("aria-expanded", "false");
-  for (const action of [button, copy, share]) {
+  for (const action of [copy, share]) {
     action.setAttribute("role", "menuitem");
     action.addEventListener(
       "click",
@@ -1022,7 +1119,7 @@ function noteRow(note: Memory) {
       rect.top < actions.offsetHeight + 16 ? "auto" : "100%";
   });
   menu.addEventListener("keydown", (event) => {
-    const items = [button, copy, share];
+    const items = [copy, share];
     const index = items.indexOf(document.activeElement as HTMLButtonElement);
     if (event.key === "Escape") {
       event.preventDefault();
@@ -1035,10 +1132,10 @@ function noteRow(note: Memory) {
         event.key === "Home"
           ? 0
           : event.key === "End"
-            ? 2
+            ? items.length - 1
             : index < 0
               ? event.key === "ArrowUp"
-                ? 2
+                ? items.length - 1
                 : 0
               : (index + (event.key === "ArrowUp" ? -1 : 1) + items.length) %
                 items.length
@@ -1049,7 +1146,7 @@ function noteRow(note: Memory) {
     if (!menu.contains(event.relatedTarget as Node | null)) menu.open = false;
   });
   footer.className = "note-footer";
-  footer.append(meta, menu);
+  footer.append(meta, button, menu);
   body.append(preview, footer, feedback);
   row.append(body);
   return row;
@@ -1093,7 +1190,10 @@ async function saveCapture(expectedReceipt?: string) {
     button.disabled = true;
     $("save-state").textContent = "Saving…";
     try {
-      const result = await rpc<{ draft: CaptureDraft }>("save", expectedReceipt);
+      const result = await rpc<{ draft: CaptureDraft }>(
+        "save",
+        expectedReceipt,
+      );
       paintDraft(result.draft, false);
       confirmed = true;
     } catch (error) {
@@ -1423,6 +1523,7 @@ on("open-writing-settings", async () => {
   settings.open = true;
   settings.querySelector("summary")?.focus();
 });
+on("writing-view-settings", async () => show("settings"));
 on("writing-enable-site", async () => {
   const [tab] = await host.tabs.query({ active: true, currentWindow: true });
   if (!tab?.url || tab.incognito !== false || tab.id === undefined)
@@ -1497,6 +1598,9 @@ void action(async () => {
   paintPreferences(await rpc<Preferences>("preferences"));
   $<HTMLButtonElement>("extension-toggle").disabled = false;
   if (preferences.enabled) await connectView();
+  const requestedView = await rpc<string | null>("writingReviewView");
+  if (requestedView) show(requestedView);
+  else if (!state && preferences.enabled) show("writing");
   const key = `entryError:${windowId}`;
   const [entry, globalEntry] = await Promise.all([
     host.storage.session.get(key),

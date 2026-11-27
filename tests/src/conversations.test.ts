@@ -9,6 +9,7 @@ import {
   sessionPrincipal,
   exportHandlers,
   runTask,
+  cleanupHandlers,
   configureBillingQuotas,
   type ArtifactStore,
 } from "@lib/memory";
@@ -120,7 +121,7 @@ async function fixture() {
               ? "Here are your garden notes."
               : "Here’s a preview.",
           statements: sources.slice(0, 1).map((s) => ({
-            text: s.content,
+            text: s.content.slice(0, 900),
             sources: [
               {
                 id: behavior.invalid ? randomUUID() : s.id,
@@ -183,6 +184,67 @@ async function fixture() {
 }
 const turn = (query: string, expectedVersion = 0) =>
   conversationTurnSchema.parse({ id: randomUUID(), query, expectedVersion });
+
+test("Ask sends a relevant long-note passage, never the full document", async () => {
+  const f = await fixture();
+  const content =
+    "# Research\n\n" +
+    "Ordinary observations. ".repeat(5000) +
+    "\n\nGarden irrigation findings are recorded here.";
+  const note = await f.save(content);
+  const chat = await f.create();
+  await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    conversationTurnSchema.parse({
+      ...turn("Find garden findings"),
+      context: { notes: [note.id], notebooks: [], only: true },
+    }),
+  );
+  const call = f.behavior.calls.find((entry) =>
+    entry.sources.some((s) => s.id === note.id),
+  )!;
+  const source = call.sources.find((s) => s.id === note.id)!;
+  assert(source.content.length <= 2000);
+  assert(source.content.includes("Garden irrigation"));
+  assert.equal((await f.service.get(f.principal, note.id)).content, content);
+});
+
+test("reviewed long-note passage edits preserve all unseen text", async () => {
+  const f = await fixture();
+  const prefix = "Ordinary observations. ".repeat(5000) + "\n\n";
+  const target =
+    "Garden irrigation findings. " + "Supporting evidence. ".repeat(30);
+  const suffix = "\r\n\r\n# Following section\n\nKeep these observations.";
+  const note = await f.save(prefix + target.trimEnd() + suffix);
+  f.behavior.intent = "edit";
+  f.behavior.references = [note.id];
+  const chat = await f.create();
+  const result = await f.service.conversations.turn(
+    f.principal,
+    chat.id,
+    conversationTurnSchema.parse({
+      ...turn("Edit garden irrigation"),
+      context: { notes: [note.id], notebooks: [], only: true },
+    }),
+  );
+  const proposal = result.turns[0].result!.proposal!;
+  assert(proposal.content.startsWith(prefix));
+  assert(
+    proposal.content.endsWith(
+      "# Garden\n\nWater the garden every morning." + suffix,
+    ),
+  );
+  assert.equal(
+    (await f.service.get(f.principal, note.id)).content,
+    prefix + target.trimEnd() + suffix,
+  );
+  await f.service.conversations.apply(f.principal, chat.id, result.turns[0].id);
+  assert.equal(
+    (await f.service.get(f.principal, note.id)).content,
+    proposal.content,
+  );
+});
 
 test("unchanged failed-turn retries reuse the validated plan", async () => {
   const f = await fixture();
@@ -1445,12 +1507,15 @@ test("Ask notebook organization cannot move or rename a notebook outside convers
 });
 
 async function seedNotes(accountId: string, count: number) {
-  await admin.raw(
-    `INSERT INTO memories(account_id, content, kind, source)
+  // Preserve the exact quota fixture without a giant transaction's quadratic
+  // account-row update chain. Real requests also commit bounded work units.
+  for (let start = 1; start <= count; start += 100)
+    await admin.raw(
+      `INSERT INTO memories(account_id, content, kind, source)
      SELECT ?::uuid, 'Capacity fixture ' || n, 'fact', '{}'::jsonb
-     FROM generate_series(1, ?::integer) n`,
-    [accountId, count],
-  );
+     FROM generate_series(?::integer, ?::integer) n`,
+      [accountId, start, Math.min(count, start + 99)],
+    );
 }
 
 test("conversation creates enforce the account note limit while edits and Undo remain available", async () => {
@@ -3280,8 +3345,37 @@ test("deleted chats and closed accounts retain history that cannot be read or re
     turn("Save a garden plan"),
   );
   await service.deleteAccount(principal);
-  await new MemoryService(workerDb, "conversation-tests").maintenance(
-    async () => {},
+  // Deletion denies reads immediately; accepting cleanup is not completing it.
+  await assert.rejects(service.conversations.get(principal, next.id), {
+    code: "account_unavailable",
+  });
+  await assert.rejects(
+    service.conversations.apply(principal, chat.id, result.turns[0]!.id),
+    {
+      code: "account_unavailable",
+    },
+  );
+  const cleanup = await admin("background_tasks")
+    .where({ accountId: principal.accountId, kind: "account_cleanup" })
+    .first();
+  assert(cleanup, "account deletion commits its durable cleanup task");
+  // Drive the actual fenced worker for this account, not one compatibility
+  // maintenance call whose 20-task budget is shared with other fixture accounts.
+  for (let attempt = 0; attempt < 25; attempt++)
+    if (
+      !(await runTask(
+        workerDb,
+        cleanupHandlers(workerDb, async () => {}),
+        {
+          id: cleanup.id,
+          lane: "maintenance",
+        },
+      ))
+    )
+      break;
+  assert.equal(
+    (await admin("accounts").where({ id: principal.accountId }).first()).status,
+    "deleted",
   );
   assert.equal(
     (

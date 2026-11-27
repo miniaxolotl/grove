@@ -1,4 +1,5 @@
 "use client";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 
 import {
   useEffect,
@@ -184,7 +185,7 @@ export function NoteContextMenu({
       mutate((view) => {
         const insert = text.replace(/\r\n?/g, "\n");
         const length = view.state.doc.length - (to - from) + insert.length;
-        if (length > 6000 && length > view.state.doc.length) {
+        if (length > NOTE_CONTENT_MAX && length > view.state.doc.length) {
           setMessage("Shorten the note before inserting more text.");
           return;
         }

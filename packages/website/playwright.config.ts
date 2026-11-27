@@ -40,5 +40,11 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 30000,
     },
+    {
+      command: `pnpm exec next build tests/fixtures/router-app --webpack && pnpm exec next start tests/fixtures/router-app --port ${process.env.ROUTER_TEST_PORT || 4379}`,
+      url: `http://127.0.0.1:${process.env.ROUTER_TEST_PORT || 4379}/app`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
   ],
 });

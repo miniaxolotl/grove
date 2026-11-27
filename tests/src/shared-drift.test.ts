@@ -24,7 +24,7 @@ function source(path: string) {
 }
 
 test("shared limits are the single source of truth", () => {
-  assert.equal(NOTE_CONTENT_MAX, 6000);
+  assert.equal(NOTE_CONTENT_MAX, 250_000);
   assert.equal(NOTE_TITLE_MAX, 110);
   assert.equal(WEB_URL_MAX, 4096);
   assert.equal(SHARE_CURSOR_MAX, 2048);
@@ -90,7 +90,6 @@ test("webapp and extension use shared markdown and limits", () => {
     "packages/website/src/components/dashboard/import-notes-panel.tsx",
     "packages/browser-extension/src/drafts.ts",
     "packages/browser-extension/src/background.ts",
-    "packages/browser-extension/src/content.ts",
     "packages/browser-extension/src/platform.ts",
   ]) {
     const text = source(path);

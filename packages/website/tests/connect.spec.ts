@@ -3,6 +3,59 @@ import AxeBuilder from "@axe-core/playwright";
 import type { ConnectAttempt } from "@lib/shared/contracts";
 import { catalogResponse } from "./fixtures/notebook-catalog";
 
+test("approval summary opens contextual access editors without granting access or losing narrowed choices", async ({
+  page,
+}) => {
+  let approvals = 0;
+  const projects = Array.from({ length: 205 }, (_, index) => ({
+    id: `00000000-0000-4000-a000-${String(index + 1).padStart(12, "0")}`,
+    name: `Field notebook ${index + 1}`,
+    identity: `fixture:${index}`,
+    parentId: null,
+  }));
+  await page.route("**/api/grove/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/approve")) approvals++;
+    return route.fulfill({
+      json: {
+        success: true,
+        data: path.includes("/connect/")
+          ? initial
+          : catalogResponse(route.request().url(), projects),
+      },
+    });
+  });
+  await page.goto(`${base}/app/connect/${initial.id}`);
+  const summary = page.getByRole("region", {
+    name: "Permission summary",
+    exact: true,
+  });
+  expect(
+    (await summary
+      .getByRole("button", { name: "Edit actions", exact: true })
+      .boundingBox())!.height,
+  ).toBeGreaterThanOrEqual(44);
+  await summary
+    .getByRole("button", { name: "Edit actions", exact: true })
+    .click();
+  const deleting = page.getByLabel("Delete notes", { exact: true });
+  await expect(page.getByLabel("Read notes", { exact: true })).toBeFocused();
+  await deleting.uncheck();
+  await summary
+    .getByRole("button", { name: "Edit notebooks", exact: true })
+    .click();
+  const all = page.getByLabel("All current and future notebooks", {
+    exact: true,
+  });
+  await expect(all).toBeFocused();
+  await all.uncheck();
+  await page.getByLabel("Field notebook 205", { exact: true }).check();
+  await expect(deleting).not.toBeChecked();
+  await expect(summary).toContainText("Read notes");
+  await expect(summary).not.toContainText("Delete notes");
+  expect(approvals).toBe(0);
+});
+
 const base = `http://127.0.0.1:${process.env.DASHBOARD_TEST_PORT || 3101}`;
 const initial: ConnectAttempt = {
   id: "00000000-0000-4000-a000-000000000007",
@@ -189,18 +242,21 @@ test("contextual approval starts with every permission selected, preserves narro
       };
     }
     if (path.includes("/connect/")) data = attempt;
-    await route.fulfill({ json: { success: true, data } });
+    await route.fulfill({
+      json: {
+        success: true,
+        data: catalogResponse(route.request().url(), data),
+      },
+    });
   });
   await page.goto(`${base}/app/connect/${initial.id}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Connect OpenCode.",
   );
-  await expect(
-    page.getByLabel("Personal memories", { exact: true }),
-  ).toBeChecked();
-  await expect(page.getByLabel("This project: My project")).toBeChecked();
+  await expect(page.getByLabel("Unfiled notes", { exact: true })).toBeChecked();
+  await expect(page.getByLabel("This notebook: My project")).toBeChecked();
   await expect(page.getByLabel("Permission summary")).toHaveText(
-    /Read memoriesSave and update memoriesDelete memoriesAll current and future projects/,
+    /Read notesSave and update notesDelete notesAll current and future notebooks/,
   );
   for (const width of [320, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
@@ -218,17 +274,15 @@ test("contextual approval starts with every permission selected, preserves narro
     ).toEqual([]);
   }
   await page.getByText("Customize access", { exact: true }).click();
+  await expect(page.getByLabel("Delete notes", { exact: true })).toBeChecked();
   await expect(
-    page.getByLabel("Delete memories", { exact: true }),
+    page.getByLabel("All current and future notebooks", { exact: true }),
   ).toBeChecked();
-  await expect(
-    page.getByLabel("All current and future projects", { exact: true }),
-  ).toBeChecked();
-  await page.getByLabel("Delete memories", { exact: true }).uncheck();
+  await page.getByLabel("Delete notes", { exact: true }).uncheck();
   await page
-    .getByLabel("All current and future projects", { exact: true })
+    .getByLabel("All current and future notebooks", { exact: true })
     .uncheck();
-  await page.getByLabel("Save and update memories", { exact: true }).uncheck();
+  await page.getByLabel("Save and update notes", { exact: true }).uncheck();
   await page
     .getByRole("button", { name: "Connect OpenCode", exact: true })
     .click();
@@ -236,7 +290,7 @@ test("contextual approval starts with every permission selected, preserves narro
     "Please retry your connection",
   );
   await expect(
-    page.getByLabel("Save and update memories", { exact: true }),
+    page.getByLabel("Save and update notes", { exact: true }),
   ).not.toBeChecked();
   fail = false;
   await page
@@ -300,12 +354,12 @@ test("cancelled, expired and wrong-account links never display an approved state
 
 test("optional projects failure leaves compact approval usable and retries preserve choices", async ({
   page,
-}) => {
+}, info) => {
   let fail = true;
   await page.setViewportSize({ width: 320, height: 640 });
   await page.route("**/api/grove/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/projects") && fail)
+    if (path.endsWith("/projects/catalog") && fail)
       return route.fulfill({
         status: 503,
         json: {
@@ -317,7 +371,12 @@ test("optional projects failure leaves compact approval usable and retries prese
         },
       });
     return route.fulfill({
-      json: { success: true, data: path.includes("/connect/") ? initial : [] },
+      json: {
+        success: true,
+        data: path.includes("/connect/")
+          ? initial
+          : catalogResponse(route.request().url(), []),
+      },
     });
   });
   await page.goto(`${base}/app/connect/${initial.id}`);
@@ -328,7 +387,8 @@ test("optional projects failure leaves compact approval usable and retries prese
   await expect(
     page.getByText("Use the same Grove account", { exact: false }),
   ).toHaveCount(0);
-  await page.getByLabel("Personal memories", { exact: true }).uncheck();
+  await page.screenshot({ path: info.outputPath("approval-320.png") });
+  await page.getByLabel("Unfiled notes", { exact: true }).uncheck();
   await page.getByText("Customize access", { exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
     "Other projects could not load",
@@ -337,7 +397,7 @@ test("optional projects failure leaves compact approval usable and retries prese
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(
-    page.getByLabel("Personal memories", { exact: true }),
+    page.getByLabel("Unfiled notes", { exact: true }),
   ).not.toBeChecked();
 });
 
@@ -370,13 +430,13 @@ test("a stale tab recovers server state instead of inventing expiration", async 
     });
   });
   await page.goto(`${base}/app/connect/${initial.id}`);
-  await page.getByLabel("Personal memories", { exact: true }).uncheck();
+  await page.getByLabel("Unfiled notes", { exact: true }).uncheck();
   await expect(page.getByRole("status")).toContainText("Reconnecting to Grove");
   await expect(
     page.getByRole("heading", { name: "Connection expired." }),
   ).toHaveCount(0);
   await expect(
-    page.getByLabel("Personal memories", { exact: true }),
+    page.getByLabel("Unfiled notes", { exact: true }),
   ).not.toBeChecked();
   approved = true;
   await expect(
@@ -409,5 +469,5 @@ test("Connections resumes the contextual approval instead of editing its grant",
   await page.goto(`${base}/app/connections`);
   await page.getByRole("link", { name: "Continue setup", exact: true }).click();
   await expect(page).toHaveURL(`${base}/app/connect/${initial.id}`);
-  await expect(page.getByLabel("This project: My project")).toBeChecked();
+  await expect(page.getByLabel("This notebook: My project")).toBeChecked();
 });

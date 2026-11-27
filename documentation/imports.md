@@ -20,8 +20,8 @@ destination, even if you close the dialog and resume the import later. Upload UT
 1. Upload files; preparation starts automatically. Preparation creates no library
    notes, notebooks or public links.
 2. Review proposed notes. Long documents split at paragraph boundaries when
-   possible, with deterministic fallback splits within the 6,000-character note
-   limit. No summary replaces the extracted text. Original bytes preserve material
+   possible, with deterministic fallback splits into review sections of up to 6,000
+   characters. You can edit a proposed note up to 250,000 characters. Original bytes preserve material
    such as UTF-8 BOM and original line endings; extracted text normalizes line endings.
 3. Review the destination shown on each note. **Use for all notes** replaces
    all draft destinations; apply or discard a pending change before confirming.

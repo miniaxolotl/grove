@@ -542,6 +542,7 @@ test("only an explicit LT digest adds the private component, never an API URL", 
   });
   assert.deepEqual(lt.internal_ports, [8081]);
   assert.equal(lt.health_check.http_path, "/ready");
+  assert.equal(lt.health_check.initial_delay_seconds, 180);
   assert.equal(lt.instance_count, 1);
   assert.equal(lt.instance_size_slug, "apps-s-1vcpu-1gb-fixed");
   assert(!lt.envs && !lt.http_port && !lt.routes);

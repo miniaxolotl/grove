@@ -12,9 +12,9 @@ export const privacy: LegalDocument = {
         <>
           <p>
             Grove is a developer tool operated by Bramble Labs Inc. This policy
-            covers grovenote.app, our hosted Grove service, and related
-            support. Contact <a href={contact.href}>{contact.email}</a> for
-            privacy questions or requests.
+            covers grovenote.app, our hosted Grove service, and related support.
+            Contact <a href={contact.href}>{contact.email}</a> for privacy
+            questions or requests.
           </p>
           <p>
             If you run Grove yourself, you control that deployment and its
@@ -194,6 +194,23 @@ export const privacy: LegalDocument = {
       title: "Website analytics and local storage",
       content: (
         <>
+          <p>
+            Draft recovery is on by default for a new account in this browser.
+            You can turn off “Recover drafts on this device” in Account
+            settings; a saved off choice stays off. Grove stores encrypted
+            checkpoints and a non-exportable encryption key in this browser for
+            your account, with note/notebook routing identifiers. The limit is
+            32 drafts and 16 MiB, expiring seven days after the first
+            checkpoint. Recovery requires online sign-in and current access; it
+            is not a server save, backup service or protection against a
+            compromised browser or site. Disabling recovery, observed
+            sign-out/account changes and terminal session denial erase the local
+            keys and checkpoints. An offline or closed browser cannot be
+            remotely wiped; expired data is unusable and removed at the next
+            authorized open. Storage failures and recent typing may leave text
+            only in the open tab. You can copy or export it before closing. This
+            choice is separate from analytics.
+          </p>
           <p>
             With your permission, advertising partners use cookies and device
             information, including IP addresses and public-page visits, to

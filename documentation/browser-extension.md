@@ -1,14 +1,16 @@
 # Browser extension
 
-Install Grove from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
-or [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
-The [Chrome Web Store item](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa)
-is not yet publicly available. For local setup, download the unsigned Chrome ZIP
-from the [install page](https://grovenote.app/install#browser-extension) or build from source.
-Install lists all three official items and marks a recognized desktop browser. In
-**Settings → Connections**, choose **Add to Firefox**, **Add to Edge**, or the
-**Chrome setup guide** for manual installation. Local packages are
-also available for Firefox and Edge. The
+Official listings are available on the
+[Chrome Web Store](https://chromewebstore.google.com/detail/ghcndbpbnocjiefnbikdoakajemflcaa),
+[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/grove-private-notes/)
+and [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/epmjpecpdnjbgbjnjkfjafonocecffmo).
+Each store approves versions independently; a public listing does not mean the
+latest submitted update is live. Install and **Settings → Connections** link directly
+to each store with **Add to Chrome / Firefox / Edge**, marking a recognized desktop
+browser without hiding the other choices. Local packages for all three browsers
+are under **Advanced: install a local package** on the
+[install page](https://grovenote.app/install#browser-extension), with unsigned
+downloads and source-build instructions kept separate from store installation. The
 [design](design/browser-extension.md) retains the release requirements and deferred scope.
 
 ## Install and connect
@@ -80,23 +82,27 @@ These are bundled assets, not evidence of store publication.
 
 The signed-out panel starts with spelling and grammar. Choose **Writing settings**
 to open those controls, or sign in if you want to save and search your notes.
-The tabs stay in order: **Notes**, **Search**, then **Settings**. The note editor
+The tabs stay in order: **Writing**, **Notes**, **Search**, then **Settings**. Writing
+reviews the most recently focused eligible field on the active website, including
+while signed out. Select a text field on the page if no review is available. The note editor
 shows writing feedback and the character count together. **Notebook and source**
 shows the save destination and page details.
 
 ### English writing checks
 
-Spelling and basic grammar run locally by default in eligible textareas across normal
+Spelling and basic grammar run locally by default in eligible prose fields across normal
 website tabs, even while signed out, and they keep working after the anonymous
 grace period ends (see below). Notes uses the same checker. Open an underline
-or press **Alt+Enter** in the editor, then choose a correction, **Ignore**, or **Add
-word**; **All issues** returns from one issue to the full list without rechecking.
+or press **Alt+Enter** in the editor, then choose a correction or **Ignore**.
+**Options** contains alternative fixes, **Add to dictionary** and secondary links;
+the footer holds **Checking in this field**. **All issues** returns to the review
+list without rechecking.
 Choosing a correction copies it and replaces only that range with native Undo,
 without changing an already-submitted save. Clipboard failure leaves the edit intact
 and reports that copying was unavailable. Applying a correction updates only
 the current draft, never an already-submitted save. Saving does not wait for checks.
 
-Settings → **Writing** contains independent spelling/grammar switches, **More writing
+Settings → **Writing checks** contains independent spelling/grammar switches, **More writing
 options** for individual rules, automatic checking and highlights, and a personal
 dictionary. Parent switches preserve individual choices. Writing switches and domain
 exceptions apply browser-wide on this device, including after sign-out. Personal
@@ -106,8 +112,8 @@ They do not contain draft text or check results. Turning Grove off overrides the
 
 The extension bundles Harper's English spelling and grammar engine, including its WebAssembly file. It works locally while signed in, signed out or offline. It does not send paragraphs to LanguageTool. Adding a personal word suppresses spelling findings for that term without changing the page's text. Check a suggestion in context before applying it; grammar checks do not guarantee that every error will be found. Optional AI sentence tools are a separate workflow.
 
-There is no per-site setup. Writing → **Check writing everywhere** pauses local
-assistance browser-wide; **Domain exceptions** skips a chosen hostname and all its
+There is no per-site setup. Writing checks → **Check writing everywhere** pauses local
+assistance browser-wide; **Skipped websites** skips a chosen hostname and all its
 subdomains, across HTTP(S) and ports. Domain matching uses label boundaries, not
 substring matching: blocking `example.com` also blocks `docs.example.com`, but not
 `notexample.com` or `example.com.other.test`. A child exception cannot override a
@@ -116,15 +122,25 @@ not guess a registrable parent. Remove an exception to inherit browser defaults.
 
 The extension releases a focused editor when a page enables Grove’s native
 proofing. When native proofing stops, the extension can resume on the same
-focused textarea if it is still eligible; there is no need to refocus it.
+focused editor if it is still eligible; there is no need to refocus it.
 
-Only eligible multiline textareas are currently bound. HTML inputs,
-passwords, usernames, search/subject/title fields, readonly/hidden/code fields and
-author opt-outs are excluded before reading their contents. Verification/identity/
-address labels and explicit single-line ARIA semantics also exclude a field. Label
-inspection is bounded, follows static accessible labels and skips nested editors;
-ambiguous or excessive metadata stays unbound. Rich-text/contenteditable
-editors are not yet supported by the installed adapter. Domain restrictions cannot
+Eligible textareas include one-row/autogrowing composers. Ordinary text inputs need
+an identifiable prose purpose, such as Message, Subject, Article title, Comment or
+Description. Visible DOM `contenteditable` roots can be checked, including focused
+editors in open shadow roots. An ARIA textbox role alone does not make a widget
+editable. Text projection and replacement are bounded; partial rich-text checks offer
+copying rather than a claimed safe whole-document edit. Native Undo is retained for
+supported replacements; review the text if an editor rejects a correction.
+
+Passwords, usernames, identity/contact/address/payment/code fields, search/filter
+controls, non-text and numeric-inputmode fields, readonly/hidden controls and author
+opt-outs are excluded before reading content, even when presented as textareas or
+rich editors. Article titles differ from identity/job-title fields. Label inspection
+is bounded, follows static accessible labels and skips nested editors; ambiguous
+text inputs or excessive metadata stay unbound. Closed shadow roots, child frames,
+canvas/document-model editors such as Google Docs and browser-internal/private pages
+remain unsupported. Generic DOM coverage is not a compatibility claim for every
+version of Lexical, Slate, Quill, CKEditor or ProseMirror. Domain restrictions cannot
 override a globally disabled feature. Browser-withheld site access, restricted pages
 and private browsing remain unavailable; extension controls cannot bypass native grants.
 
@@ -134,7 +150,62 @@ Warm latency is a regression measurement, not a universal responsiveness guarant
 Run `pnpm test:writing` and the installed browser journeys to reproduce the focused
 rules, bounds, source/Undo, permission and excluded-field checks.
 
+### The margin mark and review
+
+A small soft-filled button shows the current field's issue count **inside** its right
+edge (bottom-right for multiline editors). The button is inset from the scrollbar
+and resize handle. It occupies only clear space, never an exterior gutter or typed
+text/the caret. When the field is too small, full or obscured to prove that space
+is free, the mark hides; use **Alt+Enter** or Writing in the sidebar. A paused field
+also hides the mark when its last verified placement is no longer current; opening
+the review retains the On control without reading paused text for positioning.
+Grove never resizes or pads the host editor to fit its UI.
+
+The indicator stays compact, with a category icon and count rather than a label.
+Its hit area never expands across text on hover or focus.
+The native hover tooltip and accessible name supply the full status; click or press
+Enter to review. The most common remaining error type sets the icon and colour:
+red spelling or amber grammar; spelling wins ties. A green check means no findings
+from a current complete check of enabled categories, not a correctness guarantee.
+A grey pause means checking is off. Unchecked, checking, failed and partial-zero
+states stay neutral. Partial findings use their dominant colour and retain **+**.
+Stale counts clear when text changes. **99+** is a display cap; opening
+the overview shows the known count. A **+** on a partial count is not a whole-field
+total. Coverage and disabled categories are explained in the review.
+
+Click the count to open the issue list, with category filters above and the field
+On/Off control below. Selecting a correction switches to a compact context menu:
+one affected passage, one suggested fix, **Ignore**, **All issues** and a single
+**Options** disclosure. Counts, filters and other issues stay out of that view.
+Grammar keeps its useful explanation; spelling omits the generic “possible spelling
+mistake” text. Options holds alternatives, dictionary and sidebar/settings links
+without nested submenus. Partial-check and disabled-category warnings remain visible.
+All issues restores the list and its scroll position; unaffected rows stay mounted.
+Escape closes the topmost disclosure or review and
+returns focus without scrolling the editor. The dropdown is an ordinary nonmodal
+review surface, not a replacement for browser right-click/paste/Undo menus.
+
+**Checking in this field** pauses just that DOM editor on this page, including
+blur/refocus. It retains an On control but clears pending results and checked text.
+Reload ends the field pause. Global Grove Off, browser-wide writing settings,
+domain exceptions, author opt-outs and browser grants still win; this control cannot
+override them. Other fields and Notes remain independent.
+
+**More** in the overview or **Options** in a correction includes **Open in sidebar**,
+which explicitly opens Writing; **Writing settings** opens
+Settings. If the native browser declines to open its panel, the in-page review
+remains usable. The sidebar shares the same current-field issues and actions;
+changing the active tab or field fences old corrections. Only bounded issue context
+passes through trusted extension messages in memory. It is not stored as a note,
+logged, persisted in browser storage or transmitted to Grove. Local checks remain
+available offline and signed out. See the [extension gallery](design/screenshots/browser-extension/README.md)
+for scoped screenshots and qualification limits.
+
 ### Explicit AI writing tools
+
+The expanded local field adapters do not expand AI access. AI selection tools
+retain their existing multiline-textarea eligibility, connection grant and consent;
+prose inputs and DOM rich-text adapters above are local-checking surfaces only.
 
 Select one sentence, then choose **Use AI** (or **Alt+Enter** with a selection).
 The compact menu offers **Shorten**, **Expand**, **Rewrite**
@@ -160,7 +231,8 @@ reject cached selection-only consent before context can leave the browser. Only 
 surrounding sentences/paragraphs are reference, not output.
 
 Grove requests three distinct alternatives and accepts two or three after validation.
-The editor remains unchanged until a choice is made. Click an alternative to replace only the
+The editor remains unchanged until a choice is made. Each alternative is labelled
+**Replace with …** so the edit is explicit. Choose it to replace only the
 current selection and copy it in the same click, with native Undo. **Copy** alone
 does not edit; **Close** dismisses the card. Clipboard failure never rolls back a
 successful replacement or reports copy success. Editing, disabling AI
@@ -216,8 +288,9 @@ already sent. If cancellation cannot be confirmed, server staging still expires.
   cannot replace newer results, including after pause or sign-out. **Show more**
   uses the server cursor for the same query; unchanged rows stay mounted. Failures
   retain previous results, label them stale and offer **Retry search**. Results
-  show bounded, noninteractive Markdown previews, omitting raw HTML. Each has one **Note actions**
-  menu with **Open**, **Copy** and **Share**; there are no selection checkboxes or
+  show bounded, noninteractive Markdown previews, omitting raw HTML. Each has a
+  visible **Open** action and one **Note actions** menu with **Copy** and **Share**;
+  there are no selection checkboxes or
   bulk actions. Arrow keys, Escape and outside clicks work without moving the list.
 - **Read and copy:** opening a result rechecks access and renders its Markdown/GFM
   document: headings, lists, checklists, tables, quotes, code and safe links.
@@ -309,8 +382,8 @@ use Connections to revoke access and Sign out to clear a mounted session.
 
 The panel uses a persistent header/navigation frame with a separately scrolling
 content area: controls cannot scroll beneath navigation, and view changes restore
-their previous scroll position. Capture, Search, then Settings stay in that order;
-the active destination marks itself current for assistive technology. Capture and
+their previous scroll position. Writing, Notes, Search, then Settings stay in that order;
+the active destination marks itself current for assistive technology. Notes and
 Search disable while Grove is off or unapproved while Settings stays available.
 Switches and navigation buttons work with the keyboard and retain focus.
 Search preserves its input/results when switching views. Unchanged rows remain
@@ -348,7 +421,7 @@ separately rather than appended to the body.
 Drafts distinguish authored text from context-menu excerpts; existing legacy source
 drafts keep their original quoted formatting and unresolved saves keep exact bytes.
 Link-only captures are supported. The shared
-6,000-character note limit includes attribution for quoted external captures; overflow is
+250,000-character note limit includes attribution for quoted external captures; overflow is
 rejected, never truncated or split. A valid source can still contain sensitive query
 parameters. Its hostname is visible under Details before an explicit Save; following
 a tab never sends its metadata to Grove or fetches the page body.
@@ -567,7 +640,10 @@ package with synthetic HTTP/auth, native panel calls, retry, reading/copying,
 sharing, cross-panel sign-out, unknown-save pause/reopen/resume, theme isolation,
 keyboard-switch focus and 320/390/768px accessibility/overflow (including short
 windows and dark Settings). The host test starts with a signed-out, offline spelling
-and grammar check. By default both packages use Playwright Chromium. To test branded
+and grammar check. The installed margin fixture additionally exercises prose inputs,
+DOM rich-text formatting/Undo, CSS-hidden projection barriers, open shadow roots,
+field pause, category filtering and scoped sidebar actions. By default both packages
+use Playwright Chromium. To test branded
 desktop browsers in isolated profiles, set `EXTENSION_CHROME_BINARY` to a Chrome
 executable with CDP `Extensions.loadUnpacked` support and `EXTENSION_EDGE_BINARY`
 to an Edge executable. The Edge run checks side-panel API acceptance, not visibility.
