@@ -1,4 +1,5 @@
 import type { Memory } from "@lib/shared/contracts";
+import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
 import { unavailableWriting } from "@lib/shared/writing-assistance";
 import type { CaptureDraft } from "./drafts.ts";
 import { formatCaptureDraft } from "./drafts.ts";
@@ -627,14 +628,15 @@ function count() {
   $("new-note").hidden =
     !state?.draft || state.draft.sourceMode === "automatic";
   if (!$<HTMLTextAreaElement>("note").value.trim() && !state?.draft?.source) {
-    $("length").textContent = "0 / 6,000";
+    $("length").textContent = `0 / ${NOTE_CONTENT_MAX.toLocaleString()}`;
     return;
   }
   try {
     $("length").textContent =
-      `${formatCaptureDraft({ ...state?.draft, text: $<HTMLTextAreaElement>("note").value }).length.toLocaleString()} / 6,000`;
+      `${formatCaptureDraft({ ...state?.draft, text: $<HTMLTextAreaElement>("note").value }).length.toLocaleString()} / ${NOTE_CONTENT_MAX.toLocaleString()}`;
   } catch {
-    $("length").textContent = "Over the 6,000 character limit";
+    $("length").textContent =
+      `Over the ${NOTE_CONTENT_MAX.toLocaleString()} character limit`;
   }
 }
 function persist(changes: {
@@ -1093,7 +1095,10 @@ async function saveCapture(expectedReceipt?: string) {
     button.disabled = true;
     $("save-state").textContent = "Saving…";
     try {
-      const result = await rpc<{ draft: CaptureDraft }>("save", expectedReceipt);
+      const result = await rpc<{ draft: CaptureDraft }>(
+        "save",
+        expectedReceipt,
+      );
       paintDraft(result.draft, false);
       confirmed = true;
     } catch (error) {

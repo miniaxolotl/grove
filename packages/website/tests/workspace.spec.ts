@@ -520,9 +520,15 @@ for (const width of [1440, 390, 320]) {
         path: info.outputPath(`delete-notebook-${width}.png`),
         fullPage: true,
       });
-      await expect(dialog).toContainText("You can’t restore these notebooks, notes or their history in Grove.");
-      await expect(dialog).toContainText("contents disappear from shared parent notebooks");
-      await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+      await expect(dialog).toContainText(
+        "You can’t restore these notebooks, notes or their history in Grove.",
+      );
+      await expect(dialog).toContainText(
+        "contents disappear from shared parent notebooks",
+      );
+      await expect(
+        dialog.getByRole("button", { name: "Cancel" }),
+      ).toBeFocused();
       const overflow = await page.evaluate(() =>
         [...document.querySelectorAll<HTMLElement>("body *")]
           .filter(
@@ -555,28 +561,49 @@ for (const width of [1440, 390, 320]) {
   });
 }
 
-test("notebook confirmation requires a fresh preview after a load failure", async ({ page }) => {
+test("notebook confirmation requires a fresh preview after a load failure", async ({
+  page,
+}) => {
   const state = await notebookLifecycleFixture(page);
   await page.goto(`${base}/app/projects`);
   const open = async () => {
-    await page.getByRole("button", { name: `More actions for ${project.name}` }).click();
-    await page.getByRole("button", { name: "Archive notebook", exact: true }).click();
+    await page
+      .getByRole("button", { name: `More actions for ${project.name}` })
+      .click();
+    await page
+      .getByRole("button", { name: "Archive notebook", exact: true })
+      .click();
   };
   await open();
-  const dialog = page.getByRole("dialog", { name: "Archive notebook", exact: true });
-  await expect(dialog.getByRole("button", { name: "Archive notebooks" })).toBeEnabled();
+  const dialog = page.getByRole("dialog", {
+    name: "Archive notebook",
+    exact: true,
+  });
+  await expect(
+    dialog.getByRole("button", { name: "Archive notebooks" }),
+  ).toBeEnabled();
   await dialog.getByRole("button", { name: "Cancel" }).click();
   let unavailable = true;
   await page.route(`**/api/grove/projects/${project.id}/lifecycle`, (route) => {
     if (!unavailable) return route.fallback();
-    return route.fulfill({ status: 503, json: { success: false, error: { code: "unavailable", message: "Please retry." } } });
+    return route.fulfill({
+      status: 503,
+      json: {
+        success: false,
+        error: { code: "unavailable", message: "Please retry." },
+      },
+    });
   });
   await open();
   await expect(dialog.getByRole("button", { name: "Try again" })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Archive notebook", exact: true })).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "Archive notebook", exact: true }),
+  ).toBeDisabled();
   unavailable = false;
   await dialog.getByRole("button", { name: "Try again" }).press("Enter");
-  await expect(dialog.getByRole("button", { name: "Archive notebooks" })).toBeEnabled();
+  await expect(
+    dialog.getByRole("button", { name: "Archive notebooks" }),
+  ).toBeEnabled();
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
   expect(state.lifecycleCalls).toHaveLength(0);
 });
@@ -678,7 +705,8 @@ test("notebook archive never discards a retained local draft", async ({
   const editor = page.getByRole("textbox", {
     name: "What should stay with you?",
   });
-  await editor.fill("Unsaved writing ".repeat(450));
+  // An over-limit draft cannot autosave while navigating to notebook management.
+  await editor.fill("Unsaved writing".padEnd(250_001, "x") + "Unsaved writing");
   await page
     .getByRole("button", { name: "Back to notes", exact: true })
     .click();
@@ -700,7 +728,9 @@ test("notebook archive never discards a retained local draft", async ({
     name: "Archive notebook",
     exact: true,
   });
-  await expect(dialog.getByRole("alert")).toContainText("Resolve 1 draft before archiving.");
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Resolve 1 draft before archiving.",
+  );
   await expect(
     dialog.getByRole("button", { name: "Archive notebooks", exact: true }),
   ).toBeDisabled();
@@ -886,9 +916,9 @@ for (const width of [1440, 390, 320]) {
       await expect(
         panel.getByRole("button", { name: "Done", exact: true }),
       ).toBeFocused();
-      await expect(
-        page.getByRole("combobox", { name: "Sort by" }),
-      ).toHaveText("Recently created");
+      await expect(page.getByRole("combobox", { name: "Sort by" })).toHaveText(
+        "Recently created",
+      );
       await expect(rows).toHaveCount(2);
       const bounds = (await panel.boundingBox())!;
       expect(bounds.x).toBeGreaterThanOrEqual(0);
@@ -1628,13 +1658,13 @@ test("first autosave keeps the document, focus, scroll and undo history through 
   ).toBe(scroll);
   await editor.press(`${browserName === "webkit" ? "Meta" : "Control"}+z`);
   await expect(page.locator(".editor-footer")).toContainText(
-    `${content.length.toLocaleString()} / 6,000`,
+    `${content.length.toLocaleString()} / 250,000`,
   );
   await editor.press(
     `${browserName === "webkit" ? "Meta" : "Control"}+Shift+Z`,
   );
   await expect(page.locator(".editor-footer")).toContainText(
-    `${(content.length + 1).toLocaleString()} / 6,000`,
+    `${(content.length + 1).toLocaleString()} / 250,000`,
   );
   await expect(page.locator(".note-save-status")).toHaveText("Saved");
   expect(state.records.size).toBe(1);
@@ -1648,7 +1678,7 @@ test("first autosave keeps the document, focus, scroll and undo history through 
   await page.getByRole("button", { name: "Close dialog", exact: true }).click();
   await page.keyboard.press("Control+Alt+n");
   await expect(page.locator(".editor-footer")).toContainText(
-    "0 words · 0 / 6,000",
+    "0 words · 0 / 250,000",
   );
   await page.goBack();
   await expect(page.locator(".note-editor-location h1")).toHaveText(
@@ -1659,7 +1689,7 @@ test("first autosave keeps the document, focus, scroll and undo history through 
     "A continuous document",
   );
   await expect(page.locator(".editor-footer")).toContainText(
-    `${(content.length + 1).toLocaleString()} / 6,000`,
+    `${(content.length + 1).toLocaleString()} / 250,000`,
   );
 });
 
@@ -2258,6 +2288,31 @@ test("visible row deletion confirms directly and rejects a stale revision", asyn
   ).toBeVisible();
 });
 
+test("a long research note opens at capacity and saves a passage edit", async ({
+  page,
+}) => {
+  const heading = "# Field study: coastal habitats\n\n";
+  const paragraph =
+    "The research team compared tide pools at three coastal sites. Observations were recorded at the same time each morning to account for tidal variation.\n\n";
+  const content = (heading + paragraph.repeat(1800)).slice(0, 249999) + ".";
+  const state = await fixture(page, [{ ...note, content }]);
+  await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
+  await expect(page.locator(".editor-footer")).toContainText(
+    "250,000 / 250,000",
+  );
+  if (process.env.GROVE_LONG_NOTE_SCREENSHOT) {
+    await page.screenshot({ path: process.env.GROVE_LONG_NOTE_SCREENSHOT });
+  }
+  const editor = page.getByRole("textbox", {
+    name: "What should stay with you?",
+  });
+  await editor.press("Control+End");
+  await editor.press("Backspace");
+  await expect
+    .poll(() => state.records.get(note.id)?.content === content.slice(0, -1))
+    .toBe(true);
+});
+
 test("direct delete can discard an invalid dirty draft without saving it", async ({
   page,
 }) => {
@@ -2266,11 +2321,14 @@ test("direct delete can discard an invalid dirty draft without saving it", async
   const editor = page.getByRole("textbox", {
     name: "What should stay with you?",
   });
-  await editor.fill("A draft that exceeds the save limit. ".repeat(200));
+  await editor.fill(
+    "A draft that exceeds the save limit.".padEnd(250_001, "x"),
+  );
   await openNoteAction(page, "Delete note…");
   const dialog = page.getByRole("dialog", { name: "Delete note?" });
   await expect(dialog).toContainText("local draft");
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await editor.press("Control+Home");
   await expect(editor).toContainText("exceeds the save limit");
   await openNoteAction(page, "Delete note…");
   await dialog
@@ -2395,7 +2453,7 @@ test("export downloads exact unsaved Markdown and preserves a denied clipboard f
   await page.goto(`${base}/app/memories/${note.id}?mode=edit`);
   const content =
     "# CON.pdf\n\nCafé 日本語 🌱\n\n```ts\n  const keep = true;\n```\n" +
-    "Long draft. ".repeat(550);
+    "Long draft. ".padEnd(250_001, "x");
   await page
     .getByRole("textbox", { name: "What should stay with you?" })
     .fill(content);
@@ -6653,7 +6711,9 @@ test("palette to Ask keeps scoped drafts separate from scratch and conversation 
   expect(state.chats.size).toBe(2);
   expect(decodeURIComponent(page.url())).not.toContain("Review all my notes");
   await page.reload();
-  await expect(page.getByText("This search draft is no longer available.")).toBeVisible();
+  await expect(
+    page.getByText("This search draft is no longer available."),
+  ).toBeVisible();
   await expect(draft).toHaveCount(0);
 });
 
@@ -7664,7 +7724,7 @@ test("autosave retries a lost first response before saving newer typing and clea
   await expect(
     page.getByRole("button", { name: "Save note", exact: true }),
   ).toBeDisabled();
-  await expect(page.locator(".editor-footer")).toContainText("0 / 6,000");
+  await expect(page.locator(".editor-footer")).toContainText("0 / 250,000");
 });
 
 test("save retries retain their operation and draft, and dialogs stay open while saving", async ({
@@ -8814,7 +8874,10 @@ test("archived notebooks bulk delete removes each selected root", async ({
     if (!previewUnavailable) return route.fallback();
     return route.fulfill({
       status: 503,
-      json: { success: false, error: { code: "unavailable", message: "Please retry." } },
+      json: {
+        success: false,
+        error: { code: "unavailable", message: "Please retry." },
+      },
     });
   });
   await page
@@ -8822,13 +8885,19 @@ test("archived notebooks bulk delete removes each selected root", async ({
     .getByRole("button", { name: "Delete", exact: true })
     .click();
   const bulk = page.getByRole("dialog", { name: "Delete notebooks" });
-  await expect(bulk.getByRole("button", { name: "Delete notebooks" })).toBeDisabled();
-  await expect(bulk.getByRole("button", { name: "Try again" })).toBeVisible({ timeout: 15_000 });
+  await expect(
+    bulk.getByRole("button", { name: "Delete notebooks" }),
+  ).toBeDisabled();
+  await expect(bulk.getByRole("button", { name: "Try again" })).toBeVisible({
+    timeout: 15_000,
+  });
   const failedRequests = previewRequests;
   previewUnavailable = false;
   await bulk.getByRole("button", { name: "Try again" }).click();
   await expect.poll(() => previewRequests).toBe(failedRequests + 1);
-  await expect(bulk).toContainText("You can’t restore these notebooks, notes or their history in Grove.");
+  await expect(bulk).toContainText(
+    "You can’t restore these notebooks, notes or their history in Grove.",
+  );
   await bulk
     .getByRole("button", { name: "Delete notebooks", exact: true })
     .click();

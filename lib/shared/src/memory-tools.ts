@@ -19,6 +19,7 @@ import {
 } from "./agent-media.ts";
 import { noteContentDescription } from "@lib/shared/note-writing";
 import { sourceEditsSchema } from "./document-edits";
+import { NOTE_CONTENT_MAX } from "./limits.ts";
 
 export const memoryUpdateSchema = z
   .object({
@@ -45,7 +46,7 @@ export const memoryUpdateSchema = z
       .string()
       .trim()
       .min(1)
-      .max(6000)
+      .max(NOTE_CONTENT_MAX)
       .describe(noteContentDescription)
       .optional(),
     kind: kindSchema.optional(),

@@ -12,7 +12,7 @@ import {
   WritingToolsController,
   type WritingToolTransport,
 } from "./tools-controller.ts";
-import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
+import { PROOFING_CONTENT_MAX } from "@lib/shared/limits";
 
 const style = `
 :host { all: initial; font: 14px/1.5 system-ui,sans-serif; color-scheme:light dark; }
@@ -204,7 +204,7 @@ export class WritingController {
   private changed() {
     const allowed = this.allowed();
     if (allowed) {
-      const text = this.editor.value.slice(0, NOTE_CONTENT_MAX);
+      const text = this.editor.value.slice(0, PROOFING_CONTENT_MAX);
       if (this.ignored.size)
         this.ignored = new Map(
           mapIgnoredIssues(this.previousText, text, [

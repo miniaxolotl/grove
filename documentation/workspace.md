@@ -55,7 +55,7 @@ owns connection commands and approval.
   complete documents. See [structured notes](structured-documents.md).
 - Drafts/retry identities stay in account/session-owned memory by default. Optional
   **Settings → Account → Recover drafts on this device** keeps encrypted checkpoints
-  for this account/browser, up to 32 drafts/1 MiB for seven days. Read its privacy
+  for this account/browser, up to 32 drafts/16 MiB for seven days. Read its privacy
   explanation before enabling. Recovery needs current online authorization and
   explicit retry; a device checkpoint is not Saved. Sign-out, account changes and
   disabling recovery erase it. Unsupported storage leaves text in memory: keep the

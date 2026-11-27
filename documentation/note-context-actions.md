@@ -35,7 +35,7 @@ closes. Changing note identity, Write/Markdown/Preview or read-only state cancel
 pending edits even if the original state is restored before the clipboard responds.
 Ordinary action dismissal does not cancel the chosen action. Clipboard failures leave
 the draft intact and show keyboard/native-menu guidance. Paste is plain text and
-normalizes CRLF/CR before calculating its caret and the 6,000-character growth limit.
+normalizes CRLF/CR before calculating its caret and the 250,000-character growth limit.
 Oversized drafts can still be shortened incrementally. Removing a Preview reference
 focuses the persistent note surface, retaining keyboard context actions and Undo.
 

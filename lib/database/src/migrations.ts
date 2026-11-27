@@ -1,5 +1,7 @@
 import type { Knex } from "knex";
 import { lifecycleReconciliation } from "./lifecycle-migration.ts";
+import { noteCapacity } from "./note-capacity-migration.ts";
+import { noteChunks } from "./note-chunks-migration.ts";
 import { exportReadyEmail } from "./export-ready-migration.ts";
 import { importDestination } from "./import-destination-migration.ts";
 import { deletionReceipt } from "./deletion-receipt-migration.ts";
@@ -297,6 +299,8 @@ export const migrations = [
   exportReadyEmail,
   deletionReceipt,
   lifecycleReconciliation,
+  noteCapacity,
+  noteChunks,
 ];
 
 export const migrationSource: Knex.MigrationSource<

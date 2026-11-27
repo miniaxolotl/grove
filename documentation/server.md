@@ -124,8 +124,8 @@ Batch moves are all-or-nothing; `forget` retains its per-item outcome contract.
 Kinds: `preference`, `fact`, `decision`, `solution`, `handoff`. Personal scope is
 `projectId: null`. Project IDs are account-owned UUIDs. A handoff requires a stable
 `taskId`; update its existing ID/version instead of creating duplicate handoffs.
-Legacy complete content is trimmed, 1–6,000 characters. Exact source-splice edits
-preserve outer whitespace and are bounded by the same 6,000-character limit.
+Legacy complete content is trimmed, 1–250,000 UTF-16 units. Exact source-splice edits
+preserve outer whitespace and have the same 250,000-unit limit.
 `capture: "automatic"` is rejected when
 automatic capture is paused; explicit user-requested saves use `"explicit"`.
 

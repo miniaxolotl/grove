@@ -11,6 +11,7 @@ import { currentTelemetry } from "@lib/telemetry/context";
 import { processingLease } from "./job-lease.ts";
 import { retryDelay } from "./task-runner.ts";
 import { cachedWork } from "./ai-cache.ts";
+import { revisedChunks, noteChunkVersion } from "./note-chunks.ts";
 import { beforePaidWork, withActionCacheWork } from "./action-context.ts";
 import type { QueueLane } from "@lib/shared/jobs";
 import { resourceLimits } from "@lib/shared/billing";
@@ -117,7 +118,7 @@ const eligible = (trx: Knex.Transaction) =>
 const source = (row: MemoryModel): Source => ({
   id: row.id,
   version: row.version,
-  content: row.content,
+  content: row.content.slice(0, 6000),
   kind: row.kind,
   verification: row.source.verification,
 });
@@ -592,7 +593,7 @@ export async function runProcessingJob(
   let action: ActionReservation | null = null;
   const started = performance.now();
   let completed = false;
-  let cachedOnly = false;
+  let cachedOnly = true;
   let failed = false;
   let usage: Usage = { inputTokens: 0, outputTokens: 0 };
   const role =
@@ -668,9 +669,11 @@ export async function runProcessingJob(
       const selected: MemoryModel[] = [];
       let remaining = 24000;
       for (const row of rows) {
-        if (selected.length === 80 || row.content.length > remaining) break;
+        const size =
+          job.kind === "embedding" ? 0 : Math.min(row.content.length, 6000);
+        if (selected.length === 80 || size > remaining) break;
         selected.push(row);
-        remaining -= row.content.length;
+        remaining -= size;
       }
       if (
         job.scope?.action &&
@@ -712,7 +715,9 @@ export async function runProcessingJob(
         rows: selected,
         candidates,
         contentVersion: account.contentVersion as number,
-        truncated: selected.length < rows.length,
+        truncated:
+          selected.length < rows.length ||
+          selected.some((row) => row.content.length > 6000),
       };
     });
     if (!input) return true;
@@ -725,37 +730,38 @@ export async function runProcessingJob(
       },
     };
     const sources = input.rows.map(source);
+    const guard = async (trx: Knex.Transaction) => {
+      const account = await trx("accounts")
+        .where({ id: job.accountId, status: "active" })
+        .forShare()
+        .first();
+      const owned = await trx("jobs")
+        .where({ id: job.id, leaseId: job.leaseId })
+        .where("leaseUntil", ">", trx.fn.now())
+        .whereRaw(
+          "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
+        )
+        .forShare()
+        .first("id");
+      const memory = await eligible(trx)
+        .findById(job.memoryId!)
+        .where({ version: job.version! })
+        .select("id")
+        .forShare();
+      if (
+        !account ||
+        !owned ||
+        !memory ||
+        !processingEnabled(account, job.kind, job.scope)
+      )
+        throw new InferenceError("processing_stale");
+    };
     const noteWork = async <T>(
       feature: "document_embedding" | "classification" | "organization",
       key: unknown,
       validate: (value: unknown) => T,
       run: (options: InferenceOptions) => Promise<T>,
     ) => {
-      const guard = async (trx: Knex.Transaction) => {
-        const account = await trx("accounts")
-          .where({ id: job.accountId, status: "active" })
-          .forShare()
-          .first();
-        const owned = await trx("jobs")
-          .where({ id: job.id, leaseId: job.leaseId })
-          .where("leaseUntil", ">", trx.fn.now())
-          .whereRaw(
-            "epoch=(SELECT epoch FROM processing_control WHERE singleton)",
-          )
-          .forShare()
-          .first("id");
-        const memory = await eligible(trx)
-          .findById(job.memoryId!)
-          .where({ version: job.version! })
-          .forShare();
-        if (
-          !account ||
-          !owned ||
-          !memory ||
-          !processingEnabled(account, job.kind, job.scope)
-        )
-          throw new InferenceError("processing_stale");
-      };
       const work = await withActionCacheWork(
         () =>
           tenant(db, job.accountId, async (trx) => {
@@ -779,7 +785,7 @@ export async function runProcessingJob(
               ),
           }),
       );
-      cachedOnly = work.cached;
+      cachedOnly &&= work.cached;
       return work.value.value;
     };
     let embedding: number[] | undefined;
@@ -788,27 +794,93 @@ export async function runProcessingJob(
     let brief: Brief["content"];
     if (job.kind === "embedding") {
       await registerEmbedding(db, providers.embedding!);
-      embedding = await noteWork(
-        "document_embedding",
-        [
-          job.profile,
-          providers.embedding!.model,
-          providers.embedding!.dimensions,
-          sources[0].content,
-        ],
-        (value) => {
-          if (
-            !Array.isArray(value) ||
-            value.length !== providers.embedding!.dimensions ||
-            value.some((n) => typeof n !== "number" || !Number.isFinite(n)) ||
-            !value.some((n) => n !== 0)
-          )
-            throw new InferenceError("embedding_profile_mismatch", false);
-          return value as number[];
-        },
-        (options) =>
-          providers.embedding!.embed(sources[0].content, "document", options),
-      );
+      const validateVector = (value: unknown) => {
+        if (
+          !Array.isArray(value) ||
+          value.length !== providers.embedding!.dimensions ||
+          value.some((n) => typeof n !== "number" || !Number.isFinite(n)) ||
+          !value.some((n) => n !== 0)
+        )
+          throw new InferenceError("embedding_profile_mismatch", false);
+        return value as number[];
+      };
+      const prior = await tenant(db, job.accountId, async (trx) => {
+        const scoped = trx("memory_embedding_chunks")
+          .where({
+            memoryId: job.memoryId,
+            profile: job.profile,
+            chunker: noteChunkVersion,
+          })
+          .where("version", "<", job.version!);
+        return scoped
+          .clone()
+          .where("version", scoped.clone().max("version"))
+          .select("sourceFrom", "sourceTo", "contentHash")
+          .orderBy("ordinal");
+      });
+      embedding = Array<number>(providers.embedding!.dimensions).fill(0);
+      const chunks = revisedChunks(input.rows[0].content, prior);
+      for (const [ordinal, chunk] of chunks.entries()) {
+        lease.signal.throwIfAborted();
+        const previous = await tenant(db, job.accountId, async (trx) => {
+          await guard(trx);
+          return trx("memory_embedding_chunks")
+            .where({
+              memoryId: job.memoryId,
+              profile: job.profile,
+              chunker: noteChunkVersion,
+              contentHash: chunk.hash,
+            })
+            .first();
+        });
+        const vector = previous
+          ? validateVector(JSON.parse(previous.embedding))
+          : await noteWork(
+              "document_embedding",
+              [
+                job.profile,
+                providers.embedding!.model,
+                providers.embedding!.dimensions,
+                noteChunkVersion,
+                chunk.text,
+              ],
+              validateVector,
+              (options) =>
+                providers.embedding!.embed(chunk.text, "document", options),
+            );
+        await tenant(db, job.accountId, async (trx) => {
+          await guard(trx);
+          await trx("memory_embedding_chunks")
+            .insert({
+              accountId: job.accountId,
+              memoryId: job.memoryId,
+              version: job.version,
+              profile: job.profile,
+              ordinal,
+              chunker: noteChunkVersion,
+              contentHash: chunk.hash,
+              sourceFrom: chunk.from,
+              sourceTo: chunk.to,
+              dimensions: providers.embedding!.dimensions,
+              embedding: JSON.stringify(vector),
+            })
+            .onConflict([
+              "accountId",
+              "memoryId",
+              "version",
+              "profile",
+              "ordinal",
+            ])
+            .merge();
+        });
+        for (let i = 0; i < embedding.length; i++)
+          embedding[i] +=
+            (vector[i] * chunk.text.length) / input.rows[0].content.length;
+      }
+      // Retain a normalized document centroid for existing relationship consumers.
+      // Semantic note search scores individual chunks rather than this average.
+      const norm = Math.hypot(...embedding);
+      if (norm) embedding = embedding.map((value) => value / norm);
       if (
         embedding.length !== providers.embedding!.dimensions ||
         embedding.some((n) => !Number.isFinite(n))
@@ -972,6 +1044,10 @@ export async function runProcessingJob(
           })
           .onConflict(["accountId", "memoryId", "version", "profile"])
           .merge(["embedding"]);
+        await trx("memory_embedding_chunks")
+          .where({ memoryId: job.memoryId, profile: job.profile })
+          .whereNot({ version: job.version })
+          .delete();
         const profile = currentRelationshipProfile(providers);
         if (profile && row?.projectId && account.notebookConnectionsEnabled) {
           await trx("notebook_profiles")

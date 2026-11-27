@@ -108,10 +108,10 @@ The executable constants are in `lib/shared/src/documents/schema.ts`:
 
 | Resource                                       | Bound                                                                   |
 | ---------------------------------------------- | ----------------------------------------------------------------------- |
-| Source/result and each text-diff side          | 1–6,000 UTF-16 units for snapshots; diff sides may be empty             |
+| Source/result and each text-diff side          | 1–250,000 UTF-16 units for snapshots; diff sides may be empty           |
 | Blocks                                         | 256; dense input falls back to one opaque block                         |
 | Operations per batch                           | 50                                                                      |
-| Cumulative inserted/replacement text per batch | 6,000 UTF-16 units                                                      |
+| Cumulative inserted/replacement text per batch | 250,000 UTF-16 units                                                    |
 | Passage scopes                                 | 256 ranges; whole-block scopes 256 IDs                                  |
 | Insertion scopes                               | 257 adjacent anchors                                                    |
 | Word-diff LCS                                  | 262,144 cells, then linear fallback                                     |

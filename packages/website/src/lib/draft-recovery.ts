@@ -1,7 +1,7 @@
 /** Encrypted device drafts. Saved off choices win; never persist tokens or caches. */
 export const recoveryLimits = {
   drafts: 32,
-  bytes: 1_048_576,
+  bytes: 16 * 1024 * 1024,
   ageMs: 7 * 86400_000,
 };
 type Owner = { id: string; epoch: string; key?: CryptoKey };

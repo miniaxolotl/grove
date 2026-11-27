@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NOTE_CONTENT_MAX } from "./limits.ts";
 import {
   documentStatementSchema,
   type DocumentSource,
@@ -211,7 +212,7 @@ export const noteProposalSchema = z
     kind: z.enum(["edit", "merge", "create"]),
     target: sourceRefSchema.nullable(),
     sources: z.array(sourceRefSchema).max(6),
-    content: z.string().trim().min(1).max(6000),
+    content: z.string().trim().min(1).max(NOTE_CONTENT_MAX),
   })
   .strict();
 export const conversationReplySchema = z
@@ -234,6 +235,7 @@ export const conversationGenerationSchema = conversationReplySchema
     proposals: z
       .array(
         noteProposalSchema.extend({
+          content: z.string().trim().min(1).max(6000),
           target: z.array(sourceRefSchema).max(1),
         }),
       )

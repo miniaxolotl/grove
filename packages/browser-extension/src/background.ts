@@ -7,7 +7,7 @@ import {
 } from "@lib/shared/writing-assistance";
 import { GroveError } from "@lib/shared/contracts";
 import { webCaptureSchema } from "@lib/shared/web-capture";
-import { NOTE_CONTENT_MAX } from "@lib/shared/limits";
+import { NOTE_CONTENT_MAX, PROOFING_CONTENT_MAX } from "@lib/shared/limits";
 import { BrowserOAuth } from "./oauth.ts";
 import { ExtensionClient } from "./client.ts";
 import {
@@ -301,7 +301,7 @@ async function localWriting(raw: unknown) {
       connectionId: z.uuid(),
       payload: z
         .object({
-          text: z.string().max(NOTE_CONTENT_MAX),
+          text: z.string().max(PROOFING_CONTENT_MAX),
         })
         .strict(),
     })

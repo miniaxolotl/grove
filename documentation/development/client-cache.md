@@ -150,7 +150,7 @@ binds schema, owner epoch, identity, sequence, scope and absolute expiry; each
 encryption uses a fresh nonce. Same-origin keys are not protection against XSS or
 a compromised browser profile.
 
-Recovery is limited to 32 live drafts, 1 MiB of envelope data and seven days from
+Recovery is limited to 32 live drafts, 16 MiB of envelope data and seven days from
 the first checkpoint (reads/typing do not extend expiry). Active drafts are never
 silently evicted. Typing checkpoints sample at 350ms while the page executes;
 browser throttling, suspended tabs and interrupted transactions can extend the

@@ -197,6 +197,180 @@ async function fixture(
   return { principal, providers, service, worker, drain };
 }
 
+test("long-note embeddings use bounded passages and reuse unchanged chunks after an edit", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, {
+    classificationEnabled: false,
+    organizeEnabled: false,
+    summariesEnabled: false,
+    noteConnectionsEnabled: false,
+    notebookConnectionsEnabled: false,
+  });
+  const calls: string[] = [];
+  f.providers.embedding!.embed = async (text) => {
+    calls.push(text);
+    return [1, ...Array(4095).fill(0)];
+  };
+  const paragraphs = Array.from(
+    { length: 40 },
+    (_, i) => `Section ${i}: ${"Evidence and analysis. ".repeat(80)}`,
+  );
+  const content = paragraphs.join("\n\n");
+  const note = await f.service.remember(f.principal, input(content));
+  await f.drain();
+  assert(calls.length > 1, "long notes must embed separate chunks");
+  assert(
+    calls.every((text) => text.length <= 2000),
+    "no embedding request may contain the whole note",
+  );
+  assert(
+    calls.some((text) => text.includes("Section 39:")),
+    "index the end as well as the beginning",
+  );
+  calls.length = 0;
+  paragraphs[20] = paragraphs[20].replace("Evidence", "Revised evidence");
+  await f.service.remember(
+    f.principal,
+    input(paragraphs.join("\n\n"), {
+      id: note.id,
+      expectedVersion: note.version,
+    }),
+  );
+  await f.drain();
+  assert.equal(calls.length, 1, "only the changed paragraph is sent again");
+  assert(calls[0].includes("Section 20:"));
+  const packed = Array.from({ length: 4000 }, (_, i) => `word${i}.`).join("");
+  const single = await f.service.remember(f.principal, input(packed));
+  await f.drain();
+  calls.length = 0;
+  await f.service.remember(
+    f.principal,
+    input("Intro." + packed, {
+      id: single.id,
+      expectedVersion: single.version,
+    }),
+  );
+  await f.drain();
+  assert.equal(
+    calls.length,
+    1,
+    "inserting at the start must not shift and re-embed the whole paragraph",
+  );
+});
+
+test("semantic search and recall find a long note through its final passage", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, {
+    classificationEnabled: false,
+    organizeEnabled: false,
+    summariesEnabled: false,
+    noteConnectionsEnabled: false,
+    notebookConnectionsEnabled: false,
+  });
+  f.providers.embedding!.embed = async (text, purpose) =>
+    purpose === "query" || text.includes("FINAL PASSAGE")
+      ? [0, 1, ...Array(4094).fill(0)]
+      : [1, 0, ...Array(4094).fill(0)];
+  const content =
+    Array.from(
+      { length: 40 },
+      (_, i) => `Section ${i}: ${"Ordinary findings. ".repeat(80)}`,
+    ).join("\n\n") +
+    "\n\nFINAL PASSAGE: The unusual discovery was a hidden marine ecosystem.";
+  const note = await f.service.remember(f.principal, input(content));
+  await f.drain();
+  const results = await f.service.list(
+    f.principal,
+    listSchema.parse({ query: "submerged habitat", searchMode: "hybrid" }),
+  );
+  assert(results.items.some((item) => item.id === note.id));
+  const recalled = await f.service.recall(
+    f.principal,
+    recallSchema.parse({ query: "submerged habitat" }),
+  );
+  assert(recalled.items.some((item) => item.id === note.id));
+  const passage = recalled.items.find((item) => item.id === note.id)!;
+  assert(passage.content.includes("FINAL PASSAGE"));
+  assert(passage.content.length <= 2000);
+  assert.equal((await f.service.get(f.principal, note.id)).content, content);
+});
+
+test("chunk progress survives retry and deleted notes cannot publish late vectors", async () => {
+  const f = await fixture();
+  await f.service.settings(f.principal, {
+    classificationEnabled: false,
+    organizeEnabled: false,
+    summariesEnabled: false,
+    noteConnectionsEnabled: false,
+    notebookConnectionsEnabled: false,
+  });
+  const content = Array.from(
+    { length: 5 },
+    (_, i) => `${i}: ${"Evidence and analysis. ".repeat(60)}`,
+  ).join("\n\n");
+  const calls: string[] = [];
+  let fail = true;
+  f.providers.embedding!.embed = async (text) => {
+    calls.push(text);
+    if (calls.length === 3 && fail)
+      throw new InferenceError("provider_unavailable");
+    return [1, ...Array(4095).fill(0)];
+  };
+  const note = await f.service.remember(f.principal, input(content));
+  const job = await admin("jobs")
+    .where({ memoryId: note.id, kind: "embedding" })
+    .first();
+  await f.worker.runJob(job.id);
+  assert.equal(
+    (await admin("memory_embedding_chunks").where({ memoryId: note.id }))
+      .length,
+    2,
+  );
+  const first = calls.slice(0, 2);
+  fail = false;
+  // Simulate expired computation backoff, not a production retry bypass.
+  await admin("ai_provider_backoff")
+    .where({ accountId: f.principal.accountId })
+    .delete();
+  await f.drain();
+  assert(first.every((text) => calls.filter((s) => s === text).length === 1));
+  assert.equal((await f.service.get(f.principal, note.id)).indexing, "ready");
+  const started = deferred(),
+    release = deferred();
+  f.providers.embedding!.embed = async () => {
+    started.resolve();
+    await release.promise;
+    return [0, 1, ...Array(4094).fill(0)];
+  };
+  const changed = await f.service.remember(
+    f.principal,
+    input(content.replace("Evidence", "Changed evidence"), {
+      id: note.id,
+      expectedVersion: note.version,
+    }),
+  );
+  const next = await admin("jobs")
+    .where({ memoryId: note.id, kind: "embedding" })
+    .first();
+  const pending = f.worker.runJob(next.id);
+  await started.promise;
+  await f.service.forget(f.principal, {
+    operationId: randomUUID(),
+    items: [{ id: changed.id, expectedVersion: changed.version }],
+  });
+  release.resolve();
+  await pending;
+  assert.equal(
+    (await admin("memory_embedding_chunks").where({ memoryId: note.id }))
+      .length,
+    0,
+  );
+  assert.equal(
+    (await admin("memory_embeddings").where({ memoryId: note.id })).length,
+    0,
+  );
+});
+
 test("metadata-only revisions reuse document embeddings and title/tag work", async () => {
   const f = await fixture();
   await f.service.settings(f.principal, {

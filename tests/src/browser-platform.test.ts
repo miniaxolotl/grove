@@ -229,7 +229,7 @@ test("browser platform core uses explicit native adapters and user-triggered cap
       assert.throws(
         () =>
           platform.contextMenuCapture(
-            { ...event, selectionText: "x".repeat(6001) },
+            { ...event, selectionText: "x".repeat(250_001) },
             { incognito: false },
             0,
           ),

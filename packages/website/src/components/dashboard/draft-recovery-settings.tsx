@@ -60,7 +60,7 @@ export function DraftRecoverySettings() {
         <summary>Privacy and limits</summary>
         <ul>
           <li>
-            Up to 32 drafts and 1 MiB, for 7 days from the first device copy.
+            Up to 32 drafts and 16 MiB, for 7 days from the first device copy.
           </li>
           <li>Recovery needs an online sign-in and current note access.</li>
           <li>

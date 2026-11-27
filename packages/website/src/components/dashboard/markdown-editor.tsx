@@ -932,8 +932,20 @@ export function MarkdownEditor({
                 onOpen={() => proofing.setListOpen(true)}
                 onRetry={() => proofing.checkNow()}
               />
-              {proofing.enhanced && <button type="button" className="text-button" onClick={() => void proofing.checkEnhanced()}>Check paragraph</button>}
-              {proofing.enhanced && proofing.enhancedStatus && <span role="status" className="grove-writing-status">{proofing.enhancedStatus}</span>}
+              {proofing.enhanced && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => void proofing.checkEnhanced()}
+                >
+                  Check paragraph
+                </button>
+              )}
+              {proofing.enhanced && proofing.enhancedStatus && (
+                <span role="status" className="grove-writing-status">
+                  {proofing.enhancedStatus}
+                </span>
+              )}
               {!proofing.settings.automatic && proofing.status !== "off" && (
                 <button
                   type="button"
@@ -949,7 +961,8 @@ export function MarkdownEditor({
             {value.trim()
               ? value.trim().split(/\s+/).length.toLocaleString()
               : 0}{" "}
-            words · {value.length.toLocaleString()} / 6,000
+            words · {value.length.toLocaleString()} /{" "}
+            {NOTE_CONTENT_MAX.toLocaleString()}
           </span>
         </div>
       </div>
@@ -962,7 +975,9 @@ export function MarkdownEditor({
           onApply={(replacement) =>
             proofing.applyReplacement(proofing.selected!, replacement)
           }
-          onIgnore={() => proofing.selected && proofing.ignoreIssue(proofing.selected)}
+          onIgnore={() =>
+            proofing.selected && proofing.ignoreIssue(proofing.selected)
+          }
           onAddWord={() =>
             proofing.selected && proofing.addWord(proofing.selected.original)
           }
@@ -1010,7 +1025,9 @@ export function MarkdownEditor({
                     <strong>
                       {issue.rule === "spelling" ? "Spelling" : "Grammar"}
                     </strong>
-                    <span>“{issue.original}” — {englishMessages[issue.message]}</span>
+                    <span>
+                      “{issue.original}” — {englishMessages[issue.message]}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -1020,8 +1037,9 @@ export function MarkdownEditor({
       )}
       {limit && (
         <p role="alert" className="app-error">
-          This draft exceeds the 6,000-character save limit. Shorten it to save,
-          or use Export to keep a copy of all your writing.
+          This draft exceeds the {NOTE_CONTENT_MAX.toLocaleString()}-character
+          save limit. Shorten it to save, or use Export to keep a copy of all
+          your writing.
         </p>
       )}
     </div>
