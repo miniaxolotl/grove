@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
-import { ArrowRight, FileText } from "lucide-react";
 import {
   publicNavigationSchema,
   type PublicNavigation,
@@ -217,12 +216,10 @@ export function ReaderPalette({
                 aria-selected={active === index}
                 onClick={() => open(index)}
               >
-                <FileText size={17} aria-hidden="true" />
                 <span className="palette-option-copy">
                   {note.title || "Untitled note"}
                   <small>{note.notebookName}</small>
                 </span>
-                <ArrowRight size={16} aria-hidden="true" />
               </button>
             ))
           : commands.map((command, index) => (

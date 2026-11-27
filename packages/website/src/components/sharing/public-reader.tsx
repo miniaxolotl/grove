@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
-  ChevronRight,
   FileText,
   Folder,
   Link as LinkIcon,
@@ -946,7 +945,6 @@ function NotebookList({
                 <a href={`${root}/notebooks/${book.id}`}>
                   <Folder size={17} aria-hidden="true" />
                   <span>{book.name}</span>
-                  <ChevronRight size={16} aria-hidden="true" />
                 </a>
               </li>
             ))}
@@ -999,8 +997,7 @@ function NotebookList({
               ? "Try again shortly"
               : error
                 ? "Try again"
-                : "More notes"}{" "}
-          <ArrowRight size={16} aria-hidden="true" />
+                : "More notes"}
         </a>
       )}
     </>

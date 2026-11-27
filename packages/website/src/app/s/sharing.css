@@ -1,3 +1,9 @@
+body:has(.shared-page) {
+  --color-paper: #fff;
+  --color-sage: #f2f4f3;
+  --color-line: #e0e5e2;
+  background: var(--color-paper);
+}
 .shared-page {
   max-width: 1440px;
   margin: auto;
@@ -397,7 +403,7 @@
 }
 .shared-heading h1,
 .shared-message h1 {
-  font-size: clamp(28px, 5vw, 36px);
+  font-size: clamp(28px, 5vw, 32px);
   line-height: 1.2;
   font-weight: 650;
   letter-spacing: -0.025em;
@@ -490,18 +496,17 @@
 .shared-next {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  justify-content: flex-start;
   min-height: 44px;
   margin-top: 20px;
-  border: 1px solid var(--color-line);
-  border-radius: 8px;
-  padding: 10px 18px;
+  padding: 10px 0;
   font-size: 13px;
   min-width: 156px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .shared-next:hover {
-  background: var(--color-sage);
+  color: var(--color-leaf);
 }
 .shared-empty {
   margin-top: 8px;
