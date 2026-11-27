@@ -2,6 +2,37 @@ import { test, expect } from "@playwright/test";
 import { fixture, note, handoff, project } from "./fixtures/workspace-fixture";
 
 const base = `http://127.0.0.1:${process.env.ROUTER_TEST_PORT || 4379}`;
+test("opening a linked note keeps the current workspace document", async ({
+  page,
+}) => {
+  const href = `/app/memories/${handoff.id}`;
+  const state = await fixture(page, [
+    { ...note, content: `[Read launch checklist](${href})` },
+    handoff,
+  ]);
+  await page.goto(`${base}/app/memories/${note.id}`);
+  await expect(
+    page.getByRole("button", { name: "Preview linked note" }),
+  ).toBeVisible();
+  const documentRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "document")
+      documentRequests.push(request.url());
+  });
+  const link = page.getByRole("link", { name: "Read launch checklist" });
+  const reads = () =>
+    state.calls.filter((call) => call.path === `/memories/${handoff.id}`)
+      .length;
+  expect(reads()).toBe(0);
+  await link.hover();
+  await expect.poll(reads).toBe(1);
+  await link.click();
+  await expect(page).toHaveTitle("Launch checklist · Grove");
+  expect(reads()).toBe(1);
+  await page.goBack();
+  await expect(link).toBeVisible();
+  expect(documentRequests).toEqual([]);
+});
 test("real Next navigation preserves a quick-open list, URL, focus, reload and Back/Forward", async ({
   page,
 }) => {

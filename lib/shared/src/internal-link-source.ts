@@ -37,7 +37,8 @@ export function findGroveLinks(
     return "children" in node ? node.children.map(text).join("") : "";
   }
   walk(root, (node) => {
-    if (node.type === "definition") definitions.set(node.identifier, node);
+    if (node.type === "definition" && !definitions.has(node.identifier))
+      definitions.set(node.identifier, node);
   });
   const links: ParsedGroveLink[] = [];
   walk(root, (node) => {

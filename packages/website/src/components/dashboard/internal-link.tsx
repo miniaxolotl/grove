@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Info } from "lucide-react";
+import Link from "next/link";
 import {
   isLocalGroveLink,
   parseGroveLink,
@@ -18,6 +19,44 @@ import type { WorkspaceCache } from "@/lib/workspace-cache";
 import { DashboardApiError } from "@/lib/dashboard-api";
 import { useOptionalWorkspaceCache } from "./workspace-cache";
 import { ActionMenu } from "./ui/action-menu";
+
+function DestinationLink({
+  cache,
+  target,
+  children,
+  className,
+}: {
+  cache: WorkspaceCache;
+  target: GroveLink;
+  children: ReactNode;
+  className?: string;
+}) {
+  const [warmHref, setWarmHref] = useState("");
+  function warm() {
+    if (
+      new URL(target.href, location.origin).origin !== location.origin ||
+      (navigator as Navigator & { connection?: { saveData?: boolean } })
+        .connection?.saveData
+    )
+      return;
+    setWarmHref(target.href);
+    if (target.kind === "note" && !target.revision)
+      void cache.client.prefetchQuery(cache.note(target.id));
+  }
+  return (
+    <Link
+      href={target.href}
+      className={className}
+      prefetch={warmHref === target.href}
+      onPointerEnter={(event) => {
+        if (event.pointerType === "mouse") warm();
+      }}
+      onFocus={warm}
+    >
+      {children}
+    </Link>
+  );
+}
 
 const subscribeOrigin = () => () => {};
 const browserOrigin = () => window.location.origin;
@@ -96,9 +135,9 @@ function PrivateLink({
   const preview = useSyncExternalStore(subscribe, snapshot, emptyPreview);
   return (
     <span className="grove-link">
-      <a href={target.href}>
+      <DestinationLink cache={cache} target={target}>
         {followTitle && preview ? preview.title : children}
-      </a>
+      </DestinationLink>
       <ActionMenu
         label={`Preview linked ${target.kind}`}
         icon={<Info size={15} aria-hidden="true" />}
@@ -163,11 +202,15 @@ function Preview({
       ) : (
         <p>Loading preview…</p>
       )}
-      <a className="app-button secondary" href={target.href}>
+      <DestinationLink
+        className="app-button secondary"
+        target={target}
+        cache={cache}
+      >
         {target.revision
           ? `Open revision ${target.revision}`
           : `Open ${target.kind}`}
-      </a>
+      </DestinationLink>
     </div>
   );
 }

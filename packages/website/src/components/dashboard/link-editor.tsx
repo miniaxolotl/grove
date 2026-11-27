@@ -1,6 +1,10 @@
 "use client";
 import { useId, useState } from "react";
-import { createGroveLink, parseGroveLink } from "@lib/shared/internal-links";
+import {
+  createGroveLink,
+  formatMarkdownLink,
+  parseGroveLink,
+} from "@lib/shared/internal-links";
 import { InspectorDialog } from "./ui/inspector-dialog";
 
 export type LinkDraft = {
@@ -126,7 +130,7 @@ export function LinkEditor({
                 const linked = parseGroveLink(destination, origin);
                 const markdown = linked
                   ? createGroveLink(destination, label, followTitle, origin)
-                  : `[${label.replace(/[\\`*_[\]<>]/g, "\\$&")}](<${destination.replace(/[<>"]/g, (character) => encodeURIComponent(character))}>)`;
+                  : formatMarkdownLink(destination, label);
                 apply(markdown);
                 close();
               } catch (error) {

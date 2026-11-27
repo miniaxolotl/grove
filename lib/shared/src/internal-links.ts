@@ -108,9 +108,18 @@ export function createGroveLink(
     throw new Error(
       "Choose a single-line Grove link label of up to 500 characters",
     );
-  const text = label.replace(/[\\`*_[\]<>]/g, "\\$&");
-  const target = href.replace(/[<>"]/g, (character) =>
-    encodeURIComponent(character),
+  return formatMarkdownLink(href, label, followTitle);
+}
+
+/** Serialize an already validated destination and a literal, single-line caption. */
+export function formatMarkdownLink(
+  href: string,
+  label: string,
+  followTitle = false,
+) {
+  const text = label.replace(/[\\`*_[\]<>~&]/g, "\\$&");
+  const target = href.replace(/[<>"&]/g, (character) =>
+    character === "&" ? "&amp;" : encodeURIComponent(character),
   );
   return `[${text}](<${target}>${followTitle ? ` "${groveTitleMarker}"` : ""})`;
 }

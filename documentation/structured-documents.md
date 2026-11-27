@@ -54,8 +54,11 @@ readers retain the authored fallback, not private resolved metadata.
 
 In an authenticated workspace, the separate **Preview linked note/notebook**
 button reads a compact title, type and optional excerpt on demand. The adjacent
-link navigates normally. Merely rendering or focusing a link does not request a
-preview. External links are never fetched, and a recognized cloud URL in another
+link opens a same-origin note or notebook without reloading the workspace or
+discarding session drafts. Hovering or focusing the link preloads its route and,
+for a current note, its contents in the session cache. Data Saver skips this
+warm-up. Only the preview button requests an excerpt. External links are never
+prefetched, and a recognized cloud URL in another
 self-hosted installation cannot resolve a coincidentally matching local ID.
 
 `GET /v1/link-previews/:kind/:id` is session-only (`note` or `notebook`), with one

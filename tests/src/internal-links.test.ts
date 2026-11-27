@@ -4,6 +4,20 @@ import * as contract from "@lib/shared/internal-links";
 import { findGroveLinks } from "@lib/shared/internal-link-source";
 const id = "00000000-0000-4000-a000-000000000091";
 
+test("reference editing follows the reader's first definition", () => {
+  const href = `/app/memories/${id}`;
+  const source = `[Read][Ref]\n\n[ref]: ${href}\n[REF]: /app/projects/${id}`;
+  assert.equal(findGroveLinks(source)[0]?.resource.href, href);
+});
+
+test("authoring preserves literal entities and strikethrough syntax in captions and entity-like URLs", () => {
+  const href = `/app/memories/${id}#A&amp;B`;
+  const label = "~~draft~~ &copy;";
+  const [link] = findGroveLinks(contract.createGroveLink(href, label, false));
+  assert.equal(link.label, label);
+  assert.equal(link.resource.href, href);
+});
+
 test("recognizing a Grove URL never authorizes a preview against a different installation", () => {
   assert.equal(
     contract.isLocalGroveLink(
