@@ -7,10 +7,15 @@ Grove works with `LANGUAGETOOL_URL` empty. Starting a checker does not enroll wr
 From the repository root, use a local Docker Engine with Compose, BuildKit, cgroup v2, and memory/swap accounting:
 
 ```sh
+node --test scripts/release/languagetool-download.test.mjs
 bash ops/languagetool/verify.sh
 ```
 
-This builds and runs the actual `proofing` service in a disposable project without a database or real credentials. It checks a known correction, malformed and oversized forms, simultaneous requests, a disconnected client and a container restart. A separate deterministic engine fixture tests the actual Java launcher's bounded recovery after a failed first check and fail-closed readiness after permanent failure. Those fixture classes are not shipped. A fresh real JVM must also reach genuine readiness at 0.25 CPU and 1 GiB, with zero output and no writable-layer changes. The harness temporarily captures the checker's output to verify that even errors emit nothing, and checks for writable-layer changes and a synthetic marker in temporary storage. Do not use real prose for diagnostics.
+The download regression runs the Dockerfile's real curl/checksum command against
+owned synthetic HTTP fixtures: rate limit and service recovery, permanent failure,
+and changed bytes. It does not contact an alternate production archive source.
+
+The Compose rehearsal builds and runs the actual `proofing` service in a disposable project without a database or real credentials. It checks a known correction, malformed and oversized forms, simultaneous requests, a disconnected client and a container restart. A separate deterministic engine fixture tests the actual Java launcher's bounded recovery after a failed first check and fail-closed readiness after permanent failure. Those fixture classes are not shipped. A fresh real JVM must also reach genuine readiness at 0.25 CPU and 1 GiB, with zero output and no writable-layer changes. The harness temporarily captures the checker's output to verify that even errors emit nothing, and checks for writable-layer changes and a synthetic marker in temporary storage. Do not use real prose for diagnostics.
 
 To stage the service alongside a configured [self-hosted installation](../deploy.md#self-hosted-compose):
 
@@ -25,7 +30,7 @@ The Compose budget is **one CPU, 1 GiB RAM, zero additional swap**, a read-only 
 
 ## Build and refresh the image
 
-[`ops/languagetool/Dockerfile`](../../ops/languagetool/Dockerfile) pins the builder and Temurin JRE by digest and the **6.8** standalone ZIP from Maven Central by SHA-256. A changed archive fails the build before extraction. Runtime downloads are unnecessary. The packaged upstream JARs, dictionaries, `COPYING.txt`, `README.md` and `third-party-licenses/` stay together in `/opt/lt`; do not strip notices. See the [6.8 release source](https://github.com/languagetool-org/languagetool/tree/v6.8). Review corresponding-source, LGPL and third-party redistribution obligations for the LT distribution, base JRE and added launcher **before distributing an image**.
+[`ops/languagetool/Dockerfile`](../../ops/languagetool/Dockerfile) pins the builder and Temurin JRE by digest and the **6.8** standalone ZIP from Maven Central by SHA-256. A changed archive fails the build before extraction. The HTTPS-only build download permits three retries for transient HTTP failures (including rate limits), with a 180-second retry window, 10-second connection limit and 60-second per-request limit. Permanent HTTP errors and checksum mismatches stop the build; there is no alternate mirror or unpinned fallback. Runtime downloads are unnecessary. The packaged upstream JARs, dictionaries, `COPYING.txt`, `README.md` and `third-party-licenses/` stay together in `/opt/lt`; do not strip notices. See the [6.8 release source](https://github.com/languagetool-org/languagetool/tree/v6.8). Review corresponding-source, LGPL and third-party redistribution obligations for the LT distribution, base JRE and added launcher **before distributing an image**.
 
 ```sh
 docker build --pull --no-cache --platform linux/amd64 \

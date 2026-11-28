@@ -1,5 +1,8 @@
 FROM maven:3.9-eclipse-temurin-17@sha256:1a352420f7aba21f5ad08df31bab55f74c013fb491f1ae8ab1dd7ff9ed698584 AS unpack
-ADD --checksum=sha256:f04aecf37e35ef17d44b336da9668a5a3a871edd14bd83a766a7e110b9ebcd21 https://repo.maven.apache.org/maven2/org/languagetool/languagetool-standalone/6.8/languagetool-standalone-6.8.zip /tmp/lt.zip
+RUN curl --fail --show-error --silent --location --proto '=https' --proto-redir '=https' \
+      --retry 3 --retry-max-time 180 --connect-timeout 10 --max-time 60 \
+      --output /tmp/lt.zip https://repo.maven.apache.org/maven2/org/languagetool/languagetool-standalone/6.8/languagetool-standalone-6.8.zip \
+    && echo 'f04aecf37e35ef17d44b336da9668a5a3a871edd14bd83a766a7e110b9ebcd21  /tmp/lt.zip' | sha256sum -c -
 WORKDIR /src
 RUN jar xf /tmp/lt.zip
 WORKDIR /src/LanguageTool-6.8

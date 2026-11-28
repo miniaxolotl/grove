@@ -34,30 +34,52 @@ populated-preservation behavior is reviewed and added to that policy. Nontransac
 or incompatible changes require the coordinated owner procedure below.
 
 Execution takes a transaction-scoped advisory lock and the existing Knex lock;
-it fails rather than clearing a retained lock. The complete pending batch and
-its history commit together, with a five-second lock timeout, two-minute statement
-timeout and ten-minute transaction deadline. No provider/GitHub I/O occurs inside
-the transaction. Both non-owner runtime schema probes must pass after migrations,
-before publication, and again before backend rollout.
+it fails rather than clearing a retained lock. Before DDL, it admits the reviewed
+existing-table lock set with `NOWAIT`, including foreign-key parents. If a writer
+is busy, the entire attempt rolls back and releases any acquired locks instead
+of holding one table while waiting for another. An unchanged schema takes no
+DDL locks.
+
+Only table-admission contention (`55P03`) and a confirmed deadlock during forward
+migrations (`40P01`) are retried, in fresh transactions after rollback. There are
+at most four attempts, with one-, two- and four-second backoff plus up to 250ms
+jitter outside transactions. Every attempt rechecks production/source freshness,
+ownership, retained history and locks. The complete pending batch and its history
+commit together. The five-second lock and two-minute statement limits remain;
+all attempts and backoff share one ten-minute migration budget. No provider/GitHub
+I/O occurs inside the transaction. Both non-owner runtime schema probes must pass
+after migrations, before publication, and again before backend rollout.
 
 This automated path deliberately has **no backup/restore evidence gate**. It does
 not create backups, verify restore readiness or operate on original media. Do not
 interpret a passing migration job as disaster-recovery acceptance.
 
-`migration-rollout.json` records only source/tag, applied migration names and
-completed/unchanged status; successful runs retain it as a workflow artifact.
-Failures identify the stage and a safe database error code, never raw SQL or
-connection values. A failed or canceled job prevents publication/deployment.
+`migration-rollout.json` records only source/tag, applied migration names,
+completed/unchanged status and attempt count; successful runs retain it as a
+workflow artifact. Retry messages show the safe code, next attempt and delay.
+Failures identify the stage, safe database error code and attempt count, never
+raw SQL or connection values. A failed or canceled job prevents publication/deployment.
 An unacknowledged commit is not proof of rollback: inspect retained history before
 retrying. A rerun rechecks history under the lock and becomes a no-op if committed;
 it never repeats completed migrations or automatically unlocks/reverses changes.
 Already-applied incompatible migrations also need their rollout coordination;
 an unchanged ledger alone does not qualify older runtimes.
 
+After retry exhaustion, inspect the retained ledger, Knex lock and PostgreSQL's
+deadlock/blocker report. Long-lived transactions or a consistently busy lock set
+need a coordinated quiet window, not larger blanket timeouts or forced unlocks.
+Permanent DDL/auth/history errors, retained locks, statement timeouts, and uncertain
+connection/commit outcomes are not automatically retried. Fix the reported cause
+before explicitly resuming the original eligible release. Changes to this runner
+ship through a new ordinary release; do not edit a frozen release tag to install
+a recovery fix.
+
 Verification includes
 [`database-rollout.test.ts`](../../tests/src/database-rollout.test.ts) against
 disposable PostgreSQL 17 for populated 048→052 preservation, real non-owner RLS,
-batch rollback, concurrent/stale locks, lost commit acknowledgement and replay.
+batch rollback, busy writers on every admitted relation, released partial locks,
+real PostgreSQL deadlock recovery, bounded contention exhaustion, unchanged-schema
+admission, concurrent/stale locks, lost commit acknowledgement and replay.
 Release helper tests cover target/source guards, safe diagnostics and workflow
 ordering/secret scope. Hosted production configuration and execution remain
 separate acceptance checks.

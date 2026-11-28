@@ -12,6 +12,25 @@ const names = [
 ];
 const registry = names.map((name) => ({ name }));
 
+test("reviewed pending migrations declare all existing DDL and foreign-key lock targets without locking an unchanged schema", async () => {
+  const { migrationLocks } = await import("./migration-policy.mjs");
+  assert.deepEqual(migrationLocks([]), []);
+  assert.deepEqual(migrationLocks(names.slice(2)), [
+    { table: "accounts", mode: "ACCESS EXCLUSIVE" },
+    { table: "document_import_notes", mode: "ACCESS EXCLUSIVE" },
+    { table: "embedding_profiles", mode: "SHARE ROW EXCLUSIVE" },
+    { table: "memories", mode: "ACCESS EXCLUSIVE" },
+    { table: "memory_revisions", mode: "SHARE ROW EXCLUSIVE" },
+  ]);
+  assert.deepEqual(migrationLocks([names[3]]), [
+    { table: "embedding_profiles", mode: "SHARE ROW EXCLUSIVE" },
+    { table: "memories", mode: "SHARE ROW EXCLUSIVE" },
+    { table: "memory_revisions", mode: "SHARE ROW EXCLUSIVE" },
+  ]);
+  assert.deepEqual(migrationLocks([names[5]]), []);
+  assert.throws(() => migrationLocks(["unreviewed"]), /review/);
+});
+
 test("only an exact retained history prefix and reviewed online-compatible pending migrations are automated", () => {
   assert.deepEqual(migrationPlan(registry, names.slice(0, 2)), {
     applied: names.slice(0, 2),
