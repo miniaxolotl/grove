@@ -4002,7 +4002,10 @@ test("Tab cancels a keyboard drag without moving the note", async ({
 }) => {
   const state = await fixture(page, [note]);
   await page.goto(`${base}/app`);
-  const handle = page.locator(".memory-row .drag-handle");
+  const handle = page.getByRole("button", {
+    name: "Move Review preferences with drag or keyboard",
+    exact: true,
+  });
   await handle.focus();
   await page.keyboard.press("Space", { delay: 50 });
   await expect(page.locator(".memory-drag-preview")).toBeVisible();
@@ -6190,7 +6193,12 @@ test("copy feedback shares the active dialog stack without replacing a version-f
   const state = await fixture(page, [note]);
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto(`${base}/app`);
-  await page.locator(".memory-row .drag-handle").focus();
+  await page
+    .getByRole("button", {
+      name: "Move Review preferences with drag or keyboard",
+      exact: true,
+    })
+    .focus();
   await page.keyboard.press("Space", { delay: 50 });
   await expect(page.locator(".memory-drag-preview")).toBeVisible();
   await page.keyboard.press("ArrowDown");
@@ -8219,7 +8227,10 @@ test("mouse handles reveal collapsed destinations before one move", async ({
   state.projects.push(child);
   await page.goto(`${base}/app`);
   const sidebar = page.getByRole("region", { name: "Your notebooks" });
-  const handle = page.locator(".memory-row .drag-handle");
+  const handle = page.getByRole("button", {
+    name: "Move Review preferences with drag or keyboard",
+    exact: true,
+  });
   const box = (await handle.boundingBox())!;
   const parent = sidebar.locator(`[data-destination="${project.id}"]`);
   const parentBox = (await parent.boundingBox())!;
@@ -8271,7 +8282,10 @@ test("touch handles activate deliberately, scroll destinations and cancel withou
       })),
     );
     await page.goto(`${base}/app`);
-    const handle = page.locator(".memory-row .drag-handle");
+    const handle = page.getByRole("button", {
+      name: "Move Review preferences with drag or keyboard",
+      exact: true,
+    });
     await handle.scrollIntoViewIfNeeded();
     const cdp = await context.newCDPSession(page);
     const touch = (
