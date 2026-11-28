@@ -11,7 +11,7 @@ import { URL } from "node:url";
 
 const run = promisify(execFile);
 const upstream =
-  "https://repo.maven.apache.org/maven2/org/languagetool/languagetool-standalone/6.8/languagetool-standalone-6.8.zip";
+  "https://maven-central.storage-download.googleapis.com/maven2/org/languagetool/languagetool-standalone/6.8/languagetool-standalone-6.8.zip";
 const pin = "f04aecf37e35ef17d44b336da9668a5a3a871edd14bd83a766a7e110b9ebcd21";
 const sample = "synthetic pinned LanguageTool archive";
 const digest = createHash("sha256").update(sample).digest("hex");
@@ -30,6 +30,7 @@ async function command() {
     "Pinned checker download needs bounded HTTP retries before extraction",
   );
   assert(line.includes(upstream));
+  assert.doesNotMatch(line, /repo1\.maven\.org|repo\.maven\.apache\.org/);
   assert(line.includes(pin));
   return line.slice(4);
 }
