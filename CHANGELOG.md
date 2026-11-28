@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.11.40](https://github.com/miniaxolotl/grove/compare/v1.11.39...v1.11.40) (2026-11-28)
+
+
+### Features
+
+* **release:** manage the private LanguageTool service ([#365](https://github.com/miniaxolotl/grove/issues/365)) ([162e913](https://github.com/miniaxolotl/grove/commit/162e913401dab19be6686d568704edbebd9b7b9f))
+
+
+### Bug Fixes
+
+* **ci:** synchronize browser saves and drag readiness ([#366](https://github.com/miniaxolotl/grove/issues/366)) ([d969143](https://github.com/miniaxolotl/grove/commit/d969143578ada905abcd4302c57378a128711a15))
+
 ## [1.11.39](https://github.com/miniaxolotl/grove/compare/v1.11.38...v1.11.39) (2026-11-27)
 
 
