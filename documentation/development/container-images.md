@@ -38,9 +38,14 @@ reconciled through fresh registry reads on retry.
 
 `container-images.json` records all four component digests, source and release
 tag in the release workflow artifact. The existing `manifest.json` keeps the API
-identity used by downstream deployment. Publication does **not** add a paid
-checker, change its saved size/count, configure an API checker URL, enroll users
-or transmit paragraphs. Follow the separate [checker rollout](languagetool-operations.md)
+identity used by downstream deployment. Publication exports separate API and
+LanguageTool digest outputs. With production `GROVE_LANGUAGETOOL_DEPLOY=true`, the
+same run's proposal and backend deployment consume the verified checker output
+and wait for the exact active API/worker/checker generation before website delivery.
+There is no manually supplied checker tag or floating `latest` deployment.
+Publication alone does **not** add a paid checker, change its saved size/count,
+configure an API checker URL, enroll users or transmit paragraphs.
+Follow the [checker rollout](languagetool-operations.md)
 and [deployment procedure](../deploy.md) for live changes. Vercel remains the
 website deployment target; publishing its container does not switch providers.
 

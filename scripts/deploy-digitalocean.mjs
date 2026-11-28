@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
+import { execFileSync } from "node:child_process";
 import console from "node:console";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -9,10 +10,10 @@ import { setTimeout } from "node:timers/promises";
 import { pathToFileURL, URL } from "node:url";
 import { parseArgs, isDeepStrictEqual } from "node:util";
 import { assertCurrentRef, workflowContext } from "./ci/current-ref.mjs";
-import {retireHeldControls} from './release/held-retirement.mjs';
-import {probeConsole} from './release/held-console.mjs';
-import {validateCompleteInstanceInventory} from './release/held-instance-inventory.mjs';
-import {resolveHeldDecision} from './release/held-delivery.mjs';
+import { retireHeldControls } from "./release/held-retirement.mjs";
+import { probeConsole } from "./release/held-console.mjs";
+import { validateCompleteInstanceInventory } from "./release/held-instance-inventory.mjs";
+import { resolveHeldDecision } from "./release/held-delivery.mjs";
 
 const { AbortSignal, fetch, structuredClone } = globalThis;
 
@@ -336,6 +337,68 @@ export function updateImageSpec(
   return spec;
 }
 
+// Only the protected release path may replace a saved source-tagged checker.
+// Ordinary rollouts remain strict and preserve the previously accepted pin.
+export function releaseImageSpec(current, digest, ltDigest) {
+  imageDigest(digest);
+  imageDigest(ltDigest);
+  const spec = structuredClone(current);
+  const checkers =
+    spec?.services?.filter((part) => part.name === "languagetool") ?? [];
+  assert(checkers.length <= 1, "Unexpected LanguageTool component count");
+  if (checkers.length) {
+    const checker = checkers[0];
+    const image = checker.image;
+    assert(
+      image?.registry_type === "DOCKER_HUB" &&
+        image.registry === "miniaxolotl" &&
+        ["grove", "grove-languagetool"].includes(image.repository),
+      "Unexpected LanguageTool image source",
+    );
+    if (image.tag !== undefined) {
+      assert(
+        !image.digest &&
+          (image.repository === "grove"
+            ? /^languagetool-sha-[a-f0-9]{40}$/.test(image.tag)
+            : /^sha-[a-f0-9]{40}$/.test(image.tag)),
+        "Only a source-tagged checker may be adopted by a release",
+      );
+    } else imageDigest(image.digest);
+    delete image.tag;
+    image.digest = ltDigest;
+    image.repository = "grove-languagetool";
+    privateChecker(spec);
+  }
+  const next = updateImageSpec(spec, digest, ltDigest);
+  const checker = privateChecker(next);
+  checker.health_check.initial_delay_seconds = Math.max(
+    180,
+    checker.health_check.initial_delay_seconds ?? 0,
+  );
+  return next;
+}
+
+export function assertReleaseCheckerState(app) {
+  assert(
+    !app.pending_deployment &&
+      !app.in_progress_deployment &&
+      app.active_deployment?.phase === "ACTIVE",
+    "Release checker rollout requires a settled active app",
+  );
+  const active = privateChecker(app.active_deployment.spec);
+  if (!active) {
+    for (const spec of [app.spec, app.active_deployment.spec])
+      assert(
+        !spec?.services
+          ?.find((part) => part.name === "api")
+          ?.envs?.some(
+            (entry) => entry.key === "LANGUAGETOOL_URL" && entry.value,
+          ),
+        "Bootstrap checker with paragraph transmission off",
+      );
+  }
+}
+
 function privateChecker(spec) {
   const parts =
     spec?.services?.filter((part) => part.name === "languagetool") ?? [];
@@ -439,21 +502,32 @@ async function main() {
       digest: { type: "string" },
       "languagetool-digest": { type: "string" },
       "coordinated-checker": { type: "string" },
+      "release-checker": { type: "string" },
       "expected-app-state": { type: "string" },
-      "retire-held-runtime": {type:'boolean'},
+      "retire-held-runtime": { type: "boolean" },
     },
   });
   const token = required(process.env, "DIGITALOCEAN_ACCESS_TOKEN");
   const appId = values["app-id"] ?? process.env.DIGITALOCEAN_APP_ID;
   const coordinated = values["coordinated-checker"] !== undefined;
+  const releaseChecker = values["release-checker"] !== undefined;
   const requestedLt =
-    values["coordinated-checker"] ?? values["languagetool-digest"];
+    values["release-checker"] ??
+    values["coordinated-checker"] ??
+    values["languagetool-digest"];
   let expectedAppState = values["expected-app-state"];
-  if(values['retire-held-runtime']){
-    assert(appId&&!values.create&&!requestedLt);
-    assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REF,'refs/heads/production');assert.equal(process.env.GITHUB_REF_PROTECTED,'true');
-    assert.equal(process.env.GITHUB_ACTOR,'miniaxolotl');assert.equal(process.env.GITHUB_TRIGGERING_ACTOR,'miniaxolotl');
-    assert.equal(resolveHeldDecision(process.env.RELEASE_SOURCE_SHA,true),null,'Only an ordinary non-held successor may retire controls');
+  if (values["retire-held-runtime"]) {
+    assert(appId && !values.create && !requestedLt);
+    assert.equal(process.env.GITHUB_ACTIONS, "true");
+    assert.equal(process.env.GITHUB_REF, "refs/heads/production");
+    assert.equal(process.env.GITHUB_REF_PROTECTED, "true");
+    assert.equal(process.env.GITHUB_ACTOR, "miniaxolotl");
+    assert.equal(process.env.GITHUB_TRIGGERING_ACTOR, "miniaxolotl");
+    assert.equal(
+      resolveHeldDecision(process.env.RELEASE_SOURCE_SHA, true),
+      null,
+      "Only an ordinary non-held successor may retire controls",
+    );
     assertCurrentRef(workflowContext());
   }
   if (expectedAppState !== undefined) {
@@ -465,6 +539,35 @@ async function main() {
       appId && !values.create && requestedLt === undefined,
       "Expected-state delivery requires an existing app without checker changes",
     );
+  }
+  if (releaseChecker) {
+    assert.equal(
+      process.env.GITHUB_REPOSITORY,
+      "miniaxolotl/grove",
+      "Unexpected release checker repository",
+    );
+    assert(
+      !coordinated &&
+        !values["languagetool-digest"] &&
+        appId &&
+        !values.create &&
+        (values.wait || values.propose) &&
+        process.env.GITHUB_ACTIONS === "true" &&
+        process.env.GROVE_LANGUAGETOOL_DEPLOY === "true",
+      "Invalid release checker rollout",
+    );
+    assert.match(process.env.RELEASE_SOURCE_SHA ?? "", /^[a-f0-9]{40}$/);
+    assert.match(process.env.RELEASE_TAG ?? "", /^v\d+\.\d+\.\d+$/);
+    assert.equal(
+      execFileSync("git", ["rev-parse", "HEAD"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      }).trim(),
+      process.env.RELEASE_SOURCE_SHA,
+      "Release checker source differs from admitted checkout",
+    );
+    assertCurrentRef(workflowContext());
+    imageDigest(requestedLt);
   }
   if (coordinated) {
     assert(
@@ -480,7 +583,7 @@ async function main() {
     assertCurrentRef(workflowContext());
     imageDigest(requestedLt);
   }
-  if (requestedLt !== undefined && !coordinated) {
+  if (requestedLt !== undefined && !coordinated && !releaseChecker) {
     imageDigest(requestedLt);
     assert(
       appId &&
@@ -515,11 +618,14 @@ async function main() {
   if (appId) {
     assert.match(appId, /^[0-9a-f-]{36}$/, "Invalid DigitalOcean app ID");
     const { app } = await request(`/apps/${appId}`);
-    if(values['retire-held-runtime'])expectedAppState??=appStateFingerprint(app);
+    if (values["retire-held-runtime"])
+      expectedAppState ??= appStateFingerprint(app);
     if (expectedAppState !== undefined)
       assertExpectedAppState(app, expectedAppState);
     previousApp = app;
-    if (requestedLt !== undefined && !coordinated) {
+    if (releaseChecker) {
+      assertReleaseCheckerState(app);
+    } else if (requestedLt !== undefined && !coordinated) {
       const apiDigest = values.digest ?? process.env.GROVE_IMAGE_DIGEST;
       assert(
         !app.in_progress_deployment?.id &&
@@ -568,17 +674,35 @@ async function main() {
       app.active_deployment?.id,
       app.in_progress_deployment?.id,
     ].filter(Boolean);
-    spec = updateImageSpec(
-      app.spec,
-      values.digest ?? process.env.GROVE_IMAGE_DIGEST,
-      requestedLt,
-      coordinated,
-    );
-    if(values['retire-held-runtime'])spec=await retireHeldControls(app,spec,{
-      getInstances:async()=>validateCompleteInstanceInventory(await request(`/apps/${appId}/instances`)),
-      probe:scope=>probeConsole(scope),
-      ready:async()=>{const r=await fetch('https://api.grovenote.app/health/ready',{redirect:'error',cache:'no-store',signal:AbortSignal.timeout(15000)});assert.equal(r.status,200);return r.json();},
-    });
+    spec = releaseChecker
+      ? releaseImageSpec(
+          app.spec,
+          values.digest ?? process.env.GROVE_IMAGE_DIGEST,
+          requestedLt,
+        )
+      : updateImageSpec(
+          app.spec,
+          values.digest ?? process.env.GROVE_IMAGE_DIGEST,
+          requestedLt,
+          coordinated,
+        );
+    if (values["retire-held-runtime"])
+      spec = await retireHeldControls(app, spec, {
+        getInstances: async () =>
+          validateCompleteInstanceInventory(
+            await request(`/apps/${appId}/instances`),
+          ),
+        probe: (scope) => probeConsole(scope),
+        ready: async () => {
+          const r = await fetch("https://api.grovenote.app/health/ready", {
+            redirect: "error",
+            cache: "no-store",
+            signal: AbortSignal.timeout(15000),
+          });
+          assert.equal(r.status, 200);
+          return r.json();
+        },
+      });
     if (expectedAppState !== undefined && isDeepStrictEqual(spec, app.spec)) {
       if (process.env.GITHUB_ACTIONS === "true")
         assertCurrentRef(workflowContext());
@@ -601,6 +725,27 @@ async function main() {
     });
   }
   const ltDigest = privateChecker(spec)?.image.digest;
+  if (
+    releaseChecker &&
+    isDeepStrictEqual(previousApp.spec, spec) &&
+    isDeepStrictEqual(previousApp.active_deployment.spec, spec) &&
+    findDeployment(
+      [previousApp.active_deployment],
+      values.digest ?? process.env.GROVE_IMAGE_DIGEST,
+      [],
+      ltDigest,
+    )
+  ) {
+    assertCurrentRef(workflowContext());
+    console.log(
+      JSON.stringify({
+        action: "already-active",
+        deploymentId: previousApp.active_deployment.id,
+        languagetoolDigest: ltDigest,
+      }),
+    );
+    return;
+  }
   const proposal = await request("/apps/propose", {
     spec,
     ...(appId ? { app_id: appId } : {}),
@@ -648,7 +793,11 @@ async function main() {
   if (process.env.GITHUB_ACTIONS === "true")
     assertCurrentRef(workflowContext());
   const { app } = appId
-    ? await request(`/apps/${appId}`, { spec, update_all_source_versions:false }, "PUT")
+    ? await request(
+        `/apps/${appId}`,
+        { spec, update_all_source_versions: false },
+        "PUT",
+      )
     : await request("/apps", { spec });
   const digest = spec.services.find((item) => item.name === "api").image.digest;
   let deployment = findDeployment(

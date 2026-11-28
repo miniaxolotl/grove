@@ -119,7 +119,10 @@ providers/dimensions never silently fall back. See [models](models.md).
    required. Rerun the original failed Source Release attempt to resume preparation;
    it reuses the same tag/ref/PR. Automatic admission uses the successful source
    workflow identity, not a selection artifact with an expiry date.
-3. Before an incompatible rollout, follow [schema upgrades](operations/schema.md):
+3. Deploy automatically applies reviewed online-compatible pending migrations from
+   the admitted source before publication, using a separate migration-owner secret.
+   No backup/restore evidence is required by that stage. Before an incompatible
+   rollout, follow the manual [schema procedure](operations/schema.md):
    inspect actual applied history, verify a retained backup and isolated restore,
    pause/drain old writers and apply pending forward migrations using the owner.
    Review the changed features' own rollout requirements; do not blindly run old
@@ -127,13 +130,18 @@ providers/dimensions never silently fall back. See [models](models.md).
 4. Require strict `CI Gate` and resolved conversations; promotion uses a **merge
    commit**, never bypass/force. [Release conventions](release-conventions.md) owns
    naming/version policy; [pipeline conventions](pipeline-conventions.md) owns CI.
-5. Production **Deploy** admits exact released source, probes its required database
+5. Production **Deploy** admits exact released source, migrates the reviewed schema
+   transactionally, probes its required database
    schema with both runtime roles, preflights every npm tarball,
    publishes coordinated packages and all four component images to GHCR and Docker
    Hub, then deploys API/worker by immutable digest. See the [image contract](development/container-images.md)
    for component names, compatibility aliases, runtime configuration and retries.
    Missing `DIGITALOCEAN_ACCESS_TOKEN`/`DIGITALOCEAN_APP_ID` is an error. Verify registry
    integrity, active provider generation, both component digests and readiness.
+   With production `GROVE_LANGUAGETOOL_DEPLOY=true`, proposal/deployment also
+   consume the verified release checker digest and require its private `/ready`
+   service in the active generation. The [checker rollout](development/languagetool-operations.md)
+   keeps paragraph transmission separate and preserves selected capacity.
    After publication/image verification it attaches the admitted source's unsigned
    browser ZIPs and integrity metadata to the existing GitHub release, with direct
    links in its Downloads section. [Release downloads](release-conventions.md#release-downloads)
@@ -149,7 +157,15 @@ providers/dimensions never silently fall back. See [models](models.md).
    provider, privacy-log or physical-device acceptance. Record evidence in the
    release PR; leave unrun checks explicit.
 
-### Read-only schema preflight
+### Migration configuration and read-only schema preflight
+
+Configure `GROVE_MIGRATION_DATABASE_URL` as a protected production environment
+secret for the owner login, on the same database as both runtime URLs. Only the
+`migrate` job's migration step receives it. Missing/mismatched credentials, changed
+history, unsafe pending migrations or retained locks stop the release. See
+[automatic migration rollout](operations/schema.md#automatic-production-rollout)
+for compatibility policy, transaction bounds and recovery. This stage never runs
+on development or pull requests, and never migrates with runtime credentials.
 
 Historical held-source recovery remains governed by the separate
 [held lifecycle contract](development/held-release.md). Ordinary releases do not

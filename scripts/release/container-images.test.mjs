@@ -30,6 +30,15 @@ test("four runnable components publish independently to both registries", async 
   assert.throws(() => imagePlan("a".repeat(40), "latest"));
 });
 
+test("publication exports the verified checker separately from the API deployment digest", () => {
+  const source = readFileSync("scripts/release/container-images.mjs", "utf8");
+  assert.match(source, /digest=\$\{manifest.images.api.digest\}/);
+  assert.match(
+    source,
+    /languagetool_digest=\$\{manifest.images.languagetool.digest\}/,
+  );
+});
+
 function fixture(plan) {
   const refs = new Map(),
     writes = [],

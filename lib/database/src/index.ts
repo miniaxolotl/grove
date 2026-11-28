@@ -17,6 +17,7 @@ export function createDatabase(
     max?: number;
     acquireTimeoutMs?: number;
     statementTimeoutMs?: number;
+    log?: Knex.Config["log"];
   } = {},
 ) {
   const db = knex({
@@ -32,6 +33,7 @@ export function createDatabase(
     acquireConnectionTimeout: options.acquireTimeoutMs ?? 10000,
     ...knexSnakeCaseMappers(),
     migrations: { migrationSource },
+    log: options.log,
   });
   statementTimeouts.set(db, options.statementTimeoutMs ?? 10000);
   return db;

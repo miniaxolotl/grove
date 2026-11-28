@@ -11,7 +11,58 @@ To inspect source registration without connecting to a database:
 pnpm exec tsx -e 'import { migrations } from "./lib/database/src/migrations.ts"; console.log(migrations.map(m => m.name).join("\n"))'
 ```
 
-## Procedure
+## Automatic production rollout
+
+Deploy runs `migrate` after immutable-source admission and before publication.
+It checks out the admitted release tag's commit, rejects a superseded production
+operation, and uses the step-scoped `GROVE_MIGRATION_DATABASE_URL` production
+environment secret. This must be the actual owner of `public.knex_migrations`
+and `public.memories`, not either runtime login. It must target the same database
+as `GROVE_API_DATABASE_URL` and `GROVE_WORKER_DATABASE_URL`, with
+`sslmode=verify-full` (optionally `channel_binding=require` or `prefer`) and no
+target/authentication query overrides. Owner credentials
+are never passed to builds, images, runtime probes or application services.
+
+The runner reuses the canonical registry and Knex migration ledger. Existing
+history must be an exact registry prefix; it never bootstraps an empty database,
+skips a migration, rewrites history or runs a down migration. The reviewed
+online-compatible set in
+[`migration-policy.mjs`](../../scripts/release/migration-policy.mjs) currently
+covers migrations 049–052. These preserve old API/worker operation during rollout.
+New pending migrations default to the manual procedure until their overlap and
+populated-preservation behavior is reviewed and added to that policy. Nontransactional
+or incompatible changes require the coordinated owner procedure below.
+
+Execution takes a transaction-scoped advisory lock and the existing Knex lock;
+it fails rather than clearing a retained lock. The complete pending batch and
+its history commit together, with a five-second lock timeout, two-minute statement
+timeout and ten-minute transaction deadline. No provider/GitHub I/O occurs inside
+the transaction. Both non-owner runtime schema probes must pass after migrations,
+before publication, and again before backend rollout.
+
+This automated path deliberately has **no backup/restore evidence gate**. It does
+not create backups, verify restore readiness or operate on original media. Do not
+interpret a passing migration job as disaster-recovery acceptance.
+
+`migration-rollout.json` records only source/tag, applied migration names and
+completed/unchanged status; successful runs retain it as a workflow artifact.
+Failures identify the stage and a safe database error code, never raw SQL or
+connection values. A failed or canceled job prevents publication/deployment.
+An unacknowledged commit is not proof of rollback: inspect retained history before
+retrying. A rerun rechecks history under the lock and becomes a no-op if committed;
+it never repeats completed migrations or automatically unlocks/reverses changes.
+Already-applied incompatible migrations also need their rollout coordination;
+an unchanged ledger alone does not qualify older runtimes.
+
+Verification includes
+[`database-rollout.test.ts`](../../tests/src/database-rollout.test.ts) against
+disposable PostgreSQL 17 for populated 048→052 preservation, real non-owner RLS,
+batch rollback, concurrent/stale locks, lost commit acknowledgement and replay.
+Release helper tests cover target/source guards, safe diagnostics and workflow
+ordering/secret scope. Hosted production configuration and execution remain
+separate acceptance checks.
+
+## Manual owner procedure
 
 1. Confirm the immutable release source, registered order, actual applied history
    (`knex_migrations`) and all pending feature prerequisites. Resequence only an

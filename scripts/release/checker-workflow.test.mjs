@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
-test("production publishes all four images before backend deployment, without activating a checker", () => {
+test("production publishes all four images before backend deployment without enabling paragraph transmission", () => {
   const path = ".github/workflows/deploy.yml";
   assert(existsSync(path));
   const workflow = readFileSync(path, "utf8");
@@ -10,7 +10,8 @@ test("production publishes all four images before backend deployment, without ac
   assert.match(workflow, /github\.ref_protected == true/);
   assert.match(workflow, /promotion\.mjs wait-ci "\$GITHUB_SHA"/);
   assert.match(workflow, /promotion\.mjs production "\$GITHUB_SHA"/);
-  assert.match(workflow, /publish:\n\s+needs: candidate/);
+  assert.match(workflow, /migrate:\n\s+needs: candidate/);
+  assert.match(workflow, /publish:\n\s+needs: \[candidate, migrate\]/);
   assert.match(workflow, /environment: production/);
   assert.match(workflow, /ref: \$\{\{ needs\.candidate\.outputs\.sha \}\}/);
   assert.match(
@@ -23,6 +24,25 @@ test("production publishes all four images before backend deployment, without ac
   assert.match(workflow, /container-images\.json/);
   assert.match(workflow, /actions\/upload-artifact@[a-f0-9]{40}/);
   assert.doesNotMatch(workflow, /--languagetool-digest|LANGUAGETOOL_URL/);
+});
+
+test("production carries the verified checker digest and rollout flag into proposal and waited deployment", () => {
+  const workflow = readFileSync(".github/workflows/deploy.yml", "utf8");
+  assert.match(
+    workflow,
+    /languagetool_digest: \$\{\{ steps.image.outputs.languagetool_digest \}\}/,
+  );
+  assert.match(
+    workflow,
+    /GROVE_LANGUAGETOOL_DEPLOY: \$\{\{ vars.GROVE_LANGUAGETOOL_DEPLOY \}\}/,
+  );
+  assert.match(
+    workflow,
+    /GROVE_LANGUAGETOOL_DIGEST: \$\{\{ needs.publish.outputs.languagetool_digest \}\}/,
+  );
+  assert.match(workflow, /node scripts\/release\/backend-rollout.mjs propose/);
+  assert.match(workflow, /node scripts\/release\/backend-rollout.mjs deploy/);
+  assert.doesNotMatch(workflow, /LANGUAGETOOL_URL|languagetool-sha-/);
 });
 
 test("checker startup recovery is included in the actual image rehearsal", () => {

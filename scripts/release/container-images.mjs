@@ -287,6 +287,10 @@ if (
         process.env.GITHUB_OUTPUT,
         `digest=${manifest.images.api.digest}\n`,
       );
+      appendFileSync(
+        process.env.GITHUB_OUTPUT,
+        `languagetool_digest=${manifest.images.languagetool.digest}\n`,
+      );
     } else {
       assert.equal(process.argv[2], "promote");
       promoteImages(
