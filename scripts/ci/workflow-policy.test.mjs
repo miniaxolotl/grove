@@ -17,6 +17,26 @@ const pins = {
   "docker/login-action": "dbcb813823bdd20940b903addbd779551569679f",
   "opentofu/setup-opentofu": "a1320f892987e89d278cc92dc5adc984fb93aca4",
 };
+test("failed website journeys retain bounded synthetic browser diagnostics without weakening the test gate", () => {
+  const workflow = readFileSync(
+    new URL("../../.github/workflows/ci.yml", import.meta.url),
+    "utf8",
+  );
+  const website = workflow
+    .split("\n  website:\n")[1]
+    .split("\n  website-quality:\n")[0];
+  const diagnostics = website
+    .split("- name: Preserve failed browser diagnostics")[1]
+    .split(/\n {6}- /)[0];
+  assert.match(diagnostics, /if: \$\{\{ failure\(\) \}\}/);
+  assert.match(
+    diagnostics,
+    /actions\/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9/,
+  );
+  assert.match(diagnostics, /path: packages\/website\/test-results/);
+  assert.match(diagnostics, /retention-days: 7/);
+  assert.doesNotMatch(website, /continue-on-error|\|\| true/);
+});
 test("release contract checks retain the history needed to validate source anchors", () => {
   const workflow = readFileSync(
     new URL("../../.github/workflows/ci.yml", import.meta.url),

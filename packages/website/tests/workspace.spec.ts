@@ -708,7 +708,9 @@ test("notebook archive never discards a retained local draft", async ({
   });
   // An over-limit draft cannot autosave while navigating to notebook management.
   await editor.focus();
-  await page.keyboard.insertText("Unsaved writing".padEnd(250_001, "x") + "Unsaved writing");
+  await page.keyboard.insertText(
+    "Unsaved writing".padEnd(250_001, "x") + "Unsaved writing",
+  );
   await expect(page.locator(".note-save-status")).toContainText(/over.*limit/i);
   await page
     .getByRole("button", { name: "Back to notes", exact: true })
@@ -3968,7 +3970,11 @@ test("keyboard drag cancels safely and moves a memory to a chosen project", asyn
 }) => {
   const state = await fixture(page, [note]);
   await page.goto(`${base}/app`);
-  const handle = page.locator(".memory-row .drag-handle");
+  // Loading placeholders also have .drag-handle spans; wait for the real control.
+  const handle = page.getByRole("button", {
+    name: "Move Review preferences with drag or keyboard",
+    exact: true,
+  });
   await handle.focus();
   // dnd-kit's keyboard sensor attaches document listeners after the activation event.
   await page.keyboard.press("Space", { delay: 50 });
@@ -4120,14 +4126,22 @@ test("personal prompts save explicit preferences and the editor exposes independ
     dialog.getByLabel("Let Grove choose the note type"),
   ).not.toBeChecked();
   await dialog.getByRole("button", { name: "Save note", exact: true }).click();
-  expect(
-    state.calls.filter((call) => call.path === "/memories").at(-1)?.body,
-  ).toMatchObject({
-    projectId: null,
-    kind: "preference",
-    autoKind: false,
-    retentionDays: null,
-  });
+  await expect
+    .poll(
+      () =>
+        state.calls.find(
+          (call) =>
+            call.path === "/memories" &&
+            call.body.content ===
+              "# Communication\n\nStart with a short answer, then show an example.",
+        )?.body,
+    )
+    .toMatchObject({
+      projectId: null,
+      kind: "preference",
+      autoKind: false,
+      retentionDays: null,
+    });
   await page
     .getByRole("navigation", { name: "Workspace views" })
     .getByRole("button", { name: "Preferences", exact: true })
@@ -4140,19 +4154,52 @@ test("personal prompts save explicit preferences and the editor exposes independ
   await page.getByText("Note options", { exact: true }).click();
   await chooseOption(page.getByLabel("Keep this note"), "ephemeral");
   await chooseOption(page.getByLabel("Expires after"), "7");
+  await expect(page.getByLabel("Expires after")).toHaveText("7 days");
   await page
     .getByRole("dialog", { name: "Note properties", exact: true })
     .getByRole("button", { name: "Close dialog", exact: true })
     .click();
   // Choose the lifetime before typing can trigger first-save navigation.
+  const createStarted = Promise.withResolvers<Record<string, unknown>>();
+  const releaseCreate = Promise.withResolvers<void>();
+  await page.route("**/api/grove/memories", async (route) => {
+    const body = route.request().postDataJSON();
+    if (body.content === "Temporary review context") {
+      createStarted.resolve(body);
+      await releaseCreate.promise;
+    }
+    await route.fallback();
+  });
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
   await page
     .getByLabel("What should stay with you?")
     .fill("Temporary review context");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
+  const outgoing = await createStarted.promise;
+  try {
+    // The create is deliberately held before the fixture sees it. Do not read
+    // the preceding personal note's request while this dispatch is pending.
+    expect(outgoing.retentionDays).toBe(7);
+  } finally {
+    releaseCreate.resolve();
+    await page.clock.resume();
+  }
+  await expect
+    .poll(
+      () =>
+        [...state.records.values()].find(
+          (record) => record.content === "Temporary review context",
+        )?.retentionDays,
+    )
+    .toBe(7);
   expect(
-    state.calls.filter((call) => call.path === "/memories").at(-1)?.body
-      .retentionDays,
-  ).toBe(7);
+    state.calls.filter(
+      (call) =>
+        call.path === "/memories" &&
+        call.body.content === "Temporary review context",
+    ),
+  ).toHaveLength(1);
   await page.goto(`${base}/app/profile`);
   await page.screenshot({
     path: info.outputPath("personal-context.png"),

@@ -133,6 +133,14 @@ jobs:
         run: |
           workers=$(node -p 'Math.min(4, require("node:os").availableParallelism())')
           pnpm --filter website test --workers="$workers"
+      - name: Preserve failed browser diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: website-failure-${{ github.sha }}-${{ github.run_attempt }}
+          path: packages/website/test-results
+          retention-days: 7
+          if-no-files-found: ignore
       - if: ${{ github.event_name != 'pull_request' && github.ref_protected && steps.browser-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
