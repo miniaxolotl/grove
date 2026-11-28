@@ -15,12 +15,22 @@ export interface RolloutDependencies {
   registry?: { name: string; config?: { transaction?: boolean } }[];
   assertCurrent?: () => unknown | Promise<unknown>;
   assertSource?: (env: RolloutEnvironment) => unknown | Promise<unknown>;
+  wait?: (milliseconds: number) => unknown | Promise<unknown>;
+  now?: () => number;
+  onRetry?: (event: {
+    attempt: number;
+    nextAttempt: number;
+    code: string;
+    stage: string;
+    delayMs: number;
+  }) => void;
 }
 export interface MigrationReceipt {
   sourceSha: string;
   tag: string;
   status: "unchanged" | "completed";
   applied: string[];
+  attempts: number;
 }
 export function rolloutMigrations(
   env: RolloutEnvironment,

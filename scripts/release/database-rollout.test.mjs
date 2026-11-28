@@ -33,6 +33,10 @@ function fixture(options = {}) {
   const trx = {
     raw: async (sql) => {
       calls.push(sql);
+      if (sql.startsWith("LOCK TABLE")) {
+        const error = options.lockErrors?.shift();
+        if (error) throw error;
+      }
       if (sql.includes("pg_try_advisory_xact_lock"))
         return { rows: [{ acquired: !options.locked }] };
       if (sql.includes("pg_get_userbyid"))
@@ -55,6 +59,8 @@ function fixture(options = {}) {
     migrate: {
       latest: async () => {
         calls.push("migrate");
+        const error = options.errors?.shift();
+        if (error) throw error;
         if (options.error) throw options.error;
         const pending = names.slice(history.length);
         history.push(...pending);
@@ -75,15 +81,163 @@ function fixture(options = {}) {
       return {
         transaction: async (run) => {
           calls.push("begin");
-          return run(trx);
+          try {
+            const result = await run(trx);
+            calls.push("commit");
+            return result;
+          } catch (error) {
+            calls.push("rollback");
+            throw error;
+          }
         },
         destroy: async () => {
           calls.push("close");
         },
       };
     },
+    wait: async (ms) => calls.push(["wait", ms]),
+    onRetry: (event) => calls.push(["retry", event]),
   };
 }
+
+const pgError = (code) =>
+  Object.assign(new Error("private SQL private-owner"), { code });
+
+test("confirmed deadlocks retry the whole rolled-back transaction with fresh fences and bounded backoff", async () => {
+  const deps = fixture({ errors: [pgError("40P01"), pgError("40P01")] });
+  const result = await rolloutMigrations(environment(), deps);
+  assert.equal(result.attempts, 3);
+  assert.deepEqual(result.applied, [names[1]]);
+  assert.equal(deps.calls.filter((call) => call === "begin").length, 3);
+  assert.equal(deps.calls.filter((call) => call === "rollback").length, 2);
+  assert.equal(deps.calls.filter((call) => call === "fence").length, 4);
+  assert.equal(deps.calls.filter((call) => call === "source").length, 3);
+  for (const [index, call] of deps.calls.entries()) {
+    if (Array.isArray(call) && call[0] === "wait") {
+      assert(call[1] >= 1000 && call[1] <= 4250);
+      assert.equal(deps.calls[index - 2], "rollback");
+    }
+  }
+  assert.doesNotMatch(
+    JSON.stringify(deps.calls.filter(Array.isArray)),
+    /private|SQL/,
+  );
+});
+
+test("NOWAIT table admission yields and retries without entering DDL or holding locks during backoff", async () => {
+  const deps = fixture({ lockErrors: [pgError("55P03")] });
+  const result = await rolloutMigrations(environment(), deps);
+  assert.equal(result.attempts, 2);
+  assert.equal(deps.calls.filter((call) => call === "migrate").length, 1);
+  assert.equal(deps.calls.filter((call) => call === "rollback").length, 1);
+  const lock = deps.calls.find(
+    (call) =>
+      typeof call === "string" &&
+      call.startsWith("LOCK TABLE public.memories "),
+  );
+  assert.match(lock, /public\.memories/);
+  assert.match(lock, /NOWAIT/);
+  assert(deps.calls.indexOf(lock) < deps.calls.indexOf("migrate"));
+});
+
+test("a competing completed rollout becomes a no-op, while changed history and retained locks still stop retries", async () => {
+  const history = names.slice(0, 1);
+  const deps = fixture({ history, errors: [pgError("40P01")] });
+  deps.wait = async () => {
+    history.push(names[1]);
+  };
+  const result = await rolloutMigrations(environment(), deps);
+  assert.equal(result.status, "unchanged");
+  assert.equal(result.attempts, 2);
+  assert.deepEqual(result.applied, []);
+  assert.equal(deps.calls.filter((call) => call === "migrate").length, 1);
+  for (const drift of ["history", "knexLocked", "owner", "locked"]) {
+    const options = { errors: [pgError("40P01")], history: names.slice(0, 1) };
+    const changed = fixture(options);
+    changed.wait = async () => {
+      if (drift === "history") options.history.push("unknown");
+      else options[drift] = drift === "owner" ? "grove_api" : true;
+    };
+    await assert.rejects(rolloutMigrations(environment(), changed));
+    assert.equal(changed.calls.filter((call) => call === "migrate").length, 1);
+  }
+});
+
+test("persistent admission contention is bounded and permanent admission errors do not retry", async () => {
+  const deps = fixture({
+    lockErrors: Array.from({ length: 4 }, () => pgError("55P03")),
+  });
+  await assert.rejects(
+    rolloutMigrations(environment(), deps),
+    /migration table lock admission \(55P03\).*4 attempts/,
+  );
+  assert.equal(deps.calls.filter((call) => call === "begin").length, 4);
+  assert(!deps.calls.includes("migrate"));
+  const denied = fixture({ lockErrors: [pgError("42501")] });
+  await assert.rejects(rolloutMigrations(environment(), denied), /42501/);
+  assert.equal(denied.calls.filter((call) => call === "begin").length, 1);
+});
+
+test("persistent deadlocks stop after four attempts without leaking SQL or credentials", async () => {
+  const deps = fixture({ error: pgError("40P01") });
+  await assert.rejects(rolloutMigrations(environment(), deps), (error) => {
+    assert.match(error.message, /40P01/);
+    assert.match(error.message, /4 attempts/);
+    assert.doesNotMatch(error.message, /private|SQL/);
+    return true;
+  });
+  assert.equal(deps.calls.filter((call) => call === "begin").length, 4);
+  assert.equal(
+    deps.calls.filter((call) => Array.isArray(call) && call[0] === "wait")
+      .length,
+    3,
+  );
+  assert.equal(deps.calls.at(-1), "close");
+});
+
+test("DDL lock timeouts, permanent errors and uncertain connection outcomes never retry", async () => {
+  for (const code of [
+    "55P03",
+    "57014",
+    "42501",
+    "42703",
+    "40001",
+    "ECONNRESET",
+    "ETIMEDOUT",
+  ]) {
+    const deps = fixture({ error: pgError(code) });
+    await assert.rejects(
+      rolloutMigrations(environment(), deps),
+      new RegExp(code),
+    );
+    assert.equal(deps.calls.filter((call) => call === "begin").length, 1);
+    assert.equal(deps.calls.filter(Array.isArray).length, 0);
+  }
+});
+
+test("a superseded release cannot retry a deadlock and the total ten-minute budget is not reset", async () => {
+  const deps = fixture({ error: pgError("40P01") });
+  let fences = 0;
+  deps.assertCurrent = () => {
+    if (++fences === 3) throw new Error("private superseded source");
+  };
+  await assert.rejects(
+    rolloutMigrations(environment(), deps),
+    /current production fence/,
+  );
+  assert.equal(deps.calls.filter((call) => call === "begin").length, 1);
+  const deadline = fixture({ error: pgError("40P01") });
+  let clock = 0;
+  deadline.now = () => clock;
+  deadline.wait = async () => {
+    clock = 600_001;
+  };
+  await assert.rejects(
+    rolloutMigrations(environment(), deadline),
+    /retry deadline/,
+  );
+  assert.equal(deadline.calls.filter((call) => call === "begin").length, 1);
+});
 
 test("exact-source guarded rollout applies only pending migrations and closes its owner pool", async () => {
   const deps = fixture();
